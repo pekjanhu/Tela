@@ -1,0 +1,85 @@
+A VERY SHORT TELA DOCUMENTATION							PJ 23.2.1994
+-------------------------------
+
+STATEMENTS
+----------
+
+General
+-------
+
+Statements are separated by a semicolon ';'. They can be grouped by
+the curly braces '{' and '}'. The grouping tokens are similar to C but
+the use of the semicolon as a separator, as opposed to terminator, is
+a Pascal-like feature.
+
+The assignment statement is of the form var = value. The assignment
+character '=' is not an operator. This is like in Fortran and Pascal,
+except that in Pascal the assignment token is ':=' not '='.
+
+Flow control
+============
+
+If-statement
+------------
+
+if (expr) stmt [else stmt]
+
+The IF-statement in Tela is similar to C, except that the semicolons
+are not terminators but separators. The optional else-part is
+associated with the nearest IF like in Pascal and C.
+
+While-statement
+---------------
+
+while (expr) stmt
+
+The while-statement works as in C.
+
+Repeat-statement
+----------------
+
+repeat
+	stmt1;
+	stmt2;
+	...
+until expr;
+
+The repeat statement is similar to Pascal, including the use of
+semicolons. Notice that you don't have to use the statement grouping
+braces between repeat and until.
+
+For-statement
+------------
+
+for (init-stmt; expr; incr-stmt) body-stmt
+
+The syntax of for-statement is reminiscent to C. Note, however that in
+C, the first and third components inside the parentheses are
+expressions, not statements. Tela cannot use expressions in these
+places since expressions cannot contain assignments.
+
+Semantically the for-statement is equivalent to the following
+while-construct:
+
+init-stmt;
+while (expr) {
+	body-stmt;
+	incr-stmt
+};
+
+
+/* NOT YET EXPLAINED:
+stmt_ne	: set_stmt
+		| '[' arglist ']' '=' function_call { $$ = NList(FSET,$2,$5); }
+		| fdef
+		| break_stmt
+		| continue_stmt
+		| return_stmt
+		| incr_stmt
+		| decr_stmt
+		| disp_stmt
+		| NOP { $$ = new Tnode(0,FHARDNOP,0); }
+		| '{' stmtseq '}' { $$ = $2; }
+		| error ';' { $$ = 0; }
+		;
+*/

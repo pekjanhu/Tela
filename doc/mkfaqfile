@@ -1,0 +1,6 @@
+#!/bin/sh
+#
+# mkfaqfile : produce telafaq.txt and telafaq.html from telafaq
+# PJ 30.11.1994
+mkfaq telafaq
+mkfaq instfaq

@@ -1,0 +1,75 @@
+A short README for Tela the Tensor language					PJ 20.2.1994
+-------------------------------------------
+
+What is it
+----------
+
+Tela (pronounced teh-lah) is a interactive numerical computing
+primarily targeted for prototyping numerical simulations. It is,
+however, also a general purpose programming language that reminds C
+but has also derived something from Pascal and other interactive
+systems such as Matlab.
+
+What it is not
+--------------
+
+Tela is not a Matlab clone. Many Tela's features are more powerful
+than in Matlab; on the other hand Tela's linear algebra routines are
+not as sophisticated than in Matlab.
+
+Pros and cons
+-------------
+
++ Supports integer, real and complex arithmetic
+
++ Supports arbitrary rank arrays (eh, at the moment the maximum is four)
+
++ Speed in both scalar and vector computation
+
++ Writing a tela->C++ compiler is easy (but not yet implemented)
+
+- No graphics (yet)
+
+- No sophisticated linear algebra routines (yet)
+
+Getting started
+---------------
+
+Synopsis: tela [-v] [-b] [input.t]
+
+-v : sets verbose mode
+-b : exits after executing input files (batch mode)
+
+If -b is not given, Tela executes given input files, if any, and then
+enters interactive mode.
+
+Use the command help(fname) to get help on fname, eg. help(rand),
+help(format).
+
+You can set and reset the verbose mode interactively by verbose(on)
+and verbose(off).
+
+You can see the functions contained in the C-tela libraries by using
+the verbose mode flag -v.
+
+Tela architecture
+-----------------
+
+Tela programs are contained in t-files (files ending .t). They are
+first parsed, producing a Treecode representation, which is like Lisp.
+A code generator takes the Treecode and produces Flatcode, which is
+similar to machine code. The Flatcode is then interpreted (executed).
+
+In addition, C-tela code can be written. C-tela is like C++ but it has
+an extended syntax for argument lists resembling Tela. C-tela programs
+are contained in files ending with .ct. The .ct files are first
+preprocessed by the C-tela preprocessor ctpp and then compiled using
+the system C++ compiler. The resulting object files can be made
+callable by Tela by either statically linking them with the
+executable, or using the DLD dynamic linking on systems that support
+that. (DLD support is not yet implemented). By using C-tela, it is
+easy to add efficient C functions to Tela without worrying about
+destroying something in the Tela kernel.
+
+
+

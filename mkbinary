@@ -1,0 +1,166 @@
+#!/bin/sh
+#
+# This file is part of tela the Tensor Language.
+# Copyright (c) 1994-1996 Pekka Janhunen
+#
+# ---------------------------------------------------
+# mkbinary - make Tela binary distribution tarfile
+# ---------------------------------------------------
+# call with no arguments from the directory where you
+# have Tela object files after doing make
+#
+if [ ! -f libtela.a ]; then
+	echo '*** mkbinary: no libtela.a in this directory, where are we?'
+	exit 1
+fi
+if [ -f objarithm.C ]; then
+	srcdir='.'
+elif [ -f ../objarithm.C ]; then
+	srcdir='..'
+else
+	echo '*** Tela sources are not in ./ nor in ../ .'
+    exit 1
+fi
+destdir=${TMPDIR:-/tmp}
+echo "Making Tela distribution tarfile."
+echo "You did already make tela succesfully, yes? Yes of course."
+echo "Where to put the tarfile [$destdir] ? "
+read ans
+if [ ".$ans" != "." ]; then
+	destdir=$ans
+fi
+version=`cat $srcdir/VERSION`
+if [ "$srcdir" = ".." ]; then
+	currdir=`pwd`
+	basedir=`basename $currdir`
+	case $basedir in
+	*-bin) system=`echo $basedir | sed 's/-bin//'` ;;
+	*) system=`uname -s` ;;
+	esac
+else
+	system=`uname -s`
+fi
+echo "System name [$system] ? "
+read ans
+if [ ".$ans" != "." ]; then
+	system=$ans
+fi
+teladir=$destdir/tela-${version}-${system}-bin
+if [ -d $teladir ]; then
+	echo "$teladir exists, return to overwrite"
+	read ans
+	rm -rf $teladir
+fi
+mkdir -p $teladir
+mkdir $teladir/ct
+mkdir $teladir/html
+mkdir $teladir/doc
+mkdir $teladir/t
+bindir="$teladir/${system}-bin"
+mkdir $bindir
+
+compname=`grep 'CPLUSPLUS[ ]*=' telakka | sed 's/CPLUSPLUS[ ]*=//' | tr -d '\042'`
+case $compname in
+	c++*|g++*|gcc*)
+		echo 'Linking static version (we are using GNU I guess)...'
+		./telakka -o newtela$$ -static
+		echo 'Copying tela itself ...'
+		cp newtela$$ $bindir/tela
+		rm -f newtela$$
+		;;
+	*)
+		echo 'Copying tela itself ...'
+		cp tela $bindir/
+		;;
+esac
+
+echo 'Copying t-files, ct-files and docs ...'
+(cd $srcdir/t; cp *.t *.hdf $teladir/t/)
+cp $srcdir/*.ct $teladir/ct/
+(cd $srcdir/doc; cp *.html $teladir/html/; cp *.sgml $teladir/; cp *.dvi *.ps *.txt *faq* *.1 $teladir/doc/)
+(cd $srcdir/m2t; make; cp m2t $bindir)
+
+# Simulated the which command
+plotmtv=''
+for i in `echo $PATH | tr ':' ' '`
+do
+	if [ -x ${i}/plotmtv ]; then
+		plotmtv=${i}/plotmtv
+		break
+	fi
+done
+if [ -x $plotmtv ]; then
+	echo "Copying PlotMTV $plotmtv"
+	cp $plotmtv $bindir
+else
+	echo 'PlotMTV executable not found in PATH.'
+	echo 'Where is it [RETURN=no PlotMTV wanted] ? '
+	read ans
+	if [ ".$ans" != "." ]; then
+		plotmtv=$ans
+		if [ -x $plotmtv ]; then
+			echo "Copying PlotMTV $plotmtv .."
+			cp $plotmtv $bindir
+		else
+			echo '*** Not found.'
+		fi
+	fi
+fi
+
+echo 'Setting permissions ..'
+(cd $teladir; find . -type f -exec chmod 644 {} ";"; find . -type d -exec chmod 755 {} ";")
+chmod 755 $bindir/*
+
+echo 'Writing 00README file ..'
+
+compiled=`./tela --version | tail -1`
+cat <<! >$teladir/00README
+This is Tela-$version binary distribution.
+$compiled
+To install, put all these files in /usr/local/lib/tela.
+Copy or link the executables tela, m2t, plotmtv in
+`basename $bindir` somewhere in your PATH, usually
+/usr/local/bin/.
+
+The documentation as HTML files is in html/.
+The same documentation as DVI, plain ASCII and PostScript
+files is in doc/. Man pages and Frequently Asked
+Questions lists are also in doc/.
+
+To install in different directory you must set the
+environment variable TELAPATH_SYSTEM and/or TELAPATH.
+
+To test it out, type tela. Run the demos by typing
+source("demo"). Some of the demos, for example the
+Matlab interface demo, do obviously not work in all
+systems.
+
+If the binaries do not work, then they do not work.
+If this happens to you, install Tela from the sources.
+This should not be too difficult, especially if you
+are compiling with gcc.
+
+Tela WWW page: http://www.geo.fmi.fi/prog/tela.html.
+Distribution FTP site: ftp.funet.fi:pub/sci/math/tela/.
+Bugs and suggestions: tela-bugs@fmi.fi,
+tela-suggestions@fmi.fi.
+
+This README file was generated automatically by the
+mkbinary script on `date`.
+!
+chmod 644 $teladir/00README
+
+cd $teladir
+cp 00README ..
+cd ..
+dirname=`basename $teladir`
+echo 'Making gzipped tarfile, this may take a while ....'
+tar cf - $dirname | gzip -9 >${dirname}.tar.gz
+echo "OK, removing scratch directory $teladir ..."
+rm -rf $dirname
+echo "Done. Tarfile is $destdir/${dirname}.tar.gz."
+
+
+
+		
+

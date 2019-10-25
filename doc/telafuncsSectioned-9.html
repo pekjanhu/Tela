@@ -1,0 +1,50 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="LinuxDoc-Tools 0.9.21">
+ <TITLE>Builtin Tela functions: dld.ct</TITLE>
+ <LINK HREF="telafuncsSectioned-10.html" REL=next>
+ <LINK HREF="telafuncsSectioned-8.html" REL=previous>
+ <LINK HREF="telafuncsSectioned.html#toc9" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="telafuncsSectioned-10.html">Next</A>
+<A HREF="telafuncsSectioned-8.html">Previous</A>
+<A HREF="telafuncsSectioned.html#toc9">Contents</A>
+<HR>
+<H2><A NAME="s9">9.</A> <A HREF="telafuncsSectioned.html#toc9">dld.ct</A></H2>
+
+<P>This section describes functions from file dld.ct.</P>
+
+<H2><A NAME="link"></A> <A NAME="ss9.1">9.1</A> <A HREF="telafuncsSectioned.html#toc9.1">link</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[] = link(filename)
+ link("file.o") makes C-tela functions in "file.o" available
+   to Tela. "file.o" must be compiled from a C-tela file
+   (usually "file.ct").
+   Error codes:
+   1: Cannot initialize DLD
+   2: Cannot link-load file
+   3: Argument not string or char
+   4: Cannot find fninfo pointer
+   5: Internal inconsistency
+   6: Undefined symbols remain
+   7: main function returned error code
+   8: Could not dlclose the previous linkage
+   9: Too many dynamically linked modules
+   10: File not found
+   
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+
+<HR>
+<A HREF="telafuncsSectioned-10.html">Next</A>
+<A HREF="telafuncsSectioned-8.html">Previous</A>
+<A HREF="telafuncsSectioned.html#toc9">Contents</A>
+</BODY>
+</HTML>

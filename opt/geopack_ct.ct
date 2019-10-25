@@ -1,0 +1,738 @@
+/*
+ * This file is part of tela the Tensor Language.
+ * Copyright (c) 1994-2004 Pekka Janhunen
+ */
+
+/*
+	geopack_ct.ct
+	Interface to GEOPACK software by N. Tsyganenko, year 2003 version.
+	Preprocess with ctpp.
+	C-tela code is C++ equipped with []=f() style function definition.
+*/
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <ctype.h>
+#include "geopackintf.H"
+
+#if 0
+static int DoubleObject(const Tobject& obj, float& result) {
+	int ret=1;
+	if (obj.kind() == Kint)
+		result = float(obj.IntValue());
+	else if (obj.kind() == Kreal)
+		result = float(obj.RealValue());
+	else {
+		result = 0;
+		ret = 0;
+	}
+	return ret;
+}
+#endif
+
+static TCoordSys ParseCoordsys(const char *s)
+// coordinate systems: geo,gsm,gse,gei,mag,sm
+{
+	if (s[0] == 'g') {
+		// geo,gei,gsm,gse
+		if (s[1] == 's') {
+			// gsm or gse
+			if (s[2] == 'm')
+				return COORDSYS_GSM;
+			else if (s[2] == 'e')
+				return COORDSYS_GSE;
+			else
+				return COORDSYS_NONE;
+		} else if (s[1] == 'e') {
+			// geo or gei
+			if (s[2] == 'o')
+				return COORDSYS_GEO;
+			else if (s[2] == 'i')
+				return COORDSYS_GEI;
+			else
+				return COORDSYS_NONE;
+		} else {
+			return COORDSYS_NONE;
+		}
+	} else if (s[0] == 'm') {
+		// mag
+		if (s[1] != 'a' || s[2] != 'g') return COORDSYS_NONE;
+		return COORDSYS_MAG;
+	} else if (s[0] == 's') {
+		// sm
+		if (s[1] != 'm') return COORDSYS_NONE;
+		return COORDSYS_SM;
+	} else {
+		return COORDSYS_NONE;
+	}
+	
+}
+
+[X,Y,Z] = geopack_coordtrans(fromto,x,y,z,epoch)
+/* [X,Y,Z] = geopack_coordtrans("fromto",x,y,z,epoch)
+   transforms Cartesian coordinates (x,y,z) to another system.
+   The first argument specifies the transformation, it must be a 4-6-character
+   string containing two coordinate system symbols. Valid coordinate
+   systems are GEO,GSM,GSE,GEI,MAG and SM. For example, "GEOGSM","GEISM",
+   "SMSM" and "MAGGSE" are valid first arguments where e.g. GEOGSM specifices
+   that (x,y,z) is in the GEO system and is to be transformed to the GSM system
+   (X,Y,Z). The last argument (epoch) is the number of milliseconds since
+   January 1, year 0000, see functions computeEPOCH, EPOCHbreakdown, parseEPOCH
+   and encodeEPOCH how to manipulate and construct epoch values.
+
+   The arguments x,y,z,epoch can be scalars or arrays. If they are arrays,
+   the must be of the same size. Scalars and arrays can be mixed, scalars
+   are implicitly promoted to arrays.
+
+   This function calls the GEOPACK Fortran routines by N. Tsyganenko et al.
+   The GEOPACK package operates in single precision.
+   Error codes:
+   -1: First arg not a string
+   -2: Second arg (x) must be int or real scalar or array
+   -3: Third arg (y) must be int or real scalar or array
+   -4: Fourth arg (z) must be int or real scalar or array
+   -5: Fifth arg (epoch) must be int or real scalar or array
+   -6: First arg not a string with 4, 5 or 6 characters
+   -7: First arg not a valid string (allowed coordsys: GEO,GSM,GSE,GEI,MAG,SM)
+   -8: Incompatible array dimensions
+ */
+{
+	if (!fromto.IsString()) return -1;
+	bool all_scalar;
+	if (x.IsArray() || y.IsArray() || z.IsArray() || epoch.IsArray()) {
+		all_scalar = false;
+		// at least one input arg is array
+	} else {
+		// all input args are scalars
+		all_scalar = true;
+		if (x.kind()!=Kint && x.kind()!=Kreal) return -2;
+		if (y.kind()!=Kint && y.kind()!=Kreal) return -3;
+		if (z.kind()!=Kint && z.kind()!=Kreal) return -4;
+		if (epoch.kind()!=Kint && epoch.kind()!=Kreal) return -5;
+	}
+	Tstring FROMTO = fromto;
+	if (strlen((char*)FROMTO) > 6 || strlen((char*)FROMTO) < 4) return -6;
+	char FromTo[7];
+	strcpy(FromTo,(char*)FROMTO);
+	int i;
+	for (i=0; FromTo[i]; i++) FromTo[i] = tolower(FromTo[i]);
+	const TCoordSys fromsys = ParseCoordsys(FromTo);
+	if (fromsys == COORDSYS_NONE) return -7;
+	int j;
+	if (fromsys == COORDSYS_SM) j = 2; else j = 3;
+	const char *const To = FromTo + j;
+	const TCoordSys tosys = ParseCoordsys(To);
+	if (tosys == COORDSYS_NONE) return -7;
+	if (all_scalar) {
+		const Treal xin = (x.kind()==Kint) ? x.IntValue() : x.RealValue();
+		const Treal yin = (y.kind()==Kint) ? y.IntValue() : y.RealValue();
+		const Treal zin = (z.kind()==Kint) ? z.IntValue() : z.RealValue();
+		const Treal epoch1 = (epoch.kind()==Kint) ? epoch.IntValue() : epoch.RealValue();
+		Treal xout,yout,zout;
+		Geopack_coordtrans(fromsys,tosys,&xin,&yin,&zin,&epoch1,1,&xout,&yout,&zout);
+		X = xout;
+		Y = yout;
+		Z = zout;
+	} else {
+		Tobject xin,yin,zin,epoch1;
+		TDimPack dp;
+		if (x.IsArray()) {
+			dp = x.dims();
+		} else if (y.IsArray()) {
+			dp = y.dims();
+		} else if (z.IsArray()) {
+			dp = z.dims();
+		} else if (epoch.IsArray()) {
+			dp = epoch.dims();
+		}
+		if (x.IsArray()) {
+			if (x.dims() != dp) return -8;
+		}
+		if (y.IsArray()) {
+			if (y.dims() != dp) return -8;
+		}
+		if (z.IsArray()) {
+			if (z.dims() != dp) return -8;
+		}
+		if (epoch.IsArray()) {
+			if (epoch.dims() != dp) return -8;
+		}
+		xin.rreserv(dp);
+		yin.rreserv(dp);
+		zin.rreserv(dp);
+		epoch1.rreserv(dp);
+		X.rreserv(dp);
+		Y.rreserv(dp);
+		Z.rreserv(dp);
+		int i;
+		const Tint n = dp.length();
+		if (x.kind() == Kint) {
+			for (i=0; i<n; i++) xin.RealPtr()[i] = x.IntValue();
+		} else if (x.kind() == Kreal) {
+			for (i=0; i<n; i++) xin.RealPtr()[i] = x.RealValue();
+		} else if (x.kind() == KIntArray) {
+			for (i=0; i<n; i++) xin.RealPtr()[i] = x.IntPtr()[i];
+		} else if (x.kind() == KRealArray) {
+			for (i=0; i<n; i++) xin.RealPtr()[i] = x.RealPtr()[i];
+		}
+		if (y.kind() == Kint) {
+			for (i=0; i<n; i++) yin.RealPtr()[i] = y.IntValue();
+		} else if (y.kind() == Kreal) {
+			for (i=0; i<n; i++) yin.RealPtr()[i] = y.RealValue();
+		} else if (y.kind() == KIntArray) {
+			for (i=0; i<n; i++) yin.RealPtr()[i] = y.IntPtr()[i];
+		} else if (y.kind() == KRealArray) {
+			for (i=0; i<n; i++) yin.RealPtr()[i] = y.RealPtr()[i];
+		}
+		if (z.kind() == Kint) {
+			for (i=0; i<n; i++) zin.RealPtr()[i] = z.IntValue();
+		} else if (z.kind() == Kreal) {
+			for (i=0; i<n; i++) zin.RealPtr()[i] = z.RealValue();
+		} else if (z.kind() == KIntArray) {
+			for (i=0; i<n; i++) zin.RealPtr()[i] = z.IntPtr()[i];
+		} else if (z.kind() == KRealArray) {
+			for (i=0; i<n; i++) zin.RealPtr()[i] = z.RealPtr()[i];
+		}
+		if (epoch.kind() == Kint) {
+			for (i=0; i<n; i++) epoch1.RealPtr()[i] = epoch.IntValue();
+		} else if (epoch.kind() == Kreal) {
+			for (i=0; i<n; i++) epoch1.RealPtr()[i] = epoch.RealValue();
+		} else if (epoch.kind() == KIntArray) {
+			for (i=0; i<n; i++) epoch1.RealPtr()[i] = epoch.IntPtr()[i];
+		} else if (epoch.kind() == KRealArray) {
+			for (i=0; i<n; i++) epoch1.RealPtr()[i] = epoch.RealPtr()[i];
+		}
+		Geopack_coordtrans(fromsys,tosys,xin.RealPtr(),yin.RealPtr(),zin.RealPtr(),
+						   epoch1.RealPtr(),n,X.RealPtr(),Y.RealPtr(),Z.RealPtr());
+	}
+	return 0;
+}
+
+static TFieldModel ParseModel1(const char *s, bool& success)
+{
+	success = true;
+	if (!strcmp(s,"t89")) {
+		return MODEL_T89;
+	} else if (!strcmp(s,"t96")) {
+		return MODEL_T96;
+	} else if (!strcmp(s,"t96_nofac")) {
+		return MODEL_T96_NOFAC;
+	} else if (!strcmp(s,"igrf")) {
+		return MODEL_IGRF;
+	} else if (!strcmp(s,"dip")) {
+		return MODEL_DIP;
+	} else if (!strcmp(s,"none") || strlen(s) == 0) {
+		return MODEL_NONE;
+	} else {
+		success = false;
+		return MODEL_NONE;
+	}
+}
+
+static bool ParseModelSpec(const char *str, TFieldModel& model1, TFieldModel& model2)
+{
+	const int n = strlen(str);
+	char *s = new char [n+1];
+	strcpy(s,str);
+	int i;
+	for (i=0; i<n; i++) s[i] = tolower(s[i]);
+	char *const commapos = strchr(s,',');
+	if (commapos) {
+		*commapos = '\0';
+		bool success1,success2;
+		model1 = ParseModel1(s,success1);
+		model2 = ParseModel1(commapos+1,success2);
+		delete [] s;
+		return success1 && success2;
+	} else {
+		bool success;
+		model1 = ParseModel1(s,success);
+		model2 = MODEL_NONE;
+		delete [] s;
+		return success;
+	}
+	delete [] s;
+}
+
+[Bx,By,Bz] = geopack_model(model,params,x,y,z,epoch; tiltangle)
+/* [Bx,By,Bz] = geopack_model(model,params,x,y,z,epoch;tiltangle)
+   computes a Tsyganenko model magnetic field.
+   Inputs:
+     model:     string specifying model to use
+	 params:    parameter vector for the model
+	 x,y,z:     GSM coordinates in units of R_E (6371.2 km)
+	 epoch:     Epoch used in IGRF part (and external, if
+	              tiltangle is not given)
+	 tiltangle: (optional) Dipole tilt angle in radians,
+	              do not use with IGRF
+   Outputs:
+     Bx,By,Bz:  GSM Cartesian B-field in nanotesla
+
+   Format of model specification string: either "MODEL"
+   or "MODEL,MODEL". Valid MODELs are DIP,IGRF,T89,T96,T96_NOFAC and NONE.
+   Empty string is synonym for NONE. The values are case
+   insensitive, i.e. both "T96" and "t96" can be used.
+   Examples of valid strings: "IGRF", "IGRF,T96", ",DIP",
+   "T89,", "None,t89". The T96_NOFAC is T96 from which Birkeland
+   currents have been left out; this switch was added by P.Janhunen.
+
+   Parameter vector for T96 and T96_NOFAC is #(Pdyn,Dst,By,Bz)
+   where Pdyn is solar wind dynamic pressure (nanopascal),
+   Dst the Dst index (nanotesla), By and Bz the IMF GSM
+   components (nanotesla).
+
+   Parameter vector for T89 is #(Kp), i.e., the vector contains
+   just one element, the Kp index. For DIP (dipole) and IGRF
+   models, the parameter vector is ignored (it must still be a
+   real or int vector, e.g., zeros(0) suffices).
+   
+   If tiltangle is given as seventh input argument, it is used
+   in the external field model, and epoch only affects the internal
+   part. If tiltangle is not given, it is computed automatically
+   from the epoch.
+
+   This function calls the GEOPACK Fortran routines by N. Tsyganenko et al.
+   The GEOPACK package operates in single precision. Using sophisticated
+   methods such as Bulirsch-Stoer or quality-controlled Runge-Kutta for
+   field-line tracing using geopack_model may therefore be problematic;
+   the function geopack_trace that is provided for this purpose uses
+   simpler methods, for this reason. This is a warning to those who would
+   like to improve the speed of geopack_trace by implementing a better
+   ODE integrator.
+   Error codes:
+   -1: First arg (model) not a string
+   -2: Second arg (params) is not a real vector
+   -3: Third arg (x) is not real scalar or array
+   -4: Fourth arg (y) is not real scalar or array
+   -5: Fifth arg (z) is not real scalar or array
+   -6: Sixth arg (epoch) is not real scalar or array
+   -7: Seventh arg (tiltangle) not real scalar
+   -8: First arg (model) is an invalid string
+   -9: Two Tsyganenko models cannot be combined (the other must be IGRF)
+   -10: Second arg (params) is of improper length (must be 1 for T89, 4 for T96/T96_NOFAC)
+   1: tiltangle setting ignored since IGRF model in use (use DIP instead)
+*/
+{
+	if (!model.IsString()) return -1;
+	const Tstring MODEL = model;
+	TFieldModel model1,model2;
+	if (!ParseModelSpec((char*)MODEL,model1,model2)) return -8;
+	if (model1 == MODEL_T89 || model1 == MODEL_T96 || model1 == MODEL_T96_NOFAC) {
+		if (model2 == MODEL_T89 || model2 == MODEL_T96 || model2 == MODEL_T96_NOFAC) {
+			return -9;
+		}
+	}
+	int paramlen = 0;	// 0 means any
+	if (model1 == MODEL_T89 || model2 == MODEL_T89) {
+		paramlen = 1;
+	} else if (model1 == MODEL_T96 || model2 == MODEL_T96 || model1 == MODEL_T96_NOFAC || model2 == MODEL_T96_NOFAC) {
+		paramlen = 4;
+	}
+	if (params.rank() != 1) return -2;
+	float paramvec[11];
+	int i;
+	if (params.kind() == KIntArray) {
+		if (params.length() != paramlen && paramlen > 0) return -10;
+		for (i=0; i<paramlen; i++) paramvec[i] = params.IntPtr()[i];
+	} else if (params.kind() == KRealArray) {
+		if (params.length() != paramlen && paramlen > 0) return -10;
+		for (i=0; i<paramlen; i++) paramvec[i] = params.RealPtr()[i];
+	} else {
+		return -2;
+	}
+	bool all_scalar;
+	if (x.IsArray() || y.IsArray() || z.IsArray() || epoch.IsArray()) {
+		all_scalar = false;
+		// at least one input arg is array
+	} else {
+		// all input args are scalars
+		all_scalar = true;
+		if (x.kind()!=Kint && x.kind()!=Kreal) return -3;
+		if (y.kind()!=Kint && y.kind()!=Kreal) return -4;
+		if (z.kind()!=Kint && z.kind()!=Kreal) return -5;
+		if (epoch.kind()!=Kint && epoch.kind()!=Kreal) return -6;
+	}
+	Treal TiltAngle = 0;
+	bool TiltAngleGiven = false;
+	if (Nargin == 7) {
+		if (tiltangle.kind() != Kint && tiltangle.kind() != Kreal) return -7;
+		TiltAngle = (tiltangle.kind()==Kint) ? tiltangle.IntValue() : tiltangle.RealValue();
+		TiltAngleGiven = true;
+	}
+	// IGRF model always takes tilt angle from epoch, TiltAngleGiven is meaningful
+	// only when internal field is either missing or is DIP.
+	bool warn_at_end = false;
+	if ((model1 == MODEL_IGRF || model2 == MODEL_IGRF) && TiltAngleGiven) {TiltAngleGiven = false; warn_at_end = true;}
+	if (all_scalar) {
+		const Treal xin = (x.kind()==Kint) ? x.IntValue() : x.RealValue();
+		const Treal yin = (y.kind()==Kint) ? y.IntValue() : y.RealValue();
+		const Treal zin = (z.kind()==Kint) ? z.IntValue() : z.RealValue();
+		const Treal epoch1 = (epoch.kind()==Kint) ? epoch.IntValue() : epoch.RealValue();
+		Treal Bxout=0,Byout=0,Bzout=0;
+		float Bx1,By1,Bz1;
+		if (model1 != MODEL_NONE) {
+			Geopack_model(model1,paramvec,xin,yin,zin,epoch1, TiltAngle,TiltAngleGiven,Bx1,By1,Bz1);
+			Bxout+= Bx1; Byout+= By1; Bzout+= Bz1;
+		}
+		if (model2 != MODEL_NONE) {
+			Geopack_model(model2,paramvec,xin,yin,zin,epoch1, TiltAngle,TiltAngleGiven,Bx1,By1,Bz1);
+			Bxout+= Bx1; Byout+= By1; Bzout+= Bz1;
+		}
+		Bx = Bxout; By = Byout; Bz = Bzout;
+	} else {
+		Tobject xin,yin,zin,epoch1;
+		TDimPack dp;
+		if (x.IsArray()) {
+			dp = x.dims();
+		} else if (y.IsArray()) {
+			dp = y.dims();
+		} else if (z.IsArray()) {
+			dp = z.dims();
+		} else if (epoch.IsArray()) {
+			dp = epoch.dims();
+		}
+		if (x.IsArray()) {
+			if (x.dims() != dp) return -8;
+		}
+		if (y.IsArray()) {
+			if (y.dims() != dp) return -8;
+		}
+		if (z.IsArray()) {
+			if (z.dims() != dp) return -8;
+		}
+		if (epoch.IsArray()) {
+			if (epoch.dims() != dp) return -8;
+		}
+		xin.rreserv(dp);
+		yin.rreserv(dp);
+		zin.rreserv(dp);
+		epoch1.rreserv(dp);
+		Bx.rzeros(dp);
+		By.rzeros(dp);
+		Bz.rzeros(dp);
+		int i;
+		const Tint n = dp.length();
+		if (x.kind() == Kint) {
+			for (i=0; i<n; i++) xin.RealPtr()[i] = x.IntValue();
+		} else if (x.kind() == Kreal) {
+			for (i=0; i<n; i++) xin.RealPtr()[i] = x.RealValue();
+		} else if (x.kind() == KIntArray) {
+			for (i=0; i<n; i++) xin.RealPtr()[i] = x.IntPtr()[i];
+		} else if (x.kind() == KRealArray) {
+			for (i=0; i<n; i++) xin.RealPtr()[i] = x.RealPtr()[i];
+		}
+		if (y.kind() == Kint) {
+			for (i=0; i<n; i++) yin.RealPtr()[i] = y.IntValue();
+		} else if (y.kind() == Kreal) {
+			for (i=0; i<n; i++) yin.RealPtr()[i] = y.RealValue();
+		} else if (y.kind() == KIntArray) {
+			for (i=0; i<n; i++) yin.RealPtr()[i] = y.IntPtr()[i];
+		} else if (y.kind() == KRealArray) {
+			for (i=0; i<n; i++) yin.RealPtr()[i] = y.RealPtr()[i];
+		}
+		if (z.kind() == Kint) {
+			for (i=0; i<n; i++) zin.RealPtr()[i] = z.IntValue();
+		} else if (z.kind() == Kreal) {
+			for (i=0; i<n; i++) zin.RealPtr()[i] = z.RealValue();
+		} else if (z.kind() == KIntArray) {
+			for (i=0; i<n; i++) zin.RealPtr()[i] = z.IntPtr()[i];
+		} else if (z.kind() == KRealArray) {
+			for (i=0; i<n; i++) zin.RealPtr()[i] = z.RealPtr()[i];
+		}
+		if (epoch.kind() == Kint) {
+			for (i=0; i<n; i++) epoch1.RealPtr()[i] = epoch.IntValue();
+		} else if (epoch.kind() == Kreal) {
+			for (i=0; i<n; i++) epoch1.RealPtr()[i] = epoch.RealValue();
+		} else if (epoch.kind() == KIntArray) {
+			for (i=0; i<n; i++) epoch1.RealPtr()[i] = epoch.IntPtr()[i];
+		} else if (epoch.kind() == KRealArray) {
+			for (i=0; i<n; i++) epoch1.RealPtr()[i] = epoch.RealPtr()[i];
+		}
+		const int N = xin.length();
+		for (i=0; i<N; i++) {
+			float Bx1,By1,Bz1;
+			if (model1 != MODEL_NONE) {
+				Geopack_model(model1,paramvec,
+							  xin.RealPtr()[i],yin.RealPtr()[i],zin.RealPtr()[i],epoch1.RealPtr()[i],
+							  TiltAngle,TiltAngleGiven,
+							  Bx1,By1,Bz1);
+				Bx.RealPtr()[i]+= Bx1;
+				By.RealPtr()[i]+= By1;
+				Bz.RealPtr()[i]+= Bz1;
+			}
+			if (model2 != MODEL_NONE) {
+				Geopack_model(model2,paramvec,
+							  xin.RealPtr()[i],yin.RealPtr()[i],zin.RealPtr()[i],epoch1.RealPtr()[i],
+							  TiltAngle,TiltAngleGiven,
+							  Bx1,By1,Bz1);
+				Bx.RealPtr()[i]+= Bx1;
+				By.RealPtr()[i]+= By1;
+				Bz.RealPtr()[i]+= Bz1;
+			}
+		}
+	}
+	if (warn_at_end) return 1;
+	return 0;
+}
+
+static bool ParseDomain1(const char *s, TTraceEndCondition& cond)
+// string s must be {var}><{realvalue}
+// where {VAR} is one of r,x,y,z
+{
+//	cout << "ParseDomain1(" << s << ")\n";
+	if (s[0] == 'r') {
+		cond.var = ENDCOND_R;
+	} else if (s[0] == 'x') {
+		cond.var = ENDCOND_X;
+	} else if (s[0] == 'y') {
+		cond.var = ENDCOND_Y;
+	} else if (s[0] == 'z') {
+		cond.var = ENDCOND_Z;
+	} else {
+		return false;
+	}
+	cond.gt = false;		// set to something for consistency, but set later by SetEndcondGTField
+	if (s[1] != '=') return false;
+	char *endptr = 0;
+	cond.val = strtod(s+2,&endptr);
+	return (endptr && *endptr == '\0');
+}
+
+static bool ParseDomain(const char *s, TTraceEndCondition endcond[9], int& N)
+// string s must be {VAR}={REALVALUE},...
+// where {VAR} is one of R,X,Y,Z
+{
+	const int L = strlen(s);
+	char *const s1 = new char [L+1];
+	int i,j=0;
+	endcond[0].var = ENDCOND_R;
+	endcond[0].gt = false;
+	endcond[0].val = 1e3;
+	N = 1;
+	for (i=0; i<L; i++) {
+		if (isspace(s[i])) continue;
+		if (s[i] == ',') {
+			s1[j] = '\0';
+			if (j > 0) {
+				TTraceEndCondition cond;
+				if (!ParseDomain1(s1,cond)) {delete [] s1; return false;}
+				if (N < 8)
+					endcond[N++] = cond;
+				else {
+					cerr << "ParseDomain warning: '" << s << "' has more than eight conditions, extra ignored\n";
+					delete [] s1;
+					return true;
+				}
+			}
+			j = 0;
+			continue;
+		}
+		s1[j++] = tolower(s[i]);
+	}
+	s1[j] = '\0';
+	if (j > 0) {
+		TTraceEndCondition cond;
+		if (!ParseDomain1(s1,cond)) {delete [] s1; return false;}
+		if (N < 8)
+			endcond[N++] = cond;
+		else {
+			cerr << "ParseDomain warning: '" << s << "' has more than eight conditions, extra ignored\n";
+			delete [] s1;
+			return true;
+		}
+	}
+	delete [] s1;
+	return true;
+}
+
+static void SetEndcondGTField(TTraceEndCondition& cond, Treal x, Treal y, Treal z)
+{
+	switch (cond.var) {
+	case ENDCOND_R:
+		cond.gt = (x*x+y*y+z*z > cond.val*cond.val);
+		break;
+	case ENDCOND_X:
+		cond.gt = (x > cond.val);
+		break;
+	case ENDCOND_Y:
+		cond.gt = (y > cond.val);
+		break;
+	case ENDCOND_Z:
+		cond.gt = (z > cond.val);
+		break;
+	}
+}
+
+[x,y,z; X,Y,Z,success] = geopack_trace(model,params,domain,x0,y0,z0,epoch...)
+/* [x,y,z; X,Y,Z,success] = geopack_trace(model,params,domain,x0,y0,z0,
+                                          epoch[,optional-args])
+   traces a field line in a model magnetic field, starting from (x0,y0,z0).
+   The model and params arguments are the same as for geopack_model.
+   Coordinates are GSM and measured in Earth radius R_E (6371.2 km).
+   The domain argument defines the region where the tracing is performed.
+   The tracing is stopped when the point moves outside the domain.
+   The meaning of the epoch argument is the same as in geopack_model.
+
+   Format of domain string: "r=1.01,r=4.5,z=0", i.e., a comma-separated
+   list of equations. Valid left-hand-sides are r,x,y,z (r=sqrt(x^2+y^2+z^2)).
+   Coordinates are GSM and units in R_E also here. Any real value is a
+   valid inequality right-hand-side. Up to 8 conditions may be used.
+
+   Optional arguments are var,value pairs where var is a string.
+   Supported are:
+     var         value       meaning
+     "sign"      +1 or -1    +1:trace along B, -1:trace antiparallel to B
+     "tiltangle" real        dipole tilt angle (radians), if not given,
+                               computed from epoch, can be used only if
+                               internal field model is DIP or none.
+     "maxstep"   real        maximum step size in R_E (default: 0.3)
+	 "maxsteps"  pos.int     maximum steps to take (default: 2000)
+
+   This function calls the GEOPACK Fortran routines by N. Tsyganenko et al.
+   The GEOPACK package operates in single precision. Therefore, this function
+   uses a simple and robust midpoint method for integrating the field line.
+   Using more sophisticated methods (Bulirsch-Stoer or quality-controlled
+   Runge-Kutta) was tried, but did not work well in this case, because of
+   lack of precision. This is a warning to those who wouldlike to improve
+   the speed of geopack_trace by implementing a better ODE integrator.
+
+   With the default arguments, the error when mapping from x=-13 to
+   ionosphere is about 1 km in the ionospheric plane. By decreasing maxstep
+   from the default (0.3), the accuracy can be improved.
+
+   The optional output arguments X,Y,Z, if given, become vectors containing
+   the full traced trajectory. The seventh output argument (success) is
+   returned as 1 unless the number of maxsteps was exceeded, in which case
+   it will be returned as 0.
+   
+   Notice that tracing can fail sometimes in the sense that the point
+   starts to circling around in the magnetosphere, never hitting the
+   defined boundaries. To avoid such cases from taking too long time
+   you can set the parameter "maxsteps" to smaller value than its default
+   2000 and quaery the success argument.
+
+   Error codes:
+   -1: First arg (model) not a string
+   -2: Second arg (params) is not a real vector
+   -3: Third arg (domain) is not a string
+   -4: Fourth arg (x0) is not int or real scalar
+   -5: Fifth arg (y0) is not int or real scalar
+   -6: Sixth arg (z0) is not int or real scalar
+   -7: Seventh arg (epoch) is not int or real scalar
+   -8: Odd number of optional args
+   -9: Optional args must be var,value,var,value,... where var is a string
+   -10: First arg (model) is an invalid string
+   -11: Two Tsyganenko models cannot be combined (the other must be IGRF)
+   -12: Second arg (params) is of improper length (must be 1 for T89, 4 for T96/T96_NOFAC)
+   -13: Invalid third arg (domain): must be "{R|X|Y|Z}={realvalue},..."
+   -14: Invalid optional argument (supported are: sign,tiltangle,maxstep)
+   -15: Invalid value for optional argument "sign": must be +1 or -1
+   -16: Invalid value for optional argument "tiltangle" (must be int or real scalar)
+   -17: Invalid value for optional argument "maxstep" (must be int or real scalar)
+   -18: Invalid value for optional argument "maxsteps" (must be positive int)
+   1: tiltangle setting ignored since IGRF model in use (use DIP instead)
+*/
+{
+	if (!model.IsString()) return -1;
+	const Tstring MODEL = model;
+	TFieldModel model1,model2;
+	if (!ParseModelSpec((char*)MODEL,model1,model2)) return -10;
+	if (model1 == MODEL_T89 || model1 == MODEL_T96 || model1 == MODEL_T96_NOFAC) {
+		if (model2 == MODEL_T89 || model2 == MODEL_T96 || model2 == MODEL_T96_NOFAC) {
+			return -11;
+		}
+	}
+	int paramlen = 0;	// 0 means any
+	if (model1 == MODEL_T89 || model2 == MODEL_T89) {
+		paramlen = 1;
+	} else if (model1 == MODEL_T96 || model2 == MODEL_T96 || model2 == MODEL_T96_NOFAC) {
+		paramlen = 4;
+	}
+	if (params.rank() != 1) return -2;
+	float paramvec[11];
+	int i;
+	if (params.kind() == KIntArray) {
+		if (params.length() != paramlen && paramlen > 0) return -12;
+		for (i=0; i<paramlen; i++) paramvec[i] = params.IntPtr()[i];
+	} else if (params.kind() == KRealArray) {
+		if (params.length() != paramlen && paramlen > 0) return -12;
+		for (i=0; i<paramlen; i++) paramvec[i] = params.RealPtr()[i];
+	} else {
+		return -2;
+	}
+	TTraceEndCondition endcond[9];
+	int Nendcond;
+	if (!domain.IsString()) return -3;
+	Tstring Domain = domain;
+	if (!ParseDomain(Domain,endcond,Nendcond)) return -13;
+	if (x0.kind()!=Kint && x0.kind()!=Kreal) return -4;
+	const Treal X0 = (x0.kind()==Kint) ? x0.IntValue() : x0.RealValue();
+	if (x0.kind()!=Kint && x0.kind()!=Kreal) return -5;
+	const Treal Y0 = (y0.kind()==Kint) ? y0.IntValue() : y0.RealValue();
+	if (y0.kind()!=Kint && y0.kind()!=Kreal) return -6;
+	const Treal Z0 = (z0.kind()==Kint) ? z0.IntValue() : z0.RealValue();
+	if (epoch.kind()!=Kint && epoch.kind()!=Kreal) return -7;
+	for (i=0; i<Nendcond; i++) SetEndcondGTField(endcond[i],X0,Y0,Z0);
+	const Treal Epoch = (epoch.kind()==Kint) ? epoch.IntValue() : epoch.RealValue();
+
+	if ((Nargin-7) % 2) return -8;
+	int sign = +1;
+	Treal TiltAngle = 0;
+	bool TiltAngleGiven = false;
+	Treal MaxStep = 0.3;
+	Tint MaxSteps = 2000;
+	for (i=7; i<Nargin; i+=2) {
+		if (!argin[i]->IsString()) return -9;
+		Tstring VAR = *argin[i];
+		if (!strcasecmp((char*)VAR,"sign")) {
+			if (argin[i+1]->kind() != Kint) return -15;
+			if (argin[i+1]->IntValue() != 1 && argin[i+1]->IntValue() != -1) return -15;
+			sign = argin[i+1]->IntValue();
+		} else if (!strcasecmp((char*)VAR,"tiltangle")) {
+			if (argin[i+1]->kind() != Kint && argin[i+1]->kind() != Kreal) return -16;
+			TiltAngle = (argin[i+1]->kind()==Kint) ? argin[i+1]->IntValue() : argin[i+1]->RealValue();
+			TiltAngleGiven = true;
+		} else if (!strcasecmp((char*)VAR,"maxstep")) {
+			if (argin[i+1]->kind() != Kint && argin[i+1]->kind() != Kreal) return -17;
+			MaxStep = (argin[i+1]->kind()==Kint) ? argin[i+1]->IntValue() : argin[i+1]->RealValue();
+		} else if (!strcasecmp((char*)VAR,"maxsteps")) {
+			if (argin[i+1]->kind() != Kint) return -18;
+			if (argin[i+1]->IntValue() <= 0) return -18;
+			MaxSteps = argin[i+1]->IntValue();
+		} else {
+			return -14;
+		}
+	}
+
+	float xvec[MAX_TRACE_POINTS],yvec[MAX_TRACE_POINTS],zvec[MAX_TRACE_POINTS];
+	int Npts=1;
+	// IGRF model always takes tilt angle from epoch, TiltAngleGiven is meaningful
+	// only when internal field is either missing or is DIP.
+	bool warn_at_end = false;
+	if ((model1 == MODEL_IGRF || model2 == MODEL_IGRF) && TiltAngleGiven) {TiltAngleGiven = false; warn_at_end = true;}
+	bool successflag;
+	Geopack_trace(model1,model2,paramvec,sign,MaxStep,MaxSteps,endcond,Nendcond,
+				  X0,Y0,Z0,Epoch,TiltAngle,TiltAngleGiven,
+				  xvec,yvec,zvec,Npts, successflag);
+	x = xvec[Npts-1];
+	y = yvec[Npts-1];
+	z = zvec[Npts-1];
+	if (Nargout >= 4) {
+		X.rreserv(Npts);
+		for (i=0; i<Npts; i++) X.RealPtr()[i] = xvec[i];
+		if (Nargout >= 5) {
+			Y.rreserv(Npts);
+			for (i=0; i<Npts; i++) Y.RealPtr()[i] = yvec[i];
+			if (Nargout >= 6) {
+				Z.rreserv(Npts);
+				for (i=0; i<Npts; i++) Z.RealPtr()[i] = zvec[i];
+				if (Nargout >= 7) {
+					success = (successflag ? 1 : 0);
+				}
+			}
+		}
+	}
+	if (warn_at_end) return 1;
+	return 0;
+}

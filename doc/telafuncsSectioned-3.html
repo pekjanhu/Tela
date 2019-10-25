@@ -1,0 +1,587 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="LinuxDoc-Tools 0.9.21">
+ <TITLE>Builtin Tela functions: files.ct</TITLE>
+ <LINK HREF="telafuncsSectioned-4.html" REL=next>
+ <LINK HREF="telafuncsSectioned-2.html" REL=previous>
+ <LINK HREF="telafuncsSectioned.html#toc3" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="telafuncsSectioned-4.html">Next</A>
+<A HREF="telafuncsSectioned-2.html">Previous</A>
+<A HREF="telafuncsSectioned.html#toc3">Contents</A>
+<HR>
+<H2><A NAME="s3">3.</A> <A HREF="telafuncsSectioned.html#toc3">files.ct</A></H2>
+
+<P>This section describes functions from file files.ct.</P>
+
+<H2><A NAME="HDFNewMode"></A> <A NAME="ss3.1">3.1</A> <A HREF="telafuncsSectioned.html#toc3.1">HDFNewMode</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[;y] = HDFNewMode(;x)
+ HDFNewMode(1) causes subsequent save calls to write the data
+   in "new" style HDF files, using the SD rather than SDS interface,
+   which is nowadays the default.
+   The old style SDS interface is used by subsequent saves after
+   calling HDFNewMode(0).
+   
+   This function works only if you have compiled Tela with HDF4.0b1
+   or newer and Tela version 1.23 or later. Whether this is the case
+   can be tested by calling NewHDFSupported().
+   
+</PRE>
+
+See also: 
+<A HREF="#NewHDFSupported">NewHDFSupported</A>, 
+<A HREF="#save">save</A>.
+<PRE>
+   Error codes:
+   1: Argument not integer
+   2: New HDF mode not supported by this Tela
+   
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="NewHDFSupported"></A> <A NAME="ss3.2">3.2</A> <A HREF="telafuncsSectioned.html#toc3.2">NewHDFSupported</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[y] = NewHDFSupported()
+ NewHDFSupported() returns 1 if this Tela was compiled with
+   HDF4.0b1 or later. If this is the case, then the following
+   become possible:
+   - HDFNewMode(1) can be used to save HDF data in "new" format
+     (SD rathern than SDS interface). This is now the default!
+   - Unidata netCDF files can be loaded/imported in the same
+     way as HDF SDS/SD files
+   
+   The main benefit of using the new format is that no precision
+   loss occurs because 64-bit numbers are used for real data
+   (the old HDF interface only supports 32-bit data).
+   
+   The main drawback of using the new format is that old Tela
+   versions and Tela versions which are still compiled with
+   HDF3.1r5 can not read the files. The old style files can be
+   read by all Tela versions.
+   
+</PRE>
+
+See also: 
+<A HREF="#HDFNewMode">HDFNewMode</A>, 
+<A HREF="#save">save</A>.
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="export_PNG"></A> <A NAME="ss3.3">3.3</A> <A HREF="telafuncsSectioned.html#toc3.3">export_PNG</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[] = export_PNG(fn,r;g,b,a)
+ export_PNG("file.png",u)
+   writes integer matrix u into grayscale PNG file.
+
+   export_PNG("file.png",u,a) writes grayscale and alpha data.
+
+   export_PNG("file.png",r,g,b) writes RGB colour data.
+
+   export_PNG("file.png",r,g,b,a) writes RGB and alpha data.
+
+   The bit depth will be 8 or 16, depending on whether maxval
+   is less than 256 or not. Negative values are silently
+   replaced by zero.
+   
+   Error codes:
+   1: First arg not a string
+   2: Cannot open output file
+   3: Cannot write PNG header to output file
+   4: Second input arg not integer matrix
+   5: Third input arg not integer matrix
+   6: Third input arg is different size matrix than second arg
+   7: Fourth input arg not integer matrix
+   8: Fourth input arg is different size matrix than second arg
+   9: Fifth input arg not integer matrix
+   10: Fifth input arg is different size matrix than second arg
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="export_PNM"></A> <A NAME="ss3.4">3.4</A> <A HREF="telafuncsSectioned.html#toc3.4">export_PNM</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[] = export_PNM(fn,r;g,b)
+ export_PNM("file.pnm",x) writes integer matrix x in
+   PNM (Portable aNyMap) file "file.pnm". If no element is
+   larger than 255, a 8-bit "raw" file is written, otherwise an ASCII file.
+   If all elements are equal to 0 or 1, a black and white 1-bit PBM
+   (Portable BitMap) file will be written.
+
+   export_PNM("file.pnm",r,g,b) creates a 24-bit color-PPM file.
+   Matrix entries are truncated in the range 0..255 in this case.
+   The integer matrices r,g and b represent the red, green
+   and blue values. They must have equal dimensions.
+
+   If the system supports pipes (has the popen function),
+   you can use export_PNM("!...",..) to write to a pipe instead
+   of a file (for example, export_PNM("!cjpeg >x.jpeg",r,g,b)).
+   
+</PRE>
+
+See also: 
+<A HREF="#import_PNM">import_PNM</A>.
+<PRE>
+   Error codes:
+   1: First arg not a string
+   2: Argument is not integer matrix
+   3: export_PNM must be called with 2 or 4 input args
+   4: Dimensions of R,G,B matrices must be equal
+   5: Could not open file for output
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="export_RIS8"></A> <A NAME="ss3.5">3.5</A> <A HREF="telafuncsSectioned.html#toc3.5">export_RIS8</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[] = export_RIS8(fn,x)
+ export_RIS8("file.hdf",x) writes (appends) integer matrix x
+   to HDF file "file.hdf" as a raster-8 image (Raster Image Set, RIS).
+   When the file is opened with default settings using the usual
+   HDF viewers such as Spyglass products, the first dimension grows
+   vertically downward and the second dimension grows from left to
+   right.
+
+   The RIS8 HDF files can be read back using import.
+</PRE>
+
+See also: 
+<A HREF="#export_matlab">export_matlab</A>, 
+<A HREF="#save">save</A>, 
+<A HREF="#import">import</A>.
+<PRE>
+   Error codes:
+   1: First argument not a string
+   2: Second argument not an integer matrix
+   
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="export_matlab"></A> <A NAME="ss3.6">3.6</A> <A HREF="telafuncsSectioned.html#toc3.6">export_matlab</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[] = export_matlab(fn...)
+ export_matlab("file") saves all variables in Tela
+   workspace in "file". Any previous contents of "file"
+   are overwritten. The data are written in MATLAB
+   binary format. Hidden Tela variables are not saved.
+
+   export_matlab("file","var1","var2"...) saves only the
+   specified variables. Notice that you have to give the
+   variable names as strings.
+
+   The resulting MAT-file can be read using the
+   MATLAB 'load' command.
+   
+   Limitations (bugs): It is not possible to export
+   local variables. If you try, the global ones will
+   be written, if they have numeric values. Use
+   export_matlab2 to achieve this, and to have explicit
+   control of variable naming.
+   
+</PRE>
+
+See also: 
+<A HREF="#export_matlab2">export_matlab2</A>, 
+<A HREF="#save">save</A>, 
+<A HREF="#load">load</A>, 
+<A HREF="#import">import</A>.
+<PRE>
+   Error codes:
+   1: Too few arguments
+   2: Argument not a string
+   3: Write error on file
+   
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="export_matlab2"></A> <A NAME="ss3.7">3.7</A> <A HREF="telafuncsSectioned.html#toc3.7">export_matlab2</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[] = export_matlab2(fn...)
+ export_matlab2("file", var1,"name1", var2,"name2"...)
+   saves objects var1,var2... in MATLAB binary format in "file".
+   The objects will be named "name1", "name2"... .
+   Any previous contents of "file" are overwritten.
+   workspace in "file". Any previous contents of "file"
+   is overwritten.
+
+   The resulting MAT-file can be read using the
+   MATLAB 'load' command.
+   
+</PRE>
+
+See also: 
+<A HREF="#export_matlab">export_matlab</A>, 
+<A HREF="#save">save</A>, 
+<A HREF="#load">load</A>, 
+<A HREF="#import">import</A>.
+<PRE>
+   Error codes:
+   1: First arg not a string
+   2: Even number of arguments
+   3: Write error on file
+   4: The 'name' argument is not a string
+   
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="export_netCDF"></A> <A NAME="ss3.8">3.8</A> <A HREF="telafuncsSectioned.html#toc3.8">export_netCDF</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[] = export_netCDF(fn...)
+ export_netCDF("file",...) behaves exactly like
+   save but it exports the variables in netCDF rather
+   than HDF format. The function is operational only
+   if NewHDFSupported() returns nonzero.
+   
+</PRE>
+
+See also: 
+<A HREF="#save">save</A>, 
+<A HREF="#HDFNewMode">HDFNewMode</A>.
+<PRE>
+   Error codes:
+   1: Too few arguments
+   2: Argument not a string or char
+   3: Unexpected HDF error
+   4: Cannot open new-style HDF SD file
+   5: Cannot create netCDF file
+   6: netCDF not supported by this Tela, use HDF4.0b1 or later
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="export_sound_CDR"></A> <A NAME="ss3.9">3.9</A> <A HREF="telafuncsSectioned.html#toc3.9">export_sound_CDR</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[] = export_sound_CDR(fn,L,R)
+ export_sound_CDR("file.cdr",left,right)
+   takes integer-valued vectors left and right and writes them in
+   raw audio-CD format in "file.cdr". The file will consist of 16-bit
+   signed sample pairs (left,right).
+   If the filename starts with "!", it is interpreted as an output pipe.
+   Error codes:
+   1: First arg not a (nonempty) string
+   2: Second arg not an int vector
+   3: Third arg not an int vector
+   4: Second and third args of unequal lengths
+   5: Cannot open output file
+   6: This Tela implementation has sizeof(short)!=2, cannot do export_sound_CDR, sorry
+   7: Not enough memory for work arrays
+   8: File write incomplete, maybe filesystem full
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="import"></A> <A NAME="ss3.10">3.10</A> <A HREF="telafuncsSectioned.html#toc3.10">import</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[] = import(filename; appendix)
+ import("file") tries to load the contents of "file" in
+   Tela workspace. All files accepted by load are also accepted
+   by import. In addition, import accepts more general HDF files
+   (SDS and 8-bit raster image files) as well as MATLAB binary
+   files (MAT-files).
+   
+   import("file","app") appends the string "app" to the name
+   of every variable imported.
+   
+   Restrictions:
+   1) If file is HDF-file, import first tries to read all SDSs.  Only
+   if none was found, it tries to read all RIS8 datasets.  The
+   variable names are taken from the HDF labels, if the labels have
+   been set. If there are no labels, the variables are named
+   "Dataset1", "Dataset2", ... and "Image1", "Image2",... for SDS and
+   RIS8 imports, respectively.
+   2) Only read Matlab version 4 format (Actually Level 1.0, as
+   written by matlab version &lt;= 4 and on request on newer versions).
+   
+   For filename conventions, see load.
+</PRE>
+
+See also: 
+<A HREF="#load">load</A>, 
+<A HREF="#save">save</A>, 
+<A HREF="#import1">import1</A>, 
+<A HREF="#export_matlab">export_matlab</A>, 
+<A HREF="#export_RIS8">export_RIS8</A>, 
+<A HREF="#import_PNM">import_PNM</A>.
+<PRE>
+   
+   (The difference between import and import1 is that import1 reads
+   only one object and returns it, whereas import reads several
+   objects and assigns them directly to workspace variables.)
+   Error codes:
+   1: First arg not string
+   2: First arg is not an HDF file
+   3: File not found
+   4: Cannot import file
+   5: Unused error message
+   6: Cannot import file, internal Matlab file error
+   7: Cannot import this Matlab file, unknown data format
+   8: Cannot import this Matlab file, it is a sparse matrix. Make it full before saving.
+   10: Bad Matlab binary file, premature end of file
+   11: Second argument not a string
+   12: Cannot import this Matlab file, it contains VAX or CRAY floating point
+   
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="import1"></A> <A NAME="ss3.11">3.11</A> <A HREF="telafuncsSectioned.html#toc3.11">import1</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[x] = import1(filename; label)
+ import1("file") reads one object from "file". The imported
+   object is returned. "File" can be one of the following:
+
+   1) HDF file, in which case the first Scientific Data Set (SDS)
+      is imported. The form import1("file.hdf","label") reads SDS
+      with label "label", which is not necessarily the first one.
+
+   2) D-style ASCII file of the following format:
+
+        (line 1)   D=Nt dim1 dim2 ... dimN
+        (any number M of blank lines or lines starting with '#')
+        (line M+2) data1 data2 ....
+
+       where N is the rank of the dataset and t is an optionial
+       type specification letter: t may be either 'r', 'i', or 'c'
+       for real, integer and complex data, respectively. If t is
+       missing, real data are asssumed.
+
+   3) Plain ASCII file of nrows x ncols real numbers. If nrows or
+      ncols is 1, it will be returned as a vector, otherwise as a
+      matrix. Missing entries are treated as zeros. This format
+      is similar to Matlab's load for ASCII, except that '#'
+      comments are accepted (for vector files, '#' comments are
+          accepted only in the beginning).
+       
+</PRE>
+
+See also: 
+<A HREF="#import">import</A>, 
+<A HREF="#load">load</A>, 
+<A HREF="#save">save</A>.
+<PRE>
+   See import for a difference between import and import1.
+   For filename conventions, see load.
+   Error codes:
+   -1: Input arg not a char or string
+   2: File not found
+   3: Unknown format in ASCII file
+   4: Unknown format in ASCII file
+   5: Too high rank ASCII data
+   6: Syntax error in ASCII file dimension specification
+   7: Syntax error when reading D-style ASCII data
+   -8: Internal error
+   -9: Cannot import file
+   -10: Second arg not a string
+   11: Specified label not found
+   12: Premature end of file in D-style ASCII
+   13: Syntax error when reading plain ASCII data
+   14: DFSDgetdims error
+   15: DFSDgetdata error
+   
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="import_PNG"></A> <A NAME="ss3.12">3.12</A> <A HREF="telafuncsSectioned.html#toc3.12">import_PNG</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[r;g,b,a] = import_PNG(fn)
+ [r,g,b] = import_PNG(fn)
+   reads in a PNG file and places the red, green and blue components
+   in matrices r,g and b, respectively. If the file is grayscale,
+   r, g and b will have the same value.
+
+   u = import_PNG(fn) reads a grayscale image into u.
+   If file has colour information, the average of R, G and B
+   components is placed in matrix u.
+
+   [r,g,b,a] = import_PNG(fn) reads also the alpha channel.
+   If no alpha channel is stored in the file, a will be set to 255.
+
+   Limitations/bugs: Reading interlaced PNG files is not yet supported.
+   
+   Error codes:
+   1: Cannot open input file
+   2: Input file is not PNG file
+   3: Bad format inside input PNG file
+   -1: Input arg not a string
+ 
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="import_PNM"></A> <A NAME="ss3.13">3.13</A> <A HREF="telafuncsSectioned.html#toc3.13">import_PNM</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[r;g,b] = import_PNM(fn)
+ x = import_PNM("file.pnm") reads PNM (Portable aNyMap) format image file.
+   x will become integer matrix.
+   [r,g,b] = import_PNM("file.pnm") reads a color image
+   and assigns the red, green and blue components to
+   matrices r,g,b.
+   All six PNM formats (P1-P6) are recognized. If a color
+   image (P3 or P6) is loaded using only one output argument,
+   the average of color components is computed and assigned
+   to x. If a greyscale image is loaded using three output
+   args, only the first (r) output arg will be filled,
+   g and b are assigned the VOID value. You might use
+   a code like
+
+   [r,g,b] = import_PNM("file.pnm");
+   if (isvoid(g)) {g=r; b=r};
+
+   to continue processing in 24-bit mode.
+
+   If the system supports pipes (has the popen function),
+   you can do import_PNM("!...") to read from a pipe.
+   For example, import_PNM("djpeg x.jpg").
+   
+</PRE>
+
+See also: 
+<A HREF="#import">import</A>, 
+<A HREF="#export_PNM">export_PNM</A>.
+<PRE>
+   Error codes:
+   -1: First arg not a string
+   2: Could not open input file
+   3: Input file is not PNM file
+   4: Width or height not positive - improper PNM file
+   5: Invalid color range
+   -6: Two output args, give 1 or 3
+   7: Error when reading ASCII data
+   8: Pixel not 0 or 1 in 1-bit image
+   10: Could not read all binary data
+   
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="load"></A> <A NAME="ss3.14">3.14</A> <A HREF="telafuncsSectioned.html#toc3.14">load</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[] = load(filename)
+ load("file") loads the contents of "file" in Tela workspace.
+   "file" must have been previously created using the 'save'
+   command; it must be in a certain HDF format.
+   
+   Filename conventions:
+   If the filename starts with "/", "./" or "..",
+   it is considered absolute. Otherwise it is searched
+   along TELAPATH. This applies to other file
+   operations as well.
+   
+   The counterpart of load is save.
+   To read more general HDF files and ASCII files, see import1.
+   To load more general HDF files and MATLAB binary files,
+   see import.
+   
+</PRE>
+
+See also: 
+<A HREF="#save">save</A>, 
+<A HREF="#import">import</A>, 
+<A HREF="#import1">import1</A>, 
+<A HREF="#export_matlab">export_matlab</A>.
+<PRE>
+   Error codes:
+   1: Argument not string or char
+   2: Argument is not an HDF file
+   3: File not found
+   4: Argument is not an HDF or netCDF file
+   5: Cannot load this HDF file
+   6: HDF file load incomplete
+   
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="save"></A> <A NAME="ss3.15">3.15</A> <A HREF="telafuncsSectioned.html#toc3.15">save</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[] = save(fn...)
+ save("file") saves all variables in Tela workspace
+   in "file". Any previous contents of "file" is
+   overwritten. The data are written as Scientific
+   Data Sets in HDF format. Hidden variables are not saved.
+   
+   save("file","var1","var2"...) saves only the
+   specified variables. Notice that you have to give
+   the variable names as strings.
+   
+   Limitations (bugs): It is not possible to save
+   local variables, since they are not bound to
+   symbols. If you try, the global one, if any,
+   will be saved.
+   
+</PRE>
+
+See also: 
+<A HREF="#HDFNewMode">HDFNewMode</A>, 
+<A HREF="#load">load</A>, 
+<A HREF="#export_matlab">export_matlab</A>, 
+<A HREF="#export_netCDF">export_netCDF</A>.
+<PRE>
+   Error codes:
+   1: Too few arguments
+   2: Argument not a string or char
+   3: Unexpected HDF error
+   4: Cannot open new-style HDF SD file
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+
+<HR>
+<A HREF="telafuncsSectioned-4.html">Next</A>
+<A HREF="telafuncsSectioned-2.html">Previous</A>
+<A HREF="telafuncsSectioned.html#toc3">Contents</A>
+</BODY>
+</HTML>

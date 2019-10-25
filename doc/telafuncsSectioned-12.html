@@ -1,0 +1,110 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="LinuxDoc-Tools 0.9.21">
+ <TITLE>Builtin Tela functions: ani.ct</TITLE>
+ <LINK HREF="telafuncsSectioned-13.html" REL=next>
+ <LINK HREF="telafuncsSectioned-11.html" REL=previous>
+ <LINK HREF="telafuncsSectioned.html#toc12" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="telafuncsSectioned-13.html">Next</A>
+<A HREF="telafuncsSectioned-11.html">Previous</A>
+<A HREF="telafuncsSectioned.html#toc12">Contents</A>
+<HR>
+<H2><A NAME="s12">12.</A> <A HREF="telafuncsSectioned.html#toc12">ani.ct</A></H2>
+
+<P>This section describes functions from file ani.ct.</P>
+
+<H2><A NAME="aniclose"></A> <A NAME="ss12.1">12.1</A> <A HREF="telafuncsSectioned.html#toc12.1">aniclose</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[] = aniclose(ap)
+ aniclose(ap) closes a previously opened animation file.
+   Error codes:
+   1: Argument not a valid open animation handle
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="aniopen"></A> <A NAME="ss12.2">12.2</A> <A HREF="telafuncsSectioned.html#toc12.2">aniopen</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[ap] = aniopen(fn,rw...)
+ aniopen("outfile","w") opens an MPEG or MNG animation file for writing.
+   It returns an animation handle that can be passed to aniput
+   for writing the frames.
+
+   You can also give option-value pairs as additional arguments,
+   the following are recognized (Example values are the defaults):
+
+   aniopen("outfile","w",
+     "animtype","mpeg-1",    // "MPEG-1", "MPEG-2" or "MNG" (case insensitive)
+     "bytes_per_frame",12e3, // bytes per frame to write, approximately
+     "framerate",7,          // frames per second to show when showing
+     "I_frames_only",0,      // if flag is 1, write I-frames only
+     "verbose",0)            // give some progress report to stderr
+
+   The rates must be positive reals or ints. The flags must be passed as
+   0 or 1. Set "I_frames_only" to 1 if you want to view all frames with
+   Xanim. Most widely available tools currently show only MPEG-1 animations,
+   not MPEG-2 so that default type is still set to "MPEG-1".
+
+   If animtype is "MNG", all other options are ignored (except being
+   syntactically checked). MNG animation always uses lossless compression.
+   This version writes a VLC (Very Low Complexity) MNG animation, which
+   uses adaptive filtering and the default ZLIB compression level.
+   Future Tela versions may offer additional options for controlling
+   the type of the MNG output (e.g., Delta-PNG animations).
+
+   Error codes:
+   -1: First argument not a string
+   -2: Second argument not a string
+   -3: Cannot open animation file
+   -4: Second argument not equal to "w" or "r"
+   5: Error with animation options
+</PRE>
+
+See also: 
+<A HREF="#aniput">aniput</A>, 
+<A HREF="#aniclose">aniclose</A>.
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="aniput"></A> <A NAME="ss12.3">12.3</A> <A HREF="telafuncsSectioned.html#toc12.3">aniput</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[] = aniput(ap,r,g,b)
+ aniput(ap,r,g,b) writes a new frame to a previously
+   opened animation (ap=handle returned by aniopen).
+   The first frame defines the image size of the animation.
+   Error codes:
+   -1: First argument not a valid open animation handle
+   -2: Second argument not an int matrix
+   -3: Third argument not an int matrix
+   -4: Fourth argument not an int matrix
+   -5: r,g,b arguments not of the same size with each other
+   -6: Image size does not match with first frame
+</PRE>
+
+See also: 
+<A HREF="#aniopen">aniopen</A>, 
+<A HREF="#aniclose">aniclose</A>.
+<PRE>
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+
+<HR>
+<A HREF="telafuncsSectioned-13.html">Next</A>
+<A HREF="telafuncsSectioned-11.html">Previous</A>
+<A HREF="telafuncsSectioned.html#toc12">Contents</A>
+</BODY>
+</HTML>

@@ -1,0 +1,5031 @@
+<!doctype linuxdoc system>
+
+<!-- Tela functions contained in  std.ct files.ct plotmtv.ct sppc.ct la.ct fftw.ct fft.ct dld.ct fileio.ct numerics.ct ani.ct specfun_ct.ct CDF.ct opt/geopack_ct.ct in SGML format -->
+
+<article>
+
+<title>Builtin Tela functions
+<author> Pekka Janhunen, <tt/Pekka.Janhunen@fmi.fi/
+<date>Version 2.02, Fri May 20 13:29:56 EEST 2005
+<abstract>
+This document has been automatically generated from the online
+help messages of builtin Tela functions.
+</abstract>
+
+<toc>
+
+<sect> INTRODUCTION
+<p>
+Negative error codes describe fatal errors, whereas positive error
+codes are warnings only. In case of fatal error, the function
+output arguments have undefined values. If a function has no output
+arguments, it typically has only positive return codes.
+
+The error code descriptions do normally not appear in the Tela
+help messages. If an error occurs, Tela will however find and
+display the proper textual message.
+
+<sect1>BatchMode<label id="BatchMode">
+<p>
+<tscreen><verb>
+[y] = BatchMode()
+ BatchMode() returns 1 if this Tela process is in batch mode
+   (command line switch -b), otherwise 0.
+</verb>
+See also: <ref id="SilentMode" name="SilentMode">, <ref id="VerboseMode" name="VerboseMode">, <ref id="UsingReadline" name="UsingReadline">.
+</tscreen>
+
+<sect1>ChebyshevT<label id="ChebyshevT">
+<p>
+<tscreen><verb>
+[w] = ChebyshevT(n,x)
+ ChebyshevT(n,x) gives the nth Chebyshev polynomial of the first kind,
+   ChebyshevT(n,cos(theta)):= cos(n*theta).
+   Error codes:
+   -1: First arg not numerical
+   -2: Second arg not numerical
+   -5: Argument dimensions do not match
+ 
+</verb>
+</tscreen>
+
+<sect1>CheckReadOnlyMode<label id="CheckReadOnlyMode">
+<p>
+<tscreen><verb>
+[;y] = CheckReadOnlyMode(;x)
+ CheckReadOnlyMode() returns 1 if this Tela process checks that function
+   input arguments are not modified by the function. The check is done by
+   default, but if it causes problems (bugs in Tela) you can turn it off
+   using CheckReadOnlyMode(off).
+   CheckReadOnlyMode returns the old mode setting.
+</verb>
+See also: <ref id="SilentMode" name="SilentMode">, <ref id="BatchMode" name="BatchMode">, <ref id="VerboseMode" name="VerboseMode">.
+<verb>
+   Error codes:
+   1: Argument not integer 
+</verb>
+</tscreen>
+
+<sect1>DebugQueryMode<label id="DebugQueryMode">
+<p>
+<tscreen><verb>
+[;y] = DebugQueryMode(;x)
+ DebugQueryMode() returns 1 if the debug query mode
+   has been set, otherwise 0.
+   DebugQueryMode(on) and DebugQueryMode(off) change
+   the current setting.
+
+   If debug query mode is on, the program will ask whether
+   the user wants to enter debug mode if control-C is
+   pressed (INT signal sent). Otherwise the program simply
+   stops on pressing control-C.
+   Error codes:
+   1: Argument not integer 
+</verb>
+</tscreen>
+
+<sect1>EPOCHbreakdown<label id="EPOCHbreakdown">
+<p>
+<tscreen><verb>
+[year,month,day,hour,minute,second,msec] = EPOCHbreakdown(epoch)
+ [year,month,day,hour,minute,second,msec] = EPOCHbreakdown(epoch)
+   breaks down the epoch value (number of milliseconds since
+   01-Jan-0000 00:00:00.000) into year (4-digit), month (1-12), day (1-31),
+   minute (0-59), second (0-59) and millisecond (0-999) values (integers).
+   The argument must be a real scalar or array.
+</verb>
+See also: <ref id="computeEPOCH" name="computeEPOCH">, <ref id="parseEPOCH" name="parseEPOCH">, <ref id="encodeEPOCH" name="encodeEPOCH">.
+<verb>
+   Error codes:
+   -1: Argument not real scalar or array
+
+</verb>
+</tscreen>
+
+<sect1>FFT<label id="FFT">
+<p>
+<tscreen><verb>
+[f] = FFT(u; dim)
+ FFT(u) gives the complex Fast Fourier Transform of u.
+   If u's rank is more than one, the transform is computed
+   only along the first dimension (many independent 1D
+   transforms).
+
+   FFT(u,dim) computes the FFT along the specified dimension.
+   The first dimension is labeled 1 and so on.
+
+   For vector u, f=FFT(u) is equivalent with
+
+   n = length(u); f = czeros(n);
+   for (j=1; j<=n; j++)
+       f[j] = sum(u*exp(-(j-1)*(0:n-1)*2i*pi/n));
+
+   All Fourier transform functions in Tela can take the transform
+   along any dimension in a multidimensional array, and the transform
+   length is not restricted. The function FFT should be used only in
+   case of complex input data. Use realFFT for real input array.
+
+   Functions FFT, realFFT, sinqFFT, cosFFT and their inverses
+   are the most efficient when the transform length n is a product
+   of small primes.
+
+   Functions sinFFT and invsinFFT are efficient when n+1 is
+   a product of small primes
+	   
+   Functions cosFFT and invcosFFT are efficient when n-1 is
+   a product of small primes
+	   
+</verb>
+See also: <ref id="invFFT" name="invFFT">, <ref id="realFFT" name="realFFT">, <ref id="sinFFT" name="sinFFT">, <ref id="cosFFT" name="cosFFT">, <ref id="sinqFFT" name="sinqFFT">, <ref id="cosqFFT" name="cosqFFT">, <ref id="Lomb" name="Lomb">.
+<verb>
+   Error codes:
+   -1: First argument not a numeric array
+   -2: Second argument not integer
+   -3: Second argument out of range
+   
+</verb>
+</tscreen>
+
+<sect1>Gauss2F1<label id="Gauss2F1">
+<p>
+<tscreen><verb>
+[w] = Gauss2F1(a,b,c,z)
+ Gauss2F1(a,b,c,z) is Gauss' 2F1 hypergeometric function
+   F(a,b;c;z), defined by the power series
+      F(a,b;c;z) = sum(((a)_n*(b)*n/(c)_n)*z^n/n!,n=0..Inf)
+   where (a)_n is the Pochhammer symbol poch(a,n),
+      (a)_n = a*(a+1)*...*(a+n-1) = Gamma(a+n)/Gamma(a).
+   The function has a singularity at z=1 and a branch cut
+   in Re(z) > 1, Im(z) == 0. The function is evaluated for
+   any numerical arguments and is threaded automatically over
+   array arguments. The method of evaluation is power series
+   expansion for small |z|, a transformation formula for certain
+   large |z|, and direct integration of the defining diff. equation
+   in other cases.
+</verb>
+See also: <ref id="Kummer1F1" name="Kummer1F1">.
+<verb>
+   Error codes:
+   -1: Args must be complex scalars
+   -2: Second arg not numerical
+   -3: Third arg not numerical
+   -4: Fourth arg not numerical
+   -5: Argument dimensions do not match
+
+</verb>
+</tscreen>
+
+<sect1>GetInstructionData<label id="GetInstructionData">
+<p>
+<tscreen><verb>
+[Ninstructions,Noperations] = GetInstructionData(p,mnemo)
+ [Ninstr,Nops] = GetInstructionData(p,"mnemonic") returns
+   the number of specific instructions executed when p=perf() was
+   gathered, and the number of (floating point) operations associated
+   with the instruction.
+   The mnemonic must be a string, and it may be any of the names
+   that appear in the disasm(f) listing. In addition, mnemonic may
+   be "flop", which includes all instructions that may perform floating
+   point arithmetic, or it may be "*", which includes all instructions.
+   Error codes:
+   -1: Bad first argument, must be obtained from perf()
+   -2: Second arg not a string
+   -3: Second arg not a recognized string
+   
+</verb>
+</tscreen>
+
+<sect1>HDFNewMode<label id="HDFNewMode">
+<p>
+<tscreen><verb>
+[;y] = HDFNewMode(;x)
+ HDFNewMode(1) causes subsequent save calls to write the data
+   in "new" style HDF files, using the SD rather than SDS interface,
+   which is nowadays the default.
+   The old style SDS interface is used by subsequent saves after
+   calling HDFNewMode(0).
+   
+   This function works only if you have compiled Tela with HDF4.0b1
+   or newer and Tela version 1.23 or later. Whether this is the case
+   can be tested by calling NewHDFSupported().
+   
+</verb>
+See also: <ref id="NewHDFSupported" name="NewHDFSupported">, <ref id="save" name="save">.
+<verb>
+   Error codes:
+   1: Argument not integer
+   2: New HDF mode not supported by this Tela
+   
+</verb>
+</tscreen>
+
+<sect1>HeavisideTheta<label id="HeavisideTheta">
+<p>
+<tscreen><verb>
+[y] = HeavisideTheta(x)
+ y = HeavisideTheta(x) returns 1 if x>=0 and 0 if x<0.
+   x must be real. If x is array, the operation is applied componentwise.
+</verb>
+See also: <ref id="sign" name="sign">.
+<verb>
+   Error codes:
+   -1: Complex or nonnumeric input argument 
+</verb>
+</tscreen>
+
+<sect1>Im<label id="Im">
+<p>
+<tscreen><verb>
+[y] = Im(x)
+ y = Im(x) takes the imaginary part of a complex quantity x.
+   If x is real or integer, the result is zero.
+   If x is an array, the operation is applied componentwise.
+</verb>
+See also: <ref id="Re" name="Re">, <ref id="conj" name="conj">, <ref id="arg" name="arg">.
+<verb>
+   Error codes:
+   -1: Nonnumeric input argument 
+</verb>
+</tscreen>
+
+<sect1>IncompleteGammaP<label id="IncompleteGammaP">
+<p>
+<tscreen><verb>
+[w] = IncompleteGammaP(a,x)
+ IncompleteGammaP(a,x) is the regularized incomplete gamma function
+     IncompleteGammaP(a,x) := integrate(exp(-t)*t^(a-1),t=0..x)/Gamma(a).
+   The evaluation is reliable for Re(a) > 0 only, although a result
+   is returned also for Re(a) <= 0.
+   The notation conforms with Numerical Recipes.
+   Error codes:
+   -1: First arg not numerical
+   -2: Second arg not numerical
+   -5: Argument dimensions do not match
+ 
+</verb>
+</tscreen>
+
+<sect1>IncompleteGammaQ<label id="IncompleteGammaQ">
+<p>
+<tscreen><verb>
+[w] = IncompleteGammaQ(a,x)
+ IncompleteGammaQ(a,x) is the regularized incomplete gamma function
+     IncompleteGammaQ(a,x) := 1 - IncompleteGammaP(a,x).
+   The evaluation is reliable for Re(a) > 0 only, although a result
+   is returned also for Re(a) <= 0.
+   The notation conforms with Numerical Recipes.
+   Error codes:
+   -1: First arg not numerical
+   -2: Second arg not numerical
+   -5: Argument dimensions do not match
+ 
+</verb>
+</tscreen>
+
+<sect1>Kummer1F1<label id="Kummer1F1">
+<p>
+<tscreen><verb>
+[w] = Kummer1F1(a,c,z)
+ Kummer1F1(a,c,z) is the 1F1 confluent hypergeometric function,
+   defined by
+     1F1(a,c,z) = sum(((a)_n/(c)_n)*z^n/n!,n=0..Inf)
+   where (a)_n is the Pochhammer symbol poch(a,n),
+      (a)_n = a*(a+1)*...*(a+n-1) = Gamma(a+n)/Gamma(a).
+   The function has no singularities or branch cuts for any z,
+   but is infinite when c is a non-positive integer.
+   The method of evaluation is power series expansion for
+   small and moderate |z| and direct integration of the defining
+   diff. equation in other cases.
+</verb>
+See also: <ref id="Kummer1F1Regularized" name="Kummer1F1Regularized">, <ref id="Gauss2F1" name="Gauss2F1">.
+<verb>
+   Error codes:
+   -1: First arg not numerical
+   -2: Second arg not numerical
+   -3: Third arg not numerical
+   -5: Argument dimensions do not match
+
+</verb>
+</tscreen>
+
+<sect1>Kummer1F1Regularized<label id="Kummer1F1Regularized">
+<p>
+<tscreen><verb>
+[w] = Kummer1F1Regularized(a,c,z)
+ Kummer1F1Regularized(a,c,z) is the regularized confluent
+   hypergeometric function, defined by
+   Kummer1F1Regularized(a,c,z):= Kummer1F1(a,c,z)/Gamma(c).
+   This function is finite for all finite values of the parameters.
+   The evaluation method works also when c is negative integer.
+</verb>
+See also: <ref id="Kummer1F1" name="Kummer1F1">.
+<verb>
+   Error codes:
+   -1: First arg not numerical
+   -2: Second arg not numerical
+   -3: Third arg not numerical
+   -5: Argument dimensions do not match
+
+</verb>
+</tscreen>
+
+<sect1>LU<label id="LU">
+<p>
+<tscreen><verb>
+[L;U,P] = LU(A)
+ [L,U,P] = LU(A) computes the LU factorization of matrix A.
+   The factorization is A = P**L**U, where P is a permutation
+   matrix, L is lower triangular with unit diagonal and U is
+   upper triangular.
+   [lu] = LU(A) leaves the factors L and U packed in one matrix.
+   [lu,p] = LU(A) returns also the pivoting info vector p.
+   (Notice that this p is related to the permutation matrix P
+   but is not the same. You need this form of LU if you want to
+   use LUbacksubst later on.)
+</verb>
+See also: <ref id="LUbacksubst" name="LUbacksubst">, <ref id="linsolve" name="linsolve">, <ref id="inv" name="inv">, <ref id="chol" name="chol">, <ref id="SVD" name="SVD">.
+<verb>
+   Error codes:
+   1: Singular matrix (==> zero in U's diagonal)
+   -1: Input arg not an array
+   -2: Input arg not a rank-2 array (matrix)
+   
+</verb>
+</tscreen>
+
+<sect1>LUbacksubst<label id="LUbacksubst">
+<p>
+<tscreen><verb>
+[x] = LUbacksubst(lu,p,b)
+ LUbacksubst(lu,p,b) solves the linear system A**x == b,
+   where A has been previously LU-decomposed using LU:
+   [lu,p] = LU(A).
+</verb>
+See also: <ref id="linsolve" name="linsolve">, <ref id="LU" name="LU">.
+<verb>
+   Error codes:
+   -1: First input arg is not an array
+   -2: First input arg is not a square matrix
+   -3: Second input arg is not an integer vector
+   -4: Third input arg is not an array
+   -5: Third input arg is not a vector or matrix
+   -6: Incompatible dimensions in first/third args
+   -7: Singular matrix
+   -8: Incompatible dimensions in first/second args
+   -9: Internal error
+
+</verb>
+</tscreen>
+
+<sect1>LegendreP<label id="LegendreP">
+<p>
+<tscreen><verb>
+[w] = LegendreP(n,m;x)
+ LegendreP(n,x) is the nth Legendre polynomial P_n(x)
+   evaluated at x.
+   LegendreP(n,m,x) is the associated Legendre function
+   P_n^m(x).
+   The Arfken definition is in use, which is different from
+   e.g. what Mathematica uses.
+   Error codes:
+   -1: First arg not numerical
+   -2: Second arg not numerical
+   -3: Third arg not numerical
+   -5: Argument dimensions do not match
+
+</verb>
+</tscreen>
+
+<sect1>Lomb<label id="Lomb">
+<p>
+<tscreen><verb>
+[freq,ampl;normalization,prob] = Lomb(x,y; dx,oversampling)
+   [freq,ampl] = Lomb(t,u)
+   The Lomb periodogram is power spectrum analysis of unevenly sampled data.
+   The argument t must be monotonically increasing "time" axis and u the
+   corresponding real data vector. The output freq is the frequency axis and
+   ampl the normalized Lomb power spectrum. The result is normalized so that
+   sum(ampl)*(freq[2]-freq[1]) approximates the mean squared signal mean(u^2)
+   and in case of evently spaced t, ampl is close to the FFT power spectrum P:
+   P=2*(t[2]-t[1])*abs2(realFFT(u))/length(u); P[length(P)]*= 0.5; P[1]*= 0.5.
+
+     [freq,ampl] = Lomb(t,u,dt,oversampling)
+   sets the finest wanted t resolution dt (default is min(diff(dt))) and the
+   oversampling factor (default 4.0).
+
+     [freq,ampl,normalization,prob] = Lomb(...)
+   returns also normalized and prob, where normalization is a scalar which is
+   such that normalization*ampl gives the dimensionless Lomb spectrogram
+   conforming to Numerical Recipes convention. The fourth output arg 'prob' is
+   the probability that the spectral power would occur by chance under the
+   assumption of Gaussian noise; if 'prob' is small at obtained peak, the peak
+   is statistically significant. Lomb uses a fast n*log(n) algorithm due to
+   Press and Rybicki. The implementation is loosely based on the Numerical
+   Recipes book. Lomb returns also zero frequency and the corresponding
+   amplitude which is related to mean(u) while the N.R. routine does not return
+   the zero frequency part.
+   Example:
+      n = 100; t = sort(n*rand(n)); u = 2*sin(128*pi*t/n);
+      [f,a,norm,prob] = Lomb(t,u,0.25); plot(f,a);
+   The spectral peak is clear, although not easily seen plot(t,u). The
+   probability that the peak occurs by chance is seen from plot(f,prob); it is
+   about 1e-18 in this case.
+</verb>
+See also: <ref id="FFT" name="FFT">, <ref id="realFFT" name="realFFT">.
+<verb>
+   Error codes:
+   -1: First input arg t is not real vector of length at least 2
+   -2: Second input arg u is not real vector
+   -3: Lengths of input vectors are different
+   -4: Third input arg 'dt' is not positive real scalar
+   -5: Fourth input arg 'oversampling' is not positive real scalar
+
+</verb>
+</tscreen>
+
+<sect1>NewHDFSupported<label id="NewHDFSupported">
+<p>
+<tscreen><verb>
+[y] = NewHDFSupported()
+ NewHDFSupported() returns 1 if this Tela was compiled with
+   HDF4.0b1 or later. If this is the case, then the following
+   become possible:
+   - HDFNewMode(1) can be used to save HDF data in "new" format
+     (SD rathern than SDS interface). This is now the default!
+   - Unidata netCDF files can be loaded/imported in the same
+     way as HDF SDS/SD files
+   
+   The main benefit of using the new format is that no precision
+   loss occurs because 64-bit numbers are used for real data
+   (the old HDF interface only supports 32-bit data).
+   
+   The main drawback of using the new format is that old Tela
+   versions and Tela versions which are still compiled with
+   HDF3.1r5 can not read the files. The old style files can be
+   read by all Tela versions.
+   
+</verb>
+See also: <ref id="HDFNewMode" name="HDFNewMode">, <ref id="save" name="save">.
+</tscreen>
+
+<sect1>Re<label id="Re">
+<p>
+<tscreen><verb>
+[y] = Re(x)
+ y = Re(x) takes the real part of a complex quantity x.
+   If x is real or integer, it is returned as such.
+   If x is an array, the operation is applied componentwise.
+</verb>
+See also: <ref id="Im" name="Im">, <ref id="conj" name="conj">, <ref id="arg" name="arg">.
+<verb>
+   Error codes:
+   -1: Nonnumeric input argument 
+</verb>
+</tscreen>
+
+<sect1>SVD<label id="SVD">
+<p>
+<tscreen><verb>
+[U;S,V] = SVD(A)
+ [U,S,V] = SVD(A) computes the singular value
+   decomposition of matrix A: A = U**S**V'.
+   U and V are unitary and S is diagonal.
+   SVD(A) as such returns the vector of singular values.
+</verb>
+See also: <ref id="LU" name="LU">, <ref id="chol" name="chol">.
+<verb>
+   Error codes:
+   1: No convergence
+   -1: Input arg not an array
+   -2: Input array is not a matrix
+   -3: Internal error
+   -4: Two output arg case not supported (must be 1 or 3)
+   
+</verb>
+</tscreen>
+
+<sect1>SilentMode<label id="SilentMode">
+<p>
+<tscreen><verb>
+[y] = SilentMode()
+ SilentMode() returns 1 if this Tela process is in silent mode
+   (command line switch -s), otherwise 0.
+</verb>
+See also: <ref id="BatchMode" name="BatchMode">, <ref id="VerboseMode" name="VerboseMode">, <ref id="CheckReadOnlyMode" name="CheckReadOnlyMode">.
+</tscreen>
+
+<sect1>UsingReadline<label id="UsingReadline">
+<p>
+<tscreen><verb>
+[y] = UsingReadline()
+ UsingReadline() returns 1 if this Tela was compiled
+   to use the GNU readline library, otherwise 0.
+</verb>
+See also: <ref id="BatchMode" name="BatchMode">, <ref id="SilentMode" name="SilentMode">, <ref id="VerboseMode" name="VerboseMode">.
+</tscreen>
+
+<sect1>VerboseMode<label id="VerboseMode">
+<p>
+<tscreen><verb>
+[;y] = VerboseMode(;x)
+ VerboseMode() returns 1 if this Tela process is in verbose mode
+   (command line switch -v), otherwise 0.
+   VerboseMode(on) and VerboseMode(off) set the verbose mode on
+   and off, respectively. They return the old mode setting.
+</verb>
+See also: <ref id="SilentMode" name="SilentMode">, <ref id="BatchMode" name="BatchMode">.
+<verb>
+   Error codes:
+   1: Argument not integer 
+</verb>
+</tscreen>
+
+<sect1>abs2<label id="abs2">
+<p>
+<tscreen><verb>
+[y] = abs2(x)
+ y = abs2(x) computes the square of the absolute value of x.
+   If x is real or integer, the result is just the square of x.
+   If x is complex, the result is equal to x*conj(x), except that
+   the latter would produce a complex result with zero or tiny
+   (because of possible roundoff error) imaginary part.
+   If x is an array, the operation is applied componentwise.
+   Error codes:
+   -1: Nonnumeric input argument 
+</verb>
+</tscreen>
+
+<sect1>accum<label id="accum">
+<p>
+<tscreen><verb>
+[u] = accum(...)
+ [u] = accum(i,j,...,v)
+   is the same as u<[i,j,...]>+= v
+   except that repeated indices are handled by sequential
+   increments rather than the last assignment only being effective
+   as in u<[i,j,...]>+= v. Notice that the v argument must be
+   an array of same size as i,j,..., a scalar v is not accepted.
+   (Hint: to promote scalar into array, add zeros array to it.)
+   Error codes:
+   -30: Too few input args to accum (min is 2)
+   -1: I/O arg u (left-hand-side) is non-numeric
+   -2: I/O arg u is scalar but last input arg is not
+   -3: I/O arg u is scalar but one of the indices is not 1, : or #(1)
+   -4: Mismatch between rank of I/O arg u and number of indices
+   -5: Scalar index out of range
+   -6: Invalid IntArray used as index, should be one-dimensional
+   -7: Vector index out of range
+   -8: Invalid index, should be integer or IntArray
+   -9: Accumulating non-integer into integer array
+   -10: Accumulating non-real into real array
+   -11: Accumulating non-scalar into complex array
+   -12: Too large dimensional accum, not yet implemented (internal error)
+   -14: Type mismatch
+   -22: Index vector length disagrees with 'RHS' length
+
+</verb>
+</tscreen>
+
+<sect1>acos<label id="acos">
+<p>
+<tscreen><verb>
+[y] = acos(x)
+ y = acos(x) computes the arc cosine of x.
+   If x is complex, the result is complex, otherwise real.
+   If x is an array, the operation is applied componentwise.
+</verb>
+</tscreen>
+
+<sect1>all<label id="all">
+<p>
+<tscreen><verb>
+[y] = all(x)
+ all(x) returns 1 if all elements of x are nonzero,
+   and 0 otherwise.
+   x must be an integer array or scalar.
+
+   Conditional statements (if, while, for, until) assume
+   implicit all, for example saying
+       if (A > 0) ...
+   is equivalent of saying
+       if (all(A > 0)) ... ,
+   thus you will need all less frequently than you need any.
+   
+</verb>
+See also: <ref id="any" name="any">.
+<verb>
+   Error codes:
+   1: Argument not integer or IntArray 
+</verb>
+</tscreen>
+
+<sect1>aniclose<label id="aniclose">
+<p>
+<tscreen><verb>
+[] = aniclose(ap)
+ aniclose(ap) closes a previously opened animation file.
+   Error codes:
+   1: Argument not a valid open animation handle
+
+</verb>
+</tscreen>
+
+<sect1>aniopen<label id="aniopen">
+<p>
+<tscreen><verb>
+[ap] = aniopen(fn,rw...)
+ aniopen("outfile","w") opens an MPEG or MNG animation file for writing.
+   It returns an animation handle that can be passed to aniput
+   for writing the frames.
+
+   You can also give option-value pairs as additional arguments,
+   the following are recognized (Example values are the defaults):
+
+   aniopen("outfile","w",
+     "animtype","mpeg-1",    // "MPEG-1", "MPEG-2" or "MNG" (case insensitive)
+     "bytes_per_frame",12e3, // bytes per frame to write, approximately
+     "framerate",7,          // frames per second to show when showing
+     "I_frames_only",0,      // if flag is 1, write I-frames only
+     "verbose",0)            // give some progress report to stderr
+
+   The rates must be positive reals or ints. The flags must be passed as
+   0 or 1. Set "I_frames_only" to 1 if you want to view all frames with
+   Xanim. Most widely available tools currently show only MPEG-1 animations,
+   not MPEG-2 so that default type is still set to "MPEG-1".
+
+   If animtype is "MNG", all other options are ignored (except being
+   syntactically checked). MNG animation always uses lossless compression.
+   This version writes a VLC (Very Low Complexity) MNG animation, which
+   uses adaptive filtering and the default ZLIB compression level.
+   Future Tela versions may offer additional options for controlling
+   the type of the MNG output (e.g., Delta-PNG animations).
+
+   Error codes:
+   -1: First argument not a string
+   -2: Second argument not a string
+   -3: Cannot open animation file
+   -4: Second argument not equal to "w" or "r"
+   5: Error with animation options
+</verb>
+See also: <ref id="aniput" name="aniput">, <ref id="aniclose" name="aniclose">.
+</tscreen>
+
+<sect1>aniput<label id="aniput">
+<p>
+<tscreen><verb>
+[] = aniput(ap,r,g,b)
+ aniput(ap,r,g,b) writes a new frame to a previously
+   opened animation (ap=handle returned by aniopen).
+   The first frame defines the image size of the animation.
+   Error codes:
+   -1: First argument not a valid open animation handle
+   -2: Second argument not an int matrix
+   -3: Third argument not an int matrix
+   -4: Fourth argument not an int matrix
+   -5: r,g,b arguments not of the same size with each other
+   -6: Image size does not match with first frame
+</verb>
+See also: <ref id="aniopen" name="aniopen">, <ref id="aniclose" name="aniclose">.
+<verb>
+
+</verb>
+</tscreen>
+
+<sect1>annotate<label id="annotate">
+<p>
+<tscreen><verb>
+[] = annotate(primitive...)
+ annotate("primitive"[,options]) adds MTV annotations to the previous
+   graph. The plot command(s) and the annotate command(s) must appear
+   inside hold(on) ... hold(off) in order to work correctly.
+   
+   --------------------------------------------
+   Here may be the proper place to list the most frequently used
+   PlotMTV options. These are used by giving them as optional args
+   (option-value pairs) to graphics functions.  See the PlotMTV data
+   format definition (DataFormat.ps) for all the available options.
+   
+   Option name(s)      Possible value(s)       Explanation
+   "xlabel"            string                  X-axis label
+   "ylabel"            string                  Y-axis label
+   "zlabel"            string                  Z-axis label
+   "toplabel"          string                  Plot title
+   "subtitle"          string                  Text below title
+   "comment"           string                  Text on right corner
+   "xmin","xmax"       real number             X-axis min,max
+   "ymin","ymax"       real number             Y-axis min,max
+   "zmin","zmax"       real number             Z-axis min,max
+   "xgrid"             real vector             X gridpoints (nonuniform)
+   "ygrid"             real vector             Y gridpoints (nonuniform)
+   "cmin","cmax"       real number             Contour min/max
+   "nsteps"            integer                 Number of contours
+   "cstep"             real number             Contour spacing
+   "contstyle"         1: normal contours, 2: colored (pcolor),
+                       3: 3D surface
+   "hiddenline"        "true": colored 3D surface, "false": wireframe
+   "linecolor"         color value (integer)
+   "linewidth"         integer
+   "linestyle"         solid,dashed etc.; integers; 0 is no line
+   "markertype"        integers; 0 is no marker (the default)
+   "markersize"        real number
+   "markercolor"       color value (integer)
+   
+   Some color (red,green,blue,pink etc.) names have been defined
+   in telainit.t. Use them for clarity if possible.
+   
+   The most usual PlotMTV command line options (always start with
+   minus sign):
+   -3d                  Initially view in 3D
+   -colorps             Produce color PostScript
+   -landscape           Produce landscape (rotated) PostScript
+   -scale s             PostScript scale factor, default 1
+   -nodate              Drop the date from PostScript figure
+   -title 'my title'    PlotMTV window title
+   
+   For an example in using the annotations, see e.g. the file
+   "3windows.t", usual location is /usr/local/lib/tela/t/.
+   
+</verb>
+See also: <ref id="plotopt" name="plotopt">, <ref id="hold" name="hold">, <ref id="plot" name="plot">, <ref id="pcolor" name="pcolor">, <ref id="mesh" name="mesh">, <ref id="contour" name="contour">, <ref id="vplot" name="vplot">, <ref id="colormap" name="colormap">.
+<verb>
+   Error codes:
+   1: Could not open temporary MTV file
+   2: First argument not a string
+   3: Syntax error in graph options 
+</verb>
+</tscreen>
+
+<sect1>any<label id="any">
+<p>
+<tscreen><verb>
+[y] = any(x)
+ any(x) returns 1 if at least one element of x is nonzero,
+   and 0 otherwise.
+   x must be a integer array or scalar.
+
+   Conditional statements (if, while, for, until) default
+   to implicit all, thus you sometimes need to use any
+   with these statements.
+   
+</verb>
+See also: <ref id="all" name="all">.
+<verb>
+   Error codes:
+   1: Argument not integer or IntArray 
+</verb>
+</tscreen>
+
+<sect1>applyfilter<label id="applyfilter">
+<p>
+<tscreen><verb>
+[U] = applyfilter(u,c,d)
+ U = applyfilter(u,c,d)
+   applies a IIR (Infinite Impulse Response) digital filter
+   to time series real vector u, producing another vector U.
+   The filter coefficients c,d must be real vectors.
+   The filter formulas is
+     U[n] = c**u[n-k] + d**U[n-j]
+   where k=0:length(c)-1, j=1:length(d)
+   and starts effects are handled by repeating the first
+   component backwards.
+   Error codes:
+   -1: First input arg must be real vector
+   -2: Second input arg must be real vector
+   -3: Third input arg must be real vector
+
+</verb>
+</tscreen>
+
+<sect1>arg<label id="arg">
+<p>
+<tscreen><verb>
+[phi] = arg(z)
+ arg(z) returns the argument of a complex quantity
+   (in radians). The result is between -pi and pi.
+   If z is a complex array, the operation is applied
+   componentwise.
+</verb>
+See also: <ref id="Re" name="Re">, <ref id="Im" name="Im">, <ref id="conj" name="conj">.
+<verb>
+   Error codes:
+   -1: Argument has undefined value
+   1: Nonnumeric argument 
+</verb>
+</tscreen>
+
+<sect1>asin<label id="asin">
+<p>
+<tscreen><verb>
+[y] = asin(x)
+ y = asin(x) computes the arc sine of x.
+   If x is complex, the result is complex, otherwise real.
+   If x is an array, the operation is applied componentwise.
+</verb>
+</tscreen>
+
+<sect1>atan<label id="atan">
+<p>
+<tscreen><verb>
+[y] = atan(x)
+ y = atan(x) computes the arc tangent of x.
+   If x is complex, the result is complex, otherwise real.
+   If x is an array, the operation is applied componentwise.
+</verb>
+See also: <ref id="atan2" name="atan2">.
+</tscreen>
+
+<sect1>atan2<label id="atan2">
+<p>
+<tscreen><verb>
+[z] = atan2(y,x)
+ z = atan2(y,x) computes the arcus tangent of y/x using the signs
+   of both arguments to determine the quadrant of the return value.
+   The input argument must be integer or real scalars and the
+   return value is real. They can also be real arrays; in this case
+   both must be arrays of the same length.
+</verb>
+See also: <ref id="atan" name="atan">.
+<verb>
+   Error codes:
+   -1: Bad input argument
+   -2: Input arrays must be of same length
+
+</verb>
+</tscreen>
+
+<sect1>autoglobal<label id="autoglobal">
+<p>
+<tscreen><verb>
+[] = autoglobal(...)
+ autoglobal("sym1","sym2",...) sets the 'autoglobal' attribute
+   to given symbols. The symbols are then globally accessible
+   from inside packages and functions without need to explicitly
+   declaring them global. Constants such as pi carry the autoglobal
+   attribute automatically, but with this function it is possible
+   for the user to define more autoglobal symbols.
+
+   Warning: This function is for experts only. It is not advisable
+   to say autoglobal("x"), for instance, because many existing code
+   may then break down.
+
+</verb>
+See also: <ref id="hide" name="hide">.
+<verb>
+   Error codes:
+   1: Argument not a string 
+</verb>
+</tscreen>
+
+<sect1>autosource<label id="autosource">
+<p>
+<tscreen><verb>
+[] = autosource(fn...)
+ autosource("file.t","name1","name2",...) tags symbols
+   name1, name2,... such that the command source("file.t")
+   is effectively executed when any of the symbols name
+   is used. This is load-on-demand.
+</verb>
+See also: <ref id="source" name="source">.
+<verb>
+   Error codes:
+   1: Argument not a string 
+</verb>
+</tscreen>
+
+<sect1>avoid_constructors<label id="avoid_constructors">
+<p>
+<tscreen><verb>
+[] = avoid_constructors(flag)
+ avoid_constructors(on) affects the operation
+   of subsequent t2ct function calls.
+   When this flag is on, the generated C-tela (C++)
+   code avoids constructing class objects on the stack
+   but instead declares these objects as pointers and
+   initializes them using the 'new' operator.
+   This mode compiles on ATT Cfront versions that do not
+   support goto statements in blocks having constructors.
+
+   However, in some rare cases avoid_constructors(on)
+   is known to produce incorrect code. The default is
+   avoid_constructors(off).
+
+</verb>
+See also: <ref id="t2ct" name="t2ct">.
+<verb>
+   Error codes:
+   1: Argument not an integer
+
+</verb>
+</tscreen>
+
+<sect1>axpy<label id="axpy">
+<p>
+<tscreen><verb>
+[y] = axpy(a,x)
+ [y] = axpy(a,x) is the equivalent of y = y + a*x
+   for scalar a and (real or complex) arrays x and y.
+   axpy calls a fast BLAS-1 routine if available.
+   Error codes:
+   -1: Input/output arg y is not real/complex array
+   -2: First input arg a is not a scalar
+   -3: Second input arg x is not real/complex array
+   -4: Second input arg x has size incompatible with y
+   -5: If y is real a and x must also be real
+   -6: If y is complex x must also be complex
+
+</verb>
+</tscreen>
+
+<sect1>bar<label id="bar">
+<p>
+<tscreen><verb>
+[] = bar(x,y,z...)
+ bar(grouplabels,data,barnames[,options]) produces a bar chart.
+   Example 1:
+   
+   bar(strmat("DEC","HP"),#(111,150.6),"Speed")
+   
+</verb>
+See also: <ref id="plot" name="plot">, <ref id="hist" name="hist">.
+<verb>
+   Error codes:
+   1: First argument not int nor real array
+   2: First argument not a vector nor matrix
+   3: Second argument not int nor real array
+   4: Second argument not a vector nor matrix
+   5: Dimension mismatch between first and second arg
+   6: If second arg is vector, third arg must be a string
+   7: Third arg must be a string or a string matrix
+   8: If second arg is matrix, third arg must be a string matrix
+   9: Dimension mismatch between second and third arg
+   10: Syntax error in graph options
+   11: First arg must not be real matrix
+   12: Could not open temporary MTV file
+   
+</verb>
+</tscreen>
+
+<sect1>bsearch<label id="bsearch">
+<p>
+<tscreen><verb>
+[i] = bsearch(x,X)
+ i = bsearch(x,X)
+   binary-searches for value X in ordered vector x and returns index i
+   such that x[i] <= X <= x[i+1] if x is monotonically increasing,
+   or x[i] >= X >= x[i+1] if x is monotonically decreasing.
+   The first argument x must be monotonic int or real vector,
+   and second argument X can be either int or real scalar or array.
+   The result value i is integer-valued, and of the same size as X.
+   It satisfies 1<=i<=N-1 where N=length(x) in cases where X is
+   in the range min(x[1],x[N])..max(x[1],x[N]), and zero otherwise
+   (point out of range).
+   The execution time of bsearch is O(log(length(x))*length(X)).
+</verb>
+See also: <ref id="interp" name="interp">.
+<verb>
+   Error codes:
+   -1: First arg not int or real vector
+   -2: Second arg not int or real
+
+</verb>
+</tscreen>
+
+<sect1>cd<label id="cd">
+<p>
+<tscreen><verb>
+[] = cd(fn)
+ cd("pathname") will change the current directory to "pathname".
+   cd("") will change to home directory.
+   cd("~/my/dir") will change to directory "my/dir" in the
+   home directory.
+
+</verb>
+See also: <ref id="getenv" name="getenv">.
+<verb>
+   Error codes:
+   1: Input argument not a string
+   2: Directory not found
+   3: This system does not support cd 
+</verb>
+</tscreen>
+
+<sect1>ceil<label id="ceil">
+<p>
+<tscreen><verb>
+[y] = ceil(x)
+ ceil(x) returns the smallest integer which is larger than x.
+   x must be integer or real scalar or array. If it is an array,
+   the operation is applied componentwise.
+</verb>
+See also: <ref id="floor" name="floor">, <ref id="round" name="round">, <ref id="trunc" name="trunc">.
+<verb>
+   Error codes:
+   -1: Complex or nonnumeric input argument 
+</verb>
+</tscreen>
+
+<sect1>chol<label id="chol">
+<p>
+<tscreen><verb>
+[B] = chol(A)
+ B=chol(A) returns the Cholesky decomposition of a
+   positive definite square matrix A: B'**B == A.
+   A may be integer, real or complex valued.
+   Only the upper half of A is referenced, the lower half
+   is assumed to be Hermitian symmetric.
+</verb>
+See also: <ref id="linsolve" name="linsolve">, <ref id="LU" name="LU">, <ref id="matprod" name="matprod">, <ref id="det" name="det">, <ref id="eig" name="eig">, <ref id="inv" name="inv">.
+<verb>
+   Error codes:
+   -1: Input arg is not a matrix
+   -2: Input matrix is not square
+   -3: Input matrix is not positive definite 
+</verb>
+</tscreen>
+
+<sect1>clear<label id="clear">
+<p>
+<tscreen><verb>
+[] = clear(...)
+ clear() removes all variables that are visible from
+   the whos() function from the workspace. Function definitions
+   are not cleared. Variables in loaded packages are also not affected.
+
+   clear("var1","var2",...) removes only the specified variables.
+   If a string is not a variable name, no warning is given.
+</verb>
+See also: <ref id="whos" name="whos">, <ref id="hide" name="hide">, <ref id="unhide" name="unhide">.
+<verb>
+   Error codes:
+   1: Bad argument, not a string
+
+</verb>
+</tscreen>
+
+<sect1>closefig<label id="closefig">
+<p>
+<tscreen><verb>
+[] = closefig(n)
+ closefig(n) (n>1) closes the nth graphics window.
+   The active window is not changed, so if n is the active
+   window, subsequent plot commands will reopen it.
+   If the window has never been opened or has already been
+   closed, closefig is silent about it.
+
+   closefig("all") closes all figures.
+</verb>
+See also: <ref id="figure" name="figure">.
+<verb>
+   Error codes:
+   1: Argument not an integer
+   2: Argument not positive
+   3: This Tela installation does not support the closefig command
+   4: No n>1 figures are currently open (and X11 initialization has failed)
+   
+</verb>
+</tscreen>
+
+<sect1>colormap<label id="colormap">
+<p>
+<tscreen><verb>
+[] = colormap(r;g,b)
+ colormap(r,g,b) sets the colormap (palette) for the next
+   opened graphics window. The arguments r,g,b must be real vectors
+   with equal lengths and with entries in the range 0..1. If they
+   are outside range, they are silently truncated.
+
+   The colormap has an effect only in pcolor plots, and in contour
+   and mesh plots if suitable options are used. The colormap is reset
+   to its default value after each plot.
+
+   colormap(c), where c is a Nx3 matrix, is also accepted.
+   
+   NOTICE: you need PlotMTV1.4.2t or later for this feature
+   to work. If you try to use it with older PlotMTV's, a warning
+   message about unknown option will be displayed.
+   
+</verb>
+See also: <ref id="plot" name="plot">, <ref id="annotate" name="annotate">.
+<verb>
+   Error codes:
+   1: Argument is not real vector
+   2: Arguments have unequal lengths
+   3: Argument length less than 2 is not allowed
+   4: You must give either 1 or 3 input arguments
+   5: Single argument is not a Nx3 real matrix
+
+</verb>
+</tscreen>
+
+<sect1>computeEPOCH<label id="computeEPOCH">
+<p>
+<tscreen><verb>
+[epoch] = computeEPOCH(year,month,day,hour,minute,second,msec)
+ computeEPOCH(year,month,day,hour,minute,second,msec)
+   returns the number of milliseconds since 01-Jan-0000 00:00:00.000
+   as a real number.
+   The arguments must be integer scalars or arrays.
+   The arrays must be of the same sizes, but a mixture of arrays and
+   scalars is allowed. The result is array if any of the inputs is.
+   If an illegal component is detected the result(ing component) will
+   be -1.0.
+</verb>
+See also: <ref id="EPOCHbreakdown" name="EPOCHbreakdown">, <ref id="parseEPOCH" name="parseEPOCH">, <ref id="encodeEPOCH" name="encodeEPOCH">.
+<verb>
+   Error codes:
+   -1: Argument not integer
+   -2: Arguments of incompatible dimensions
+
+</verb>
+</tscreen>
+
+<sect1>conj<label id="conj">
+<p>
+<tscreen><verb>
+[y] = conj(x)
+ y = conj(x) computes the complex conjugate of x.
+   Real and integer arguments are returned as such.
+   If x is an array, the operation is applied componentwise.
+</verb>
+See also: <ref id="Re" name="Re">, <ref id="Im" name="Im">, <ref id="arg" name="arg">.
+</tscreen>
+
+<sect1>contour<label id="contour">
+<p>
+<tscreen><verb>
+[] = contour(z...)
+ contour(z[,options]) plots the matrix z as a filled contour plot.
+   contour(z,"xgrid",<x-grid-vector>,"ygrid",<y-grid-vector>[,other opts])
+   specifies a nonuniform grid in X and Y.
+</verb>
+See also: <ref id="contour3" name="contour3">, <ref id="annotate" name="annotate">, <ref id="plot" name="plot">, <ref id="mesh" name="mesh">, <ref id="pcolor" name="pcolor">, <ref id="vplot" name="vplot">.
+<verb>
+   Error codes:
+   1: Could not open temporary MTV file
+   2: First argument is not a numeric 2D array
+   3: Syntax error in graph options
+   4: Write error in MTV file - file system full? 
+</verb>
+</tscreen>
+
+<sect1>contour3<label id="contour3">
+<p>
+<tscreen><verb>
+[] = contour3(z...)
+ contour3(z[,options]) plots the 3D array as a
+   "volume" plot. Currently this only means that all
+   six faces of the volume are contoured and colored
+   according to options.
+</verb>
+See also: <ref id="annotate" name="annotate">, <ref id="plot" name="plot">, <ref id="mesh" name="mesh">, <ref id="pcolor" name="pcolor">, <ref id="vplot" name="vplot">.
+<verb>
+   contour.
+   Error codes:
+   1: Could not open temporary MTV file
+   2: First argument is not a real 3D array
+   3: Syntax error in graph options
+   4: Write error in MTV file - file system full? 
+</verb>
+</tscreen>
+
+<sect1>cos<label id="cos">
+<p>
+<tscreen><verb>
+[y] = cos(x)
+ y = cos(x) computes the cosine function of x.
+   If x is complex, the result is complex, otherwise real.
+   The argument must be in radians.
+   If x is an array, the operation is applied componentwise.
+</verb>
+</tscreen>
+
+<sect1>cosFFT<label id="cosFFT">
+<p>
+<tscreen><verb>
+[f] = cosFFT(u; dim)
+ cosFFT(u) gives the cosine Fast Fourier Transform of array u.
+   If u's rank is more than one, the transform is computed
+   only along the first dimension (many independent 1D
+   transforms).
+
+   cosFFT(u,dim) computes the FFT along the specified dimension.
+   The first dimension is labeled 1 and so on.
+
+   For vector u, f=cosFFT(u) is equivalent with
+
+   n = length(u); f = zeros(n);
+   for (j=1; j<=n; j++)
+       f[j] = u[1] - (-1)^j*u[n] + 2*sum(u[2:n-1]*cos((1:n-2)*(j-1)*pi/(n-1)));
+
+   Note that cosFFT is most efficient when n-1 is a product of small
+   primes, where n is the transform length.
+	   
+</verb>
+See also: <ref id="invcosFFT" name="invcosFFT">, <ref id="sinFFT" name="sinFFT">, <ref id="cosqFFT" name="cosqFFT">, <ref id="sinqFFT" name="sinqFFT">, <ref id="realFFT" name="realFFT">, <ref id="FFT" name="FFT">.
+<verb>
+   Error codes:
+   -1: First argument not a real array
+   -2: Second argument not integer
+   -3: Second argument out of range
+   
+</verb>
+</tscreen>
+
+<sect1>cosh<label id="cosh">
+<p>
+<tscreen><verb>
+[y] = cosh(x)
+ y = cosh(x) computes the hyperbolic cosine function of x.
+   If x is complex, the result is complex, otherwise real.
+   If x is an array, the operation is applied componentwise.
+</verb>
+</tscreen>
+
+<sect1>cosqFFT<label id="cosqFFT">
+<p>
+<tscreen><verb>
+[f] = cosqFFT(u; dim)
+ cosqFFT computes the quarter-wave cosine Fourier transform.
+   Except for the quarter-wave cosine character, it works similarly to cosFFT.
+   
+   For vector u, f=cosqFFT(u) is equivalent with
+
+   n = length(u); f = zeros(n);
+   for (j=1; j<=n; j++)
+       f[j] = u[1] + 2*sum(u[2:n]*cos((2*j-1)*(1:n-1)*pi/(2*n)));
+   
+   cosqFFT is most efficient when the transform length is a product
+   of small primes.
+	   
+</verb>
+See also: <ref id="invcosqFFT" name="invcosqFFT">, <ref id="realFFT" name="realFFT">, <ref id="sinqFFT" name="sinqFFT">, <ref id="FFT" name="FFT">.
+<verb>
+   Error codes:
+   -1: First argument not a real array
+   -2: Second argument not integer
+   -3: Second argument out of range
+   
+</verb>
+</tscreen>
+
+<sect1>cot<label id="cot">
+<p>
+<tscreen><verb>
+[y] = cot(x)
+ y = cot(x) is the cotangent function
+   cot(x) = 1/tan(x) = cos(x)/sin(x). 
+</verb>
+</tscreen>
+
+<sect1>cputime<label id="cputime">
+<p>
+<tscreen><verb>
+[t] = cputime(;p)
+ cputime() returns the CPU time in seconds used by the current
+   tela session. cputime(p) returns CPU time from performance data
+   array p, previously obtained from perf().
+</verb>
+See also: <ref id="tic" name="tic">, <ref id="toc" name="toc">, <ref id="perf" name="perf">.
+<verb>
+   Error codes:
+   -1: Bad argument, must be obtained from perf() 
+</verb>
+</tscreen>
+
+<sect1>csc<label id="csc">
+<p>
+<tscreen><verb>
+[y] = csc(x)
+ y = csc(x) is the cosecant function
+   csc(x) = 1/sin(x). 
+</verb>
+</tscreen>
+
+<sect1>cumprod<label id="cumprod">
+<p>
+<tscreen><verb>
+[y] = cumprod(x)
+ y = cumprod(x) forms an array of partial products
+   y = #(x[1],x[1]*x[2],...,prod(x[1:n]),...).
+   The result y has the same size and type as x. Unlike
+   prod, cumprod does not try to avoid integer overflows.
+   The array x is logically flattened, to apply
+   along a specified dimension use map(cumsum,...).
+   If x is scalar, it is returned as such.
+</verb>
+See also: <ref id="prod" name="prod">, <ref id="cumsum" name="cumsum">, <ref id="map" name="map">.
+<verb>
+   Error codes:
+   -1: Nonnumeric input arg 
+</verb>
+</tscreen>
+
+<sect1>cumsum<label id="cumsum">
+<p>
+<tscreen><verb>
+[y] = cumsum(x)
+ y = cumsum(x) forms an array of partial sums
+   y = #(x[1],x[1]+x[2],...,sum(x[1:n]),...).
+   The result y has the same size and type as x.
+   The array x is logically flattened, to apply
+   along a specified dimension use map(cumsum,...).
+   If x is scalar, it is returned as such.
+</verb>
+See also: <ref id="sum" name="sum">, <ref id="cumprod" name="cumprod">, <ref id="map" name="map">.
+<verb>
+   Error codes:
+   -1: Nonnumeric input arg 
+</verb>
+</tscreen>
+
+<sect1>curve<label id="curve">
+<p>
+<tscreen><verb>
+[] = curve(x,y...)
+ curve(x,y) adds a curve in the current SPPC panel.
+   SPPC option-value pairs can be added as further arguments.
+   Do 'help sppcopts' for list of possible options.
+</verb>
+See also: <ref id="sppcmark" name="sppcmark">, <ref id="pseudo" name="pseudo">, <ref id="panel" name="panel">, <ref id="endpanels" name="endpanels">, <ref id="sppcopts" name="sppcopts">, <ref id="xlabels" name="xlabels">.
+<verb>
+   Error codes:
+   1: Could not open temporary MTV file
+   2: First argument (x) not a real vector
+   3: Second argument (y) not a real vector
+   4: First two arguments of different lengths
+   5: Odd number of arguments
+   6: Option name not a string
+   7: Unknown option
+   8: Bad option value
+
+</verb>
+</tscreen>
+
+<sect1>det<label id="det">
+<p>
+<tscreen><verb>
+[d] = det(A)
+ det(A) returns the determinant of a square matrix A.
+   A may be integer, real or complex valued.
+   If A is scalar, it is returned as such.
+   Error codes:
+   -1: Nonnumeric input arg
+   -2: Input array is not a matrix
+   -3: Input matrix is not square
+   -4: Singular matrix 
+</verb>
+</tscreen>
+
+<sect1>diag<label id="diag">
+<p>
+<tscreen><verb>
+[y] = diag(x; offset)
+ diag(V, K) (V is a vector) returns a square diagonal matrix, with
+   vector V on the main diagonal (K == 0, default), the K-th super
+   diagonal (K > 0) or the K-th sub-diagonal (K < 0).
+
+   diag(M, K) (M is a matrix) returns the main diagonal (K == 0,
+   default), the K-th super diagonal (K > 0), or the K-th sub-diagonal
+   (K < 0) of M as a vector.  M need not necessarily be square.
+
+   Error codes:
+   -1: Input array X (arg 1) not vector or matrix
+   -2: Expecting offset K (arg 2) to be integral
+   -3: Internal error
+    1: Requested diagonal out of range
+
+</verb>
+</tscreen>
+
+<sect1>disasm<label id="disasm">
+<p>
+<tscreen><verb>
+[] = disasm(fn)
+ disasm(f) produces disassembly listing of function f.
+   Error codes:
+   1: Argument not a Tela function 
+</verb>
+</tscreen>
+
+<sect1>eig<label id="eig">
+<p>
+<tscreen><verb>
+[D;V] = eig(A)
+ eig(A) returns the eigenvalues of a square matrix A.
+   [D,V] = eig(A) returns the eigenvalues in D and the
+   right eigenvectors as columns of V. The eigenvectors
+   satisfy A**V == D*V.
+</verb>
+See also: <ref id="inv" name="inv">, <ref id="LU" name="LU">.
+<verb>
+   Error codes:
+   1: Failed to converge
+   -1: Input arg is not an array
+   -2: Input array is not a matrix
+   -3: Input matrix is not square
+   -4: Internal error
+   
+</verb>
+</tscreen>
+
+<sect1>encodeEPOCH<label id="encodeEPOCH">
+<p>
+<tscreen><verb>
+[s] = encodeEPOCH(epoch)
+ encodeEPOCH(epoch) returns the character string
+   encoding of the given epoch value (number of milliseconds
+   since 01-Jan-0000 00:00:00.000) as dd-mmm-yyyy hh:mm:ss:ccc.
+</verb>
+See also: <ref id="parseEPOCH" name="parseEPOCH">, <ref id="computeEPOCH" name="computeEPOCH">, <ref id="EPOCHbreakdown" name="EPOCHbreakdown">.
+<verb>
+   Error codes:
+   -1: Argument not a real scalar
+
+</verb>
+</tscreen>
+
+<sect1>endpanels<label id="endpanels">
+<p>
+<tscreen><verb>
+[] = endpanels(...)
+ endpanels() finishes the current SPPC page by drawing
+   the pending panels. Do 'help sppcopts' for list of valid options.
+   
+   Additionally, endpanels recognizes option "output". If set to non-empty string,
+   it stores the SPPC code in the named file instead of calling ghostview,
+   e.g.: endpanels("output","myfile.sppc").
+   You can then do e.g.
+     sppc -papertype 8x14cm -landscape <myfile.sppc >myfile.ps
+   See sppc -help for possible options. This enables "blind" batch mode runs.
+   
+</verb>
+See also: <ref id="curve" name="curve">, <ref id="sppcmark" name="sppcmark">, <ref id="pseudo" name="pseudo">, <ref id="panel" name="panel">, <ref id="sppcopts" name="sppcopts">, <ref id="xlabels" name="xlabels">.
+<verb>
+   Error codes:
+   1: Calling endpanels before calling curve or pseudo
+   5: Odd number of arguments
+   6: Option name not a string
+   7: Unknown option
+   8: Bad option value
+
+</verb>
+</tscreen>
+
+<sect1>error<label id="error">
+<p>
+<tscreen><verb>
+[] = error(;msg)
+ error("message") writes message and returns to the
+   Tela main level.
+   error() uses a default message.
+</verb>
+See also: <ref id="exit" name="exit">.
+<verb>
+   Error codes:
+   -1: Argument not a string
+
+</verb>
+</tscreen>
+
+<sect1>eval<label id="eval">
+<p>
+<tscreen><verb>
+[] = eval(s)
+ eval("string") executes string as a Tela command, as it had been
+   typed from the keyboard.
+   The evaluation is done in global context. The symbols appearing
+   in the string refer to the global ones.
+</verb>
+See also: <ref id="evalexpr" name="evalexpr">.
+<verb>
+   Error codes:
+   1: Argument not a string 
+</verb>
+</tscreen>
+
+<sect1>evalexpr<label id="evalexpr">
+<p>
+<tscreen><verb>
+[y] = evalexpr(s)
+ y = evalexpr("expression") executes string as a Tela command,
+   returning its value in y.
+   The evaluation is done in global context. The symbols appearing
+   in the string refer to the global ones.
+</verb>
+See also: <ref id="eval" name="eval">.
+<verb>
+   Error codes:
+   1: Argument not a string 
+</verb>
+</tscreen>
+
+<sect1>exit<label id="exit">
+<p>
+<tscreen><verb>
+[] = exit(;rv)
+ exit() stops Tela, returning zero (success) exit code
+   to the calling process.
+
+   exit(n) returns exit code n instead of zero.
+   n must be an int scalar.
+
+   Function quit is a synonym for exit.
+
+</verb>
+See also: <ref id="error" name="error">.
+<verb>
+Error codes:
+   1: expecting integer scalar for EXIT_CODE (arg 1).
+
+</verb>
+</tscreen>
+
+<sect1>exp<label id="exp">
+<p>
+<tscreen><verb>
+[y] = exp(x)
+ y = exp(x) computes the exponent function of x.
+   If x is complex, the result is complex, otherwise real.
+   If x is an array, the operation is applied componentwise.
+</verb>
+</tscreen>
+
+<sect1>export_CDF<label id="export_CDF">
+<p>
+<tscreen><verb>
+[] = export_CDF(fn...)
+ export_CDF("fyle"[,flags][,"varables"]...) writes the named global
+   variables in CDF file "fyle.cdf". The arguments after the file name
+   must be either strings (global variable names) or integer scalars giving
+   optional flags.
+   export_CDF("fyle"[,flags]) writes all global variables.
+   Integer arrays are written using 1-byte or 2-byte signed or unsigned
+   storage, if possible.
+   Strings and chars are written as CDF_CHAR type if in range -127..127.
+
+   Supported symbolic flags (to combine, use addition):
+     CDF_FLOAT    Write reals using 4 bytes
+     CDF_DOUBLE   Write reals using 8 bytes (the default)
+     CDF_RECORD   Turn first dimension to 'record dimension'
+     CDF_NORECORD Do not (the default)
+   For example:
+     export_CDF("fyle.cdf",CDF_FLOAT+CDF_RECORD,"A",CDF_NORECORD,"B")
+   stores global variables A and B using floats, if they are real arrays,
+   and turning the first dimension of A into a record dimension.
+   Thus the flags are effective for those variables that follow, unless
+   turned off by other flags. The flags are not remembered between calls.
+</verb>
+See also: <ref id="import_CDF" name="import_CDF">.
+<verb>
+   Error codes:
+   -1: First argument not a string
+   -2: Fatal CDF library error
+   -5: Rest of the args are not strings or int scalars
+
+</verb>
+</tscreen>
+
+<sect1>export_PNG<label id="export_PNG">
+<p>
+<tscreen><verb>
+[] = export_PNG(fn,r;g,b,a)
+ export_PNG("file.png",u)
+   writes integer matrix u into grayscale PNG file.
+
+   export_PNG("file.png",u,a) writes grayscale and alpha data.
+
+   export_PNG("file.png",r,g,b) writes RGB colour data.
+
+   export_PNG("file.png",r,g,b,a) writes RGB and alpha data.
+
+   The bit depth will be 8 or 16, depending on whether maxval
+   is less than 256 or not. Negative values are silently
+   replaced by zero.
+   
+   Error codes:
+   1: First arg not a string
+   2: Cannot open output file
+   3: Cannot write PNG header to output file
+   4: Second input arg not integer matrix
+   5: Third input arg not integer matrix
+   6: Third input arg is different size matrix than second arg
+   7: Fourth input arg not integer matrix
+   8: Fourth input arg is different size matrix than second arg
+   9: Fifth input arg not integer matrix
+   10: Fifth input arg is different size matrix than second arg
+
+</verb>
+</tscreen>
+
+<sect1>export_PNM<label id="export_PNM">
+<p>
+<tscreen><verb>
+[] = export_PNM(fn,r;g,b)
+ export_PNM("file.pnm",x) writes integer matrix x in
+   PNM (Portable aNyMap) file "file.pnm". If no element is
+   larger than 255, a 8-bit "raw" file is written, otherwise an ASCII file.
+   If all elements are equal to 0 or 1, a black and white 1-bit PBM
+   (Portable BitMap) file will be written.
+
+   export_PNM("file.pnm",r,g,b) creates a 24-bit color-PPM file.
+   Matrix entries are truncated in the range 0..255 in this case.
+   The integer matrices r,g and b represent the red, green
+   and blue values. They must have equal dimensions.
+
+   If the system supports pipes (has the popen function),
+   you can use export_PNM("!...",..) to write to a pipe instead
+   of a file (for example, export_PNM("!cjpeg >x.jpeg",r,g,b)).
+   
+</verb>
+See also: <ref id="import_PNM" name="import_PNM">.
+<verb>
+   Error codes:
+   1: First arg not a string
+   2: Argument is not integer matrix
+   3: export_PNM must be called with 2 or 4 input args
+   4: Dimensions of R,G,B matrices must be equal
+   5: Could not open file for output
+
+</verb>
+</tscreen>
+
+<sect1>export_RIS8<label id="export_RIS8">
+<p>
+<tscreen><verb>
+[] = export_RIS8(fn,x)
+ export_RIS8("file.hdf",x) writes (appends) integer matrix x
+   to HDF file "file.hdf" as a raster-8 image (Raster Image Set, RIS).
+   When the file is opened with default settings using the usual
+   HDF viewers such as Spyglass products, the first dimension grows
+   vertically downward and the second dimension grows from left to
+   right.
+
+   The RIS8 HDF files can be read back using import.
+
+</verb>
+See also: <ref id="export_matlab" name="export_matlab">, <ref id="save" name="save">, <ref id="import" name="import">.
+<verb>
+   Error codes:
+   1: First argument not a string
+   2: Second argument not an integer matrix
+   
+</verb>
+</tscreen>
+
+<sect1>export_matlab<label id="export_matlab">
+<p>
+<tscreen><verb>
+[] = export_matlab(fn...)
+ export_matlab("file") saves all variables in Tela
+   workspace in "file". Any previous contents of "file"
+   are overwritten. The data are written in MATLAB
+   binary format. Hidden Tela variables are not saved.
+
+   export_matlab("file","var1","var2"...) saves only the
+   specified variables. Notice that you have to give the
+   variable names as strings.
+
+   The resulting MAT-file can be read using the
+   MATLAB 'load' command.
+   
+   Limitations (bugs): It is not possible to export
+   local variables. If you try, the global ones will
+   be written, if they have numeric values. Use
+   export_matlab2 to achieve this, and to have explicit
+   control of variable naming.
+   
+</verb>
+See also: <ref id="export_matlab2" name="export_matlab2">, <ref id="save" name="save">, <ref id="load" name="load">, <ref id="import" name="import">.
+<verb>
+   Error codes:
+   1: Too few arguments
+   2: Argument not a string
+   3: Write error on file
+   
+</verb>
+</tscreen>
+
+<sect1>export_matlab2<label id="export_matlab2">
+<p>
+<tscreen><verb>
+[] = export_matlab2(fn...)
+ export_matlab2("file", var1,"name1", var2,"name2"...)
+   saves objects var1,var2... in MATLAB binary format in "file".
+   The objects will be named "name1", "name2"... .
+   Any previous contents of "file" are overwritten.
+   workspace in "file". Any previous contents of "file"
+   is overwritten.
+
+   The resulting MAT-file can be read using the
+   MATLAB 'load' command.
+   
+</verb>
+See also: <ref id="export_matlab" name="export_matlab">, <ref id="save" name="save">, <ref id="load" name="load">, <ref id="import" name="import">.
+<verb>
+   Error codes:
+   1: First arg not a string
+   2: Even number of arguments
+   3: Write error on file
+   4: The 'name' argument is not a string
+   
+</verb>
+</tscreen>
+
+<sect1>export_netCDF<label id="export_netCDF">
+<p>
+<tscreen><verb>
+[] = export_netCDF(fn...)
+ export_netCDF("file",...) behaves exactly like
+   save but it exports the variables in netCDF rather
+   than HDF format. The function is operational only
+   if NewHDFSupported() returns nonzero.
+   
+</verb>
+See also: <ref id="save" name="save">, <ref id="HDFNewMode" name="HDFNewMode">.
+<verb>
+   Error codes:
+   1: Too few arguments
+   2: Argument not a string or char
+   3: Unexpected HDF error
+   4: Cannot open new-style HDF SD file
+   5: Cannot create netCDF file
+   6: netCDF not supported by this Tela, use HDF4.0b1 or later
+
+</verb>
+</tscreen>
+
+<sect1>export_sound_CDR<label id="export_sound_CDR">
+<p>
+<tscreen><verb>
+[] = export_sound_CDR(fn,L,R)
+ export_sound_CDR("file.cdr",left,right)
+   takes integer-valued vectors left and right and writes them in
+   raw audio-CD format in "file.cdr". The file will consist of 16-bit
+   signed sample pairs (left,right).
+   If the filename starts with "!", it is interpreted as an output pipe.
+   Error codes:
+   1: First arg not a (nonempty) string
+   2: Second arg not an int vector
+   3: Third arg not an int vector
+   4: Second and third args of unequal lengths
+   5: Cannot open output file
+   6: This Tela implementation has sizeof(short)!=2, cannot do export_sound_CDR, sorry
+   7: Not enough memory for work arrays
+   8: File write incomplete, maybe filesystem full
+
+</verb>
+</tscreen>
+
+<sect1>eye<label id="eye">
+<p>
+<tscreen><verb>
+[A] = eye(n)
+ eye(n) returns the (integer) unit matrix of order n.
+   n must be a non-negative scalar integer.
+   eye(V) where V is a two-element integer vector with
+   both elements equal and positive works also, thus
+   you can also use eye(size(A)).
+</verb>
+See also: <ref id="ones" name="ones">, <ref id="inv" name="inv">.
+<verb>
+   Error codes:
+   -1: Argument not an integer or IntArray
+   -2: Negative dimension
+   -3: IntArray rank not 1
+   -4: IntArray length not 2
+   -5: Integer vector elements are unequal
+   
+</verb>
+</tscreen>
+
+<sect1>fclose<label id="fclose">
+<p>
+<tscreen><verb>
+[] = fclose(fnum)
+ fclose(fnum) closes file with given identification number.
+   The fnum must have been previously obtained from fopen.
+</verb>
+See also: <ref id="fopen" name="fopen">, <ref id="fformat" name="fformat">, <ref id="fread" name="fread">, <ref id="fwrite" name="fwrite">, <ref id="fgetc" name="fgetc">, <ref id="fgetc" name="fgetc">.
+<verb>
+   Error codes:
+   -1: Bad argument: not integer
+   -2: Bad argument: outside range
+   3: File was not open
+
+</verb>
+</tscreen>
+
+<sect1>feof<label id="feof">
+<p>
+<tscreen><verb>
+[result] = feof(fnum)
+ feof(fnum) checks whether end of file has been reached
+   on previously opened file with identification number fnum.
+   Return value is 1 in case of EOF and 0 otherwise.
+   Return value is -1 if the file is not open.
+</verb>
+See also: <ref id="fgetc" name="fgetc">, <ref id="fgets" name="fgets">, <ref id="fopen" name="fopen">, <ref id="fread" name="fread">, <ref id="fwrite" name="fwrite">.
+<verb>
+   Error codes:
+   -1: Bad argument: not integer
+   -2: Bad argument: outside range
+
+</verb>
+</tscreen>
+
+<sect1>fformat<label id="fformat">
+<p>
+<tscreen><verb>
+[] = fformat(fnum,str...)
+ fformat(fnum,"format-string",arg1,arg2,...) is similar to format,
+   except that it does not output to stdout but to opened file.
+</verb>
+See also: <ref id="format" name="format">, <ref id="sformat" name="sformat">, <ref id="fopen" name="fopen">.
+<verb>
+   Error codes:
+   -1: First argument not integer
+   -2: First argument not a valid file number
+   -3: Second argument not a string or char
+   4: File is not open
+   
+</verb>
+</tscreen>
+
+<sect1>fgetc<label id="fgetc">
+<p>
+<tscreen><verb>
+[ch] = fgetc(fnum)
+ fgetc(fnum) returns the next character from previously
+   opened file with identification number fnum, or VOID
+   value if end of file has been reached.
+</verb>
+See also: <ref id="fgets" name="fgets">, <ref id="fopen" name="fopen">, <ref id="feof" name="feof">, <ref id="fread" name="fread">, <ref id="fwrite" name="fwrite">.
+<verb>
+   Error codes:
+   -1: Bad argument: not integer
+   -2: Bad argument: out of range
+   -3: File was not open
+
+</verb>
+</tscreen>
+
+<sect1>fgets<label id="fgets">
+<p>
+<tscreen><verb>
+[s;endletter] = fgets(fnum;endletters)
+ s=fgets(fnum) reads a string from previously opened
+   file with identification number fnum. The string
+   is terminated with a newline, which is removed from
+   the stream but not returned.
+   s=fgets(fnum,t) where t is a string uses characters
+   in t as terminators, the default for t is "\n".
+   [s,t1]=fgets(..) also returns the terminating character
+   in t1.
+</verb>
+See also: <ref id="fgetc" name="fgetc">, <ref id="fopen" name="fopen">, <ref id="feof" name="feof">, <ref id="fread" name="fread">, <ref id="fwrite" name="fwrite">.
+<verb>
+   Error codes:
+   -1: Bad first argument: not integer
+   -2: Bad first argument: outside range
+   -3: File was not open
+   -4: Bad second argument: not a string
+   
+</verb>
+</tscreen>
+
+<sect1>figure<label id="figure">
+<p>
+<tscreen><verb>
+[] = figure(n)
+ figure(n) causes subsequent plot commands to use
+   window (figure) number n (n=1,2,...). Figures with
+   n>1 are drawn over by each new plot command.
+   
+   figure(-1) restores the default behavior, which is
+   to create standalone windows. These plots are never
+   replaced by new graphics and are quit only by the user.
+   
+   Using this command for n>1 requires that you use the
+   Tela-compatible PlotMTV version.
+   
+</verb>
+See also: <ref id="closefig" name="closefig">.
+<verb>
+   Error codes:
+   1: Argument is not an integer
+   2: Figure number zero is reserved, don't use it
+   3: This Tela installation does not support the figure command
+   4: Failed X11 initialization, cannot synchronize with PlotMTV
+   
+</verb>
+</tscreen>
+
+<sect1>find<label id="find">
+<p>
+<tscreen><verb>
+[y] = find(x)
+ I=find(V) returns the index vector I=(i) for which
+   V[i] is nonzero. V must be an integer array. The length
+   of I is equal to the number of nonzeros in V.
+   If V is multidimensional, it is used in flattened form.
+
+   Example: If V=#(1,-2.3,4,5,-8.2), find(V < 0) returns
+   #(2, 5).
+   
+</verb>
+See also: <ref id="any" name="any">, <ref id="all" name="all">, <ref id="flatten" name="flatten">.
+<verb>
+   Error codes:
+   1: Argument not integer vector 
+</verb>
+</tscreen>
+
+<sect1>flatten<label id="flatten">
+<p>
+<tscreen><verb>
+[y] = flatten(;x)
+ flatten(x) returns the array x flattened to a vector.
+   If x is not an array, it is returned as is.
+
+   Example: flatten(#(1,2; 3,4)) returns #(1,2,3,4).
+   
+   x = flatten() flattens x "in place". This is much faster
+   (it works in constant time) than to do x = flatten(x),
+   since no data movement is involved. 
+</verb>
+</tscreen>
+
+<sect1>flip<label id="flip">
+<p>
+<tscreen><verb>
+[y] = flip(x;d)
+ flip(A) reverses the first dimension of array A.
+   flip(A,d) reverses the d'th dimension. For example,
+   flip(#(1,6,2; 7,9,2.3),2) returns #(2,6,1; 2.3,9,7).
+   If A is non-array it is returned as such, regardless of d.
+</verb>
+See also: <ref id="transpose" name="transpose">.
+<verb>
+   Error codes:
+   -1: Second argument not an integer scalar
+   -2: Second argument out of range 
+</verb>
+</tscreen>
+
+<sect1>floor<label id="floor">
+<p>
+<tscreen><verb>
+[y] = floor(x)
+ floor(x) returns the largest integer which is smaller than x.
+   x must be integer or real scalar or array. If it is an array,
+   the operation is applied componentwise.
+</verb>
+See also: <ref id="ceil" name="ceil">, <ref id="round" name="round">, <ref id="trunc" name="trunc">.
+<verb>
+   Error codes:
+   -1: Complex or nonnumeric input argument 
+</verb>
+</tscreen>
+
+<sect1>fopen<label id="fopen">
+<p>
+<tscreen><verb>
+[fnum] = fopen(name,mode)
+ fopen("filename",mode) opens a file and returns
+   its identifier (integer). The mode parameter can be
+   "r", "w" or "a" for reading, writing and appending,
+   respectively. If the open is not succesful, -1 is returned.
+</verb>
+See also: <ref id="fformat" name="fformat">, <ref id="fclose" name="fclose">, <ref id="fgetc" name="fgetc">, <ref id="fgets" name="fgets">, <ref id="fread" name="fread">, <ref id="fwrite" name="fwrite">.
+<verb>
+   Error codes:
+   -1: First arg not a string
+   -2: Second arg not a string
+   -3: Too many open files
+   -4: Bad string for second arg
+
+</verb>
+</tscreen>
+
+<sect1>format<label id="format">
+<p>
+<tscreen><verb>
+[] = format(str...)
+ format("format-string",arg1,arg2,...) prints "format-string"
+   to standard output, replacing occurrences of `format-spec`
+   with consecutive args. `Format-spec` is either empty, i.e. ``,
+   or of the form
+
+       `[-]w[.d]`.
+
+   Here w is the field width (unsigned integer) and d is the number
+   of significant digits, also unsigned integer. By default the
+   argument is printed left-justified, but the optional minus sign
+   dictates right justification. The backquote character `  can be
+   produced by writing it three times: ```.
+   
+   Hint: You can add any number of spaces before the closing backquote,
+   for example `20.7    `.
+   These spaces do not affect the output. This feature can be used
+   to justify source code lines.
+</verb>
+See also: <ref id="fformat" name="fformat">, <ref id="sformat" name="sformat">.
+<verb>
+   Error codes:
+   1: First argument not a string or char 
+</verb>
+</tscreen>
+
+<sect1>fparse<label id="fparse">
+<p>
+<tscreen><verb>
+[n...] = fparse(fnum,controlstr)
+ [n,a,b,c,...] = fparse(fnum,"contolstring") scans input file
+   with identification number fnum (obtained with fopen).
+   Occurrences of `` in "controlstring" denote objects to be
+   read and placed to output variables a,b,c,... in order.
+   The number of objects succesfully read added by one is
+   placed in n in the normal case.
+   The notation `i`, `r`, `z` and `c` can be used to read
+   integer, real or complex numbers, or single characters.
+
+   For example,
+
+   fnum = fopen("inputfile","r");
+   [n,c,i,z] = fparse(fnum,"N`c` = `i`, a = `z`;");
+   if (n != 4) error("...");
+
+   would accept the input
+
+   N3=  35,a   =3.4;
+
+   after which c would be '3', i would be 35 and z would
+   be 3.4. White space characters in controlstring are special,
+   they match any number (including zero) of whitespace characters
+   in input. Other characters in controlstring must appear
+   literally in input. The variable n would be assigned the value
+   4 in this case. Every time an object is succesfully read,
+   the return value is incremented. If the end of the control string
+   after the last `` item matches the input, the return value is
+   incremented once more. Thus, in the above example, n==1 would
+   mean that error occurred between `c` and `i``, n==1 would
+   indicate error between `i` and `z` and n==3 would indicate a
+   missing semicolon after `z`. Perfectly correct input always
+   produced n equal to the total number of output arguments,
+   four in the above example.
+
+   Currently there is no way to quote the ` character
+   in control string. To read `, read it as `c` and later
+   check that it really was a backquote.
+   
+</verb>
+See also: <ref id="fopen" name="fopen">, <ref id="feof" name="feof">, <ref id="fgets" name="fgets">, <ref id="fgetc" name="fgetc">, <ref id="fread" name="fread">, <ref id="fwrite" name="fwrite">.
+<verb>
+   Error codes:
+   -1: First input arg not an integer
+   -2: Second input arg not a string
+   -3: Bad first argument: outside range
+   -4: File is not open
+   -5: Unended `` item in control string
+   -6: Too few output arguments as compared to control string
+   -7: Bad `` item: must be `c`, `i`, `r` or `z`
+   -8: `x` item does not end with backquote character
+
+</verb>
+</tscreen>
+
+<sect1>fprintf<label id="fprintf">
+<p>
+<tscreen><verb>
+[] = fprintf(fnum,formatstr...)
+ fprintf(fnum,"format-string",arg1,arg2,...) is an interface to the C
+   fprintf function. The format string should have a percent slot
+   for every arg. The args may be integer or real scalars or strings.
+   The file identifier fnum must have been obtained from fopen.
+
+   Notice: The stream is not flushed after every fprintf operation,
+   but a flush occurs whenever you switch from using fprintf to
+   fformat on the same file. Therefore avoid mixing fprintf and fformat
+   on the same file if performance is an issue for you!
+   
+</verb>
+See also: <ref id="fopen" name="fopen">, <ref id="printf" name="printf">, <ref id="sprintf" name="sprintf">, <ref id="format" name="format">.
+<verb>
+   Error codes:
+   1: Bad argument type
+   2: Second arg not a string
+   3: First argument not an integer
+   4: Bad file identifier: out of range
+   5: File is not open
+   6: Internal error: fdopen failed
+   
+</verb>
+</tscreen>
+
+<sect1>fread<label id="fread">
+<p>
+<tscreen><verb>
+[s] = fread(fnum,n)
+ fread(fnum,n) reads next n characters (bytes) from
+   previously opened file with identification number fnum,
+   and returns the result as a string.
+   If EOF is reached during read, the read is terminated earlier,
+   resulting in length(s) being less than n (possibly zero).
+</verb>
+See also: <ref id="fwrite" name="fwrite">, <ref id="fgets" name="fgets">, <ref id="fopen" name="fopen">, <ref id="feof" name="feof">, <ref id="fgetc" name="fgetc">.
+<verb>
+   Error codes:
+   -1: Bad first arg, not integer
+   -2: Bad first arg, out of range
+   -3: Bad second arg, not integer
+   -4: File was not open
+   -5: Number of bytes to be read is negative
+
+</verb>
+</tscreen>
+
+<sect1>fwrite<label id="fwrite">
+<p>
+<tscreen><verb>
+[] = fwrite(fnum,arr)
+ fwrite(fnum,arr) writes the elements of integer array arr
+   as unsigned bytes in a previously opened file with
+   identification number fnum. The elements of arr are clamped
+   to the range 0..255 before writing them in the file.
+</verb>
+See also: <ref id="fread" name="fread">, <ref id="fgets" name="fgets">, <ref id="fopen" name="fopen">, <ref id="feof" name="feof">, <ref id="fgetc" name="fgetc">.
+<verb>
+   Error codes:
+   -1: Bad first arg, not integer
+   -2: Bad first arg, out of range
+   -3: Bad second arg, not integer array
+   -4: File was not open
+
+</verb>
+</tscreen>
+
+<sect1>gaussrand<label id="gaussrand">
+<p>
+<tscreen><verb>
+[x] = gaussrand(...)
+ gaussrand() returns a Gaussian-distributed random real.
+   The distribution function is f(x) = (1/(2*pi))*exp(-0.5*x^2)
+   so that the mean is zero and the standard deviation is unity.
+   gaussrand(N) returns a vector of length N,
+   gaussrand(N,M) returns a matrix of size N x M, etc.
+   Example: To test gaussrand, plot it together with the distribution
+   function, as follows:
+
+   N=50000; x=-4:0.1:4; y=(N/(2*pi))*exp(-0.5*x^2);
+   hold(on); hist(gaussrand(N),20,-4,4); plot(x,y); hold(off);
+
+</verb>
+See also: <ref id="rand" name="rand">, <ref id="srand" name="srand">.
+<verb>
+   Error codes:
+   -1: Tried to create too high rank array
+   -2: Argument not an integer
+   -3: Non-positive integer argument
+
+</verb>
+</tscreen>
+
+<sect1>geopack_coordtrans<label id="geopack_coordtrans">
+<p>
+<tscreen><verb>
+[X,Y,Z] = geopack_coordtrans(fromto,x,y,z,epoch)
+ [X,Y,Z] = geopack_coordtrans("fromto",x,y,z,epoch)
+   transforms Cartesian coordinates (x,y,z) to another system.
+   The first argument specifies the transformation, it must be a 4-6-character
+   string containing two coordinate system symbols. Valid coordinate
+   systems are GEO,GSM,GSE,GEI,MAG and SM. For example, "GEOGSM","GEISM",
+   "SMSM" and "MAGGSE" are valid first arguments where e.g. GEOGSM specifices
+   that (x,y,z) is in the GEO system and is to be transformed to the GSM system
+   (X,Y,Z). The last argument (epoch) is the number of milliseconds since
+   January 1, year 0000, see functions computeEPOCH, EPOCHbreakdown, parseEPOCH
+   and encodeEPOCH how to manipulate and construct epoch values.
+
+   The arguments x,y,z,epoch can be scalars or arrays. If they are arrays,
+   the must be of the same size. Scalars and arrays can be mixed, scalars
+   are implicitly promoted to arrays.
+
+   This function calls the GEOPACK Fortran routines by N. Tsyganenko et al.
+   The GEOPACK package operates in single precision.
+   Error codes:
+   -1: First arg not a string
+   -2: Second arg (x) must be int or real scalar or array
+   -3: Third arg (y) must be int or real scalar or array
+   -4: Fourth arg (z) must be int or real scalar or array
+   -5: Fifth arg (epoch) must be int or real scalar or array
+   -6: First arg not a string with 4, 5 or 6 characters
+   -7: First arg not a valid string (allowed coordsys: GEO,GSM,GSE,GEI,MAG,SM)
+   -8: Incompatible array dimensions
+ 
+</verb>
+</tscreen>
+
+<sect1>geopack_model<label id="geopack_model">
+<p>
+<tscreen><verb>
+[Bx,By,Bz] = geopack_model(model,params,x,y,z,epoch; tiltangle)
+ [Bx,By,Bz] = geopack_model(model,params,x,y,z,epoch;tiltangle)
+   computes a Tsyganenko model magnetic field.
+   Inputs:
+     model:     string specifying model to use
+	 params:    parameter vector for the model
+	 x,y,z:     GSM coordinates in units of R_E (6371.2 km)
+	 epoch:     Epoch used in IGRF part (and external, if
+	              tiltangle is not given)
+	 tiltangle: (optional) Dipole tilt angle in radians,
+	              do not use with IGRF
+   Outputs:
+     Bx,By,Bz:  GSM Cartesian B-field in nanotesla
+
+   Format of model specification string: either "MODEL"
+   or "MODEL,MODEL". Valid MODELs are DIP,IGRF,T89,T96,T96_NOFAC and NONE.
+   Empty string is synonym for NONE. The values are case
+   insensitive, i.e. both "T96" and "t96" can be used.
+   Examples of valid strings: "IGRF", "IGRF,T96", ",DIP",
+   "T89,", "None,t89". The T96_NOFAC is T96 from which Birkeland
+   currents have been left out; this switch was added by P.Janhunen.
+
+   Parameter vector for T96 and T96_NOFAC is #(Pdyn,Dst,By,Bz)
+   where Pdyn is solar wind dynamic pressure (nanopascal),
+   Dst the Dst index (nanotesla), By and Bz the IMF GSM
+   components (nanotesla).
+
+   Parameter vector for T89 is #(Kp), i.e., the vector contains
+   just one element, the Kp index. For DIP (dipole) and IGRF
+   models, the parameter vector is ignored (it must still be a
+   real or int vector, e.g., zeros(0) suffices).
+   
+   If tiltangle is given as seventh input argument, it is used
+   in the external field model, and epoch only affects the internal
+   part. If tiltangle is not given, it is computed automatically
+   from the epoch.
+
+   This function calls the GEOPACK Fortran routines by N. Tsyganenko et al.
+   The GEOPACK package operates in single precision. Using sophisticated
+   methods such as Bulirsch-Stoer or quality-controlled Runge-Kutta for
+   field-line tracing using geopack_model may therefore be problematic;
+   the function geopack_trace that is provided for this purpose uses
+   simpler methods, for this reason. This is a warning to those who would
+   like to improve the speed of geopack_trace by implementing a better
+   ODE integrator.
+   Error codes:
+   -1: First arg (model) not a string
+   -2: Second arg (params) is not a real vector
+   -3: Third arg (x) is not real scalar or array
+   -4: Fourth arg (y) is not real scalar or array
+   -5: Fifth arg (z) is not real scalar or array
+   -6: Sixth arg (epoch) is not real scalar or array
+   -7: Seventh arg (tiltangle) not real scalar
+   -8: First arg (model) is an invalid string
+   -9: Two Tsyganenko models cannot be combined (the other must be IGRF)
+   -10: Second arg (params) is of improper length (must be 1 for T89, 4 for T96/T96_NOFAC)
+   1: tiltangle setting ignored since IGRF model in use (use DIP instead)
+
+</verb>
+</tscreen>
+
+<sect1>geopack_trace<label id="geopack_trace">
+<p>
+<tscreen><verb>
+[x,y,z; X,Y,Z,success] = geopack_trace(model,params,domain,x0,y0,z0,epoch...)
+ [x,y,z; X,Y,Z,success] = geopack_trace(model,params,domain,x0,y0,z0,
+                                          epoch[,optional-args])
+   traces a field line in a model magnetic field, starting from (x0,y0,z0).
+   The model and params arguments are the same as for geopack_model.
+   Coordinates are GSM and measured in Earth radius R_E (6371.2 km).
+   The domain argument defines the region where the tracing is performed.
+   The tracing is stopped when the point moves outside the domain.
+   The meaning of the epoch argument is the same as in geopack_model.
+
+   Format of domain string: "r=1.01,r=4.5,z=0", i.e., a comma-separated
+   list of equations. Valid left-hand-sides are r,x,y,z (r=sqrt(x^2+y^2+z^2)).
+   Coordinates are GSM and units in R_E also here. Any real value is a
+   valid inequality right-hand-side. Up to 8 conditions may be used.
+
+   Optional arguments are var,value pairs where var is a string.
+   Supported are:
+     var         value       meaning
+     "sign"      +1 or -1    +1:trace along B, -1:trace antiparallel to B
+     "tiltangle" real        dipole tilt angle (radians), if not given,
+                               computed from epoch, can be used only if
+                               internal field model is DIP or none.
+     "maxstep"   real        maximum step size in R_E (default: 0.3)
+	 "maxsteps"  pos.int     maximum steps to take (default: 2000)
+
+   This function calls the GEOPACK Fortran routines by N. Tsyganenko et al.
+   The GEOPACK package operates in single precision. Therefore, this function
+   uses a simple and robust midpoint method for integrating the field line.
+   Using more sophisticated methods (Bulirsch-Stoer or quality-controlled
+   Runge-Kutta) was tried, but did not work well in this case, because of
+   lack of precision. This is a warning to those who wouldlike to improve
+   the speed of geopack_trace by implementing a better ODE integrator.
+
+   With the default arguments, the error when mapping from x=-13 to
+   ionosphere is about 1 km in the ionospheric plane. By decreasing maxstep
+   from the default (0.3), the accuracy can be improved.
+
+   The optional output arguments X,Y,Z, if given, become vectors containing
+   the full traced trajectory. The seventh output argument (success) is
+   returned as 1 unless the number of maxsteps was exceeded, in which case
+   it will be returned as 0.
+   
+   Notice that tracing can fail sometimes in the sense that the point
+   starts to circling around in the magnetosphere, never hitting the
+   defined boundaries. To avoid such cases from taking too long time
+   you can set the parameter "maxsteps" to smaller value than its default
+   2000 and quaery the success argument.
+
+   Error codes:
+   -1: First arg (model) not a string
+   -2: Second arg (params) is not a real vector
+   -3: Third arg (domain) is not a string
+   -4: Fourth arg (x0) is not int or real scalar
+   -5: Fifth arg (y0) is not int or real scalar
+   -6: Sixth arg (z0) is not int or real scalar
+   -7: Seventh arg (epoch) is not int or real scalar
+   -8: Odd number of optional args
+   -9: Optional args must be var,value,var,value,... where var is a string
+   -10: First arg (model) is an invalid string
+   -11: Two Tsyganenko models cannot be combined (the other must be IGRF)
+   -12: Second arg (params) is of improper length (must be 1 for T89, 4 for T96/T96_NOFAC)
+   -13: Invalid third arg (domain): must be "{R|X|Y|Z}={realvalue},..."
+   -14: Invalid optional argument (supported are: sign,tiltangle,maxstep)
+   -15: Invalid value for optional argument "sign": must be +1 or -1
+   -16: Invalid value for optional argument "tiltangle" (must be int or real scalar)
+   -17: Invalid value for optional argument "maxstep" (must be int or real scalar)
+   -18: Invalid value for optional argument "maxsteps" (must be positive int)
+   1: tiltangle setting ignored since IGRF model in use (use DIP instead)
+
+</verb>
+</tscreen>
+
+<sect1>getenv<label id="getenv">
+<p>
+<tscreen><verb>
+[y] = getenv(varname)
+ getenv("envvar") returns the value of environment variable
+   "envvar", or VOID if such variable is not defined in
+   the UNIX environment.
+
+   For example, getenv("LOGNAME") returns the login name of
+   the owner of the Tela prcess.
+   (If Unix functions are not available, getenv will always
+   return VOID.)
+
+</verb>
+See also: <ref id="putenv" name="putenv">, <ref id="getpid" name="getpid">, <ref id="cd" name="cd">.
+<verb>
+   Error codes:
+   -1: Argument not a string
+   
+</verb>
+</tscreen>
+
+<sect1>getpid<label id="getpid">
+<p>
+<tscreen><verb>
+[y] = getpid()
+ getpid() returns the process ID of the Tela process.
+   This can be used e.g. to generate unique temporary
+   file names. If Unix functions are not available,
+   getpid() returns 0. 
+</verb>
+</tscreen>
+
+<sect1>grid<label id="grid">
+<p>
+<tscreen><verb>
+[X,Y] = grid(x,y)
+ [X,Y] = grid(x,y) produces matrices X,Y that are formed from vectors x,y
+   such that X[i,j] = x[i] for all j, and Y[i,j] = y[j] for all i.
+</verb>
+See also: <ref id="grid3" name="grid3">.
+<verb>
+   Error codes:
+   -1: Input argument is array but not a vector
+   -2: Input argument is not real array 
+</verb>
+</tscreen>
+
+<sect1>grid3<label id="grid3">
+<p>
+<tscreen><verb>
+[X,Y,Z] = grid3(x,y,z)
+ [X,Y,Z] = grid3(x,y,z) produces 3D arrays X,Y,Z that ar
+   formed from vectors x,y,z such that
+   X[i,j,k] = x[i] for all j,k,
+   Y[i,j,k] = y[j] for all i,k, and
+   Z[i,j,k] = z[k] for all i,j.
+</verb>
+See also: <ref id="grid" name="grid">.
+<verb>
+   Error codes:
+   -1: Input arg is array but not a vector
+   -2: Input arg not a real array 
+</verb>
+</tscreen>
+
+<sect1>help<label id="help">
+<p>
+<tscreen><verb>
+[] = help(;fn)
+ help(function-name) or help("help-item") displays the help information
+   associated with a given function or a given help item. On command line
+   you may use the abbreviation
+
+      ?help-item
+   or
+      help help-item
+
+   These forms are translated to help("help-item") before parsing.
+
+   First tries:
+   help operators
+   help special
+   help if
+   help for
+   help function
+   ...
+   
+   Error codes:
+   1: Item not found
+   2: Cannot open help file 
+</verb>
+</tscreen>
+
+<sect1>herm<label id="herm">
+<p>
+<tscreen><verb>
+[B] = herm(A; P)
+ herm(A) is the same as conj(transpose(A)).
+   herm(A,P) is the same as conj(transpose(A,P)).
+   You can abbreviate "herm(A)" as "A'".
+</verb>
+See also: <ref id="transpose" name="transpose">, <ref id="flip" name="flip">, <ref id="conj" name="conj">.
+<verb>
+   Error codes:
+   -1: Permutation argument not integer array
+   -2: Permutation argument of bad rank or size
+   -3: Permutation argument contains invalid integers 
+</verb>
+</tscreen>
+
+<sect1>hide<label id="hide">
+<p>
+<tscreen><verb>
+[] = hide(...)
+ hide("sym-name",...) sets the 'hidden' attribute to
+   specified symbols.
+</verb>
+See also: <ref id="whos" name="whos">, <ref id="unhide" name="unhide">, <ref id="autoglobal" name="autoglobal">.
+<verb>
+   Error codes:
+   1: Argument not a string
+   2: Argument does not name a symbol
+   
+</verb>
+</tscreen>
+
+<sect1>hist<label id="hist">
+<p>
+<tscreen><verb>
+[;ndata,xdata] = hist(x...)
+ hist(x) produces a histogram of vector x.
+   The range min(x)..max(x) is divided in bins, and the
+   number of x values in each bin is counted. The count determines
+   the height of each bin.
+   
+   hist(x) uses 10 bins, hist(x,n) uses n bins.
+   hist(x,n,a) starts from x=a.
+   hist(x,n,a,b) ignores x values outside interval a..b.
+   Rest of the args may contain other MTV options.
+   [ndata,xdata] = hist(args) returns the count and abscissa vectors
+   but does not draw anything. bar(xdata,ndata,"lab") can be used to draw
+   the histogram later. Graphics options are ignored in this case.
+</verb>
+See also: <ref id="plot" name="plot">, <ref id="bar" name="bar">.
+<verb>
+   Error codes:
+   1: First argument not a (real) vector
+   2: Second arg not a positive integer
+   3: Third arg not a (real) scalar
+   4: Fourth arg not a (real) scalar
+   5: Third arg greater of equal than fourth arg
+   6: Could not open temporary MTV file
+   7: Syntax error in graph options
+   
+</verb>
+</tscreen>
+
+<sect1>hold<label id="hold">
+<p>
+<tscreen><verb>
+[] = hold(flag)
+ hold(on) and hold(off) set the graphics hold mode on and off.
+   When hold is on, all graphics commands will be accumulated and
+   performed only until hold(off).
+   If hold(on) is called many times in succession, also hold(off)
+   must be called as many times until the plots are produced.
+   For example, if
+
+   function f() {hold(on); plot1(); plot2(); hold(off)};
+
+   and it is called as
+
+   hold(on); f(); plot3(); hold(off);
+
+   then all three plots are actually combined in one plot.
+
+   hold(-1) can be used to reset the internal counter.
+   Use it in emergency.
+   
+</verb>
+See also: <ref id="plot" name="plot">, <ref id="holdmode" name="holdmode">.
+<verb>
+   Error codes:
+   1: Argument not an integer 
+</verb>
+</tscreen>
+
+<sect1>holdmode<label id="holdmode">
+<p>
+<tscreen><verb>
+[result] = holdmode(;flag)
+ holdmode(overlay) causes held plots to be combined in same figure.
+   holdmode(paging) shows them as sequential pages in one window.
+   holdmode(stacking) draws them as subplots in one window.
+   holdmode() returns the current setting.
+</verb>
+See also: <ref id="hold" name="hold">.
+<verb>
+   Error codes:
+   1: Argument not an integer
+   2: Bad value for argument 
+</verb>
+</tscreen>
+
+<sect1>import<label id="import">
+<p>
+<tscreen><verb>
+[] = import(filename; appendix)
+ import("file") tries to load the contents of "file" in
+   Tela workspace. All files accepted by load are also accepted
+   by import. In addition, import accepts more general HDF files
+   (SDS and 8-bit raster image files) as well as MATLAB binary
+   files (MAT-files).
+   
+   import("file","app") appends the string "app" to the name
+   of every variable imported.
+   
+   Restrictions:
+   1) If file is HDF-file, import first tries to read all SDSs.  Only
+   if none was found, it tries to read all RIS8 datasets.  The
+   variable names are taken from the HDF labels, if the labels have
+   been set. If there are no labels, the variables are named
+   "Dataset1", "Dataset2", ... and "Image1", "Image2",... for SDS and
+   RIS8 imports, respectively.
+   2) Only read Matlab version 4 format (Actually Level 1.0, as
+   written by matlab version <= 4 and on request on newer versions).
+   
+   For filename conventions, see load.
+</verb>
+See also: <ref id="load" name="load">, <ref id="save" name="save">, <ref id="import1" name="import1">, <ref id="export_matlab" name="export_matlab">, <ref id="export_RIS8" name="export_RIS8">, <ref id="import_PNM" name="import_PNM">.
+<verb>
+   
+   (The difference between import and import1 is that import1 reads
+   only one object and returns it, whereas import reads several
+   objects and assigns them directly to workspace variables.)
+   Error codes:
+   1: First arg not string
+   2: First arg is not an HDF file
+   3: File not found
+   4: Cannot import file
+   5: Unused error message
+   6: Cannot import file, internal Matlab file error
+   7: Cannot import this Matlab file, unknown data format
+   8: Cannot import this Matlab file, it is a sparse matrix. Make it full before saving.
+   10: Bad Matlab binary file, premature end of file
+   11: Second argument not a string
+   12: Cannot import this Matlab file, it contains VAX or CRAY floating point
+   
+</verb>
+</tscreen>
+
+<sect1>import1<label id="import1">
+<p>
+<tscreen><verb>
+[x] = import1(filename; label)
+ import1("file") reads one object from "file". The imported
+   object is returned. "File" can be one of the following:
+
+   1) HDF file, in which case the first Scientific Data Set (SDS)
+      is imported. The form import1("file.hdf","label") reads SDS
+      with label "label", which is not necessarily the first one.
+
+   2) D-style ASCII file of the following format:
+
+        (line 1)   D=Nt dim1 dim2 ... dimN
+        (any number M of blank lines or lines starting with '#')
+        (line M+2) data1 data2 ....
+
+       where N is the rank of the dataset and t is an optionial
+       type specification letter: t may be either 'r', 'i', or 'c'
+       for real, integer and complex data, respectively. If t is
+       missing, real data are asssumed.
+
+   3) Plain ASCII file of nrows x ncols real numbers. If nrows or
+      ncols is 1, it will be returned as a vector, otherwise as a
+      matrix. Missing entries are treated as zeros. This format
+      is similar to Matlab's load for ASCII, except that '#'
+      comments are accepted (for vector files, '#' comments are
+	  accepted only in the beginning).
+       
+</verb>
+See also: <ref id="import" name="import">, <ref id="load" name="load">, <ref id="save" name="save">.
+<verb>
+   See import for a difference between import and import1.
+   For filename conventions, see load.
+   Error codes:
+   -1: Input arg not a char or string
+   2: File not found
+   3: Unknown format in ASCII file
+   4: Unknown format in ASCII file
+   5: Too high rank ASCII data
+   6: Syntax error in ASCII file dimension specification
+   7: Syntax error when reading D-style ASCII data
+   -8: Internal error
+   -9: Cannot import file
+   -10: Second arg not a string
+   11: Specified label not found
+   12: Premature end of file in D-style ASCII
+   13: Syntax error when reading plain ASCII data
+   14: DFSDgetdims error
+   15: DFSDgetdata error
+   
+</verb>
+</tscreen>
+
+<sect1>import_CDF<label id="import_CDF">
+<p>
+<tscreen><verb>
+[] = import_CDF(fn...)
+ import_CDF("fyle") reads the variables in CDF file "fyle.cdf"
+   into Tela workspace. Notice that you can leave out the suffix .cdf.
+
+   import_CDF("fyle","var1","var2",...) reads only variables with
+   specified names.
+
+   CDF 'record dimensions' are turned into the first dimension of the
+   Tela arrays. Likewise, CDF 'number of elements', which is used for
+   character strings, is turned into the last dimension. Thus you get
+   all the data stored in the file in all cases.
+   
+   Use import_CDF if you want to load all variables and their names
+   suit your purposes and it is OK to load them into global variables.
+   import_CDF allows you to control which variables to read, but not
+   change their names or load them into local variables.
+   See read_CDF if you rather want to load only some variables and
+   you want to give them new names or load them into local variables.
+   
+   Extra services:
+   - Uncompresses and reads *.cdf.gz files automatically (using scratch file)
+
+</verb>
+See also: <ref id="read_CDF" name="read_CDF">, <ref id="export_CDF" name="export_CDF">.
+<verb>
+   Error codes:
+   1: Loading INT2/UINT2 CDF data, but this Tela kernel has sizeof(short int) != 2
+   2: Loading INT4/UINT4 CDF data, but this Tela kernel has sizeof(int) != 4
+   3: Loading FLOAT CDF data, but this Tela kernel has sizeof(float) != 4
+   4: Loading DOUBLE CDF data, but this Tela kernel has sizeof(double) != 8
+   5: Empty variable name in CDF file - ignoring
+   6: Too high rank in CDF file for this Tela kernel (variable(s) skipped)
+   -1: First argument not a string
+   -2: Fatal CDF library error
+   -3: Unsupported data type
+   -5: Function called with more than one argument and the rest are not all strings
+   -6: Could not generate temporary file
+   -10: Internal error
+
+</verb>
+</tscreen>
+
+<sect1>import_PNG<label id="import_PNG">
+<p>
+<tscreen><verb>
+[r;g,b,a] = import_PNG(fn)
+ [r,g,b] = import_PNG(fn)
+   reads in a PNG file and places the red, green and blue components
+   in matrices r,g and b, respectively. If the file is grayscale,
+   r, g and b will have the same value.
+
+   u = import_PNG(fn) reads a grayscale image into u.
+   If file has colour information, the average of R, G and B
+   components is placed in matrix u.
+
+   [r,g,b,a] = import_PNG(fn) reads also the alpha channel.
+   If no alpha channel is stored in the file, a will be set to 255.
+
+   Limitations/bugs: Reading interlaced PNG files is not yet supported.
+   
+   Error codes:
+   1: Cannot open input file
+   2: Input file is not PNG file
+   3: Bad format inside input PNG file
+   -1: Input arg not a string
+ 
+</verb>
+</tscreen>
+
+<sect1>import_PNM<label id="import_PNM">
+<p>
+<tscreen><verb>
+[r;g,b] = import_PNM(fn)
+ x = import_PNM("file.pnm") reads PNM (Portable aNyMap) format image file.
+   x will become integer matrix.
+   [r,g,b] = import_PNM("file.pnm") reads a color image
+   and assigns the red, green and blue components to
+   matrices r,g,b.
+   All six PNM formats (P1-P6) are recognized. If a color
+   image (P3 or P6) is loaded using only one output argument,
+   the average of color components is computed and assigned
+   to x. If a greyscale image is loaded using three output
+   args, only the first (r) output arg will be filled,
+   g and b are assigned the VOID value. You might use
+   a code like
+
+   [r,g,b] = import_PNM("file.pnm");
+   if (isvoid(g)) {g=r; b=r};
+
+   to continue processing in 24-bit mode.
+
+   If the system supports pipes (has the popen function),
+   you can do import_PNM("!...") to read from a pipe.
+   For example, import_PNM("djpeg x.jpg").
+   
+</verb>
+See also: <ref id="import" name="import">, <ref id="export_PNM" name="export_PNM">.
+<verb>
+   Error codes:
+   -1: First arg not a string
+   2: Could not open input file
+   3: Input file is not PNM file
+   4: Width or height not positive - improper PNM file
+   5: Invalid color range
+   -6: Two output args, give 1 or 3
+   7: Error when reading ASCII data
+   8: Pixel not 0 or 1 in 1-bit image
+   10: Could not read all binary data
+   
+</verb>
+</tscreen>
+
+<sect1>info<label id="info">
+<p>
+<tscreen><verb>
+[] = info()
+ info() shows information about various class sizes for this Tela implementation.
+   It also prints the total counts of Tnode, Tprg and Tobject objects at the moment. 
+</verb>
+</tscreen>
+
+<sect1>input_string<label id="input_string">
+<p>
+<tscreen><verb>
+[s] = input_string(;prompt)
+ input_string() waits for an input line from the keyboard
+   and returns it as a string. The newline is not included
+   in the result.
+   If the string is enclosed in double quotes, they are removed.
+
+   input_string("prompt") displays prompt first.
+   Error codes:
+   -1: EOF encountered. 
+</verb>
+</tscreen>
+
+<sect1>intpol<label id="intpol">
+<p>
+<tscreen><verb>
+[y] = intpol(A...)
+ intpol(A,index1,index2...) is a general interpolation
+   function. A must be an array from which values are interpolated.
+   The rank of A must equal the number of index arguments.
+   Each index argument may be a real scalar or real array.
+   All index arguments must mutually agree in type and rank.
+   The array A may also be complex. The result y is of same
+   rank and size as each of the index arguments.
+
+   intpol(A,i,j,...) is a generalization of mapped indexing
+   A<[i,j,...]> for non-integral indices. The function benefits
+   from vectorization even more than most other Tela functions.
+
+   Currently intpol uses linear interpolation.
+   Error codes:
+   -1: First arg not a numerical array
+   -2: Rank of first arg does not match number of index args
+   -3: Non-real index arg
+   -4: Dissimilar index args
+   -6: Range overflow
+
+</verb>
+</tscreen>
+
+<sect1>inv<label id="inv">
+<p>
+<tscreen><verb>
+[B] = inv(A)
+ inv(A) returns the inverse of a square matrix A.
+   A may be integer, real or complex valued.
+   A may also be a scalar, in which case its reciprocal
+   is returned.
+</verb>
+See also: <ref id="linsolve" name="linsolve">, <ref id="LU" name="LU">, <ref id="chol" name="chol">, <ref id="matprod" name="matprod">, <ref id="det" name="det">, <ref id="eig" name="eig">.
+<verb>
+   Error codes:
+   -1: Nonnumeric input arg
+   -2: Input array is not a matrix
+   -3: Input matrix is not square
+   -4: Singular matrix
+   -5: Singular matrix 
+</verb>
+</tscreen>
+
+<sect1>invFFT<label id="invFFT">
+<p>
+<tscreen><verb>
+[f] = invFFT(u; dim)
+ invFFT() is the inverse of FFT().
+   For vector f, u=invFFT(f) is equivalent with
+
+   n = length(f); u = czeros(n);
+   for (j=1; j<=n; j++)
+       u[j] = (1/n)*sum(f*exp((j-1)*(0:n-1)*2i*pi/n));
+
+   Differences with FFT: sign of i is plus, scale factor 1/n.
+   
+</verb>
+See also: <ref id="FFT" name="FFT">.
+<verb>
+   Error codes:
+   -1: First argument not a numeric array
+   -2: Second argument not integer
+   -3: Second argument out of range
+   
+</verb>
+</tscreen>
+
+<sect1>invcosFFT<label id="invcosFFT">
+<p>
+<tscreen><verb>
+[f] = invcosFFT(u; dim)
+ invcosFFT() is the inverse of cosFFT().
+   Actually invcosFFT differs from cosFFT only by normalization,
+   but it is provided as a separate function for convenience.
+   
+   For vector f, u=invcosFFT(f) is equivalent with
+
+   n = length(f); u = zeros(n);
+   for (j=1; j<=n; j++)
+       u[j] = (f[1] - (-1)^j*f[n] + 2*sum(f[2:n-1]*cos((1:n-2)*(j-1)*pi/(n-1))))/(2*n-2)
+   
+</verb>
+See also: <ref id="cosFFT" name="cosFFT">.
+<verb>
+   Error codes:
+   -1: First argument not a real array
+   -2: Second argument not integer
+   -3: Second argument out of range
+   
+</verb>
+</tscreen>
+
+<sect1>invcosqFFT<label id="invcosqFFT">
+<p>
+<tscreen><verb>
+[f] = invcosqFFT(u; dim)
+ invcosqFFT() is the inverse of cosqFFT()
+   (inverse quarter-wave cosine Fourier transform).
+   
+   For vector f, u=invcosqFFT(f) is equivalent with
+
+   n = length(f); u = zeros(n);
+   for (j=1; j<=n; j++)
+       u[j] = (1/n)*sum(f*cos((2*(1:n)-1)*(j-1)*pi/(2*n)));
+   
+</verb>
+See also: <ref id="cosqFFT" name="cosqFFT">.
+<verb>
+   Error codes:
+   -1: First argument not a real array
+   -2: Second argument not integer
+   -3: Second argument out of range
+   
+</verb>
+</tscreen>
+
+<sect1>invrealFFT<label id="invrealFFT">
+<p>
+<tscreen><verb>
+[f] = invrealFFT(u; dim,oddevenspec)
+ invrealFFT() is the inverse of realFFT().
+   invrealFFT(u,dim,"even") and invrealFFT(u,dim,"odd") specifies
+   even or odd transform length, respectively.
+   invrealFFT(u,dim,N) uses the same evenness as the integer N has.
+
+   If the evenness is not specified explicitly, the imaginary parts
+   of the highest frequency components are tested. If they are all zero
+   the transform length is even, otherwise odd. However, this automatic
+   method will fail if the imaginary parts are not EXACTLY zero. If you
+   use multiple FFTs to solve a PDE, for example, you should probably
+   specify the evenness explicitly.
+
+</verb>
+See also: <ref id="realFFT" name="realFFT">.
+<verb>
+   Error codes:
+   -1: First argument not a complex array
+   -2: Second argument not integer
+   -3: Second argument out of range
+   -4: Third argument not "even", "odd" or an integer
+   
+</verb>
+</tscreen>
+
+<sect1>invsinFFT<label id="invsinFFT">
+<p>
+<tscreen><verb>
+[f] = invsinFFT(u; dim)
+ invsinFFT() is the inverse of sinFFT().
+   Actually invsinFFT differs from sinFFT only by normalization,
+   but it is provided as a separate function for convenience.
+   
+   For vector f, u=invsinFFT(f) is equivalent with
+
+   n = length(f); u = zeros(n);
+   for (j=1; j<=n; j++)
+       u[j] = (1/(n+1))*sum(f*sin((1:n)*j*pi/(n+1)));
+   
+</verb>
+See also: <ref id="sinFFT" name="sinFFT">.
+<verb>
+   Error codes:
+   -1: First argument not a real array
+   -2: Second argument not integer
+   -3: Second argument out of range
+   
+</verb>
+</tscreen>
+
+<sect1>invsinqFFT<label id="invsinqFFT">
+<p>
+<tscreen><verb>
+[f] = invsinqFFT(u; dim)
+ invsinqFFT() is the inverse of sinqFFT()
+   (inverse quarter-wave sine Fourier transform).
+   
+   For vector f, u=invsinqFFT(f) is equivalent with
+
+   n = length(f); u = zeros(n);
+   for (j=1; j<=n; j++)
+       u[j] = (1/n)*sum(f*sin((2*(1:n)-1)*j*pi/(2*n)));
+   
+</verb>
+See also: <ref id="sinqFFT" name="sinqFFT">.
+<verb>
+   Error codes:
+   -1: First argument not a real array
+   -2: Second argument not integer
+   -3: Second argument out of range
+   
+</verb>
+</tscreen>
+
+<sect1>isCfunction<label id="isCfunction">
+<p>
+<tscreen><verb>
+[y] = isCfunction(x)
+ isCfunction(x) returns 1 if x is a C-tela function.
+   and 0 otherwise.
+</verb>
+See also: <ref id="isfunction" name="isfunction">, <ref id="isTfunction" name="isTfunction">.
+</tscreen>
+
+<sect1>isTfunction<label id="isTfunction">
+<p>
+<tscreen><verb>
+[y] = isTfunction(x)
+ isTfunction(x) returns 1 if x is a function written in Tela
+   and 0 otherwise.
+</verb>
+See also: <ref id="isfunction" name="isfunction">, <ref id="isCfunction" name="isCfunction">.
+</tscreen>
+
+<sect1>isarray<label id="isarray">
+<p>
+<tscreen><verb>
+[y] = isarray(x)
+ isarray(x) returns 1 if x is an array and 0 if it is not.
+</verb>
+See also: <ref id="isscalar" name="isscalar">, <ref id="isvector" name="isvector">, <ref id="ismatrix" name="ismatrix">.
+</tscreen>
+
+<sect1>ischar<label id="ischar">
+<p>
+<tscreen><verb>
+[y] = ischar(x)
+ ischar(x) returns 1 if x is a character and 0 otherwise.
+</verb>
+See also: <ref id="isstring" name="isstring">, <ref id="isstr" name="isstr">.
+</tscreen>
+
+<sect1>iscomplex<label id="iscomplex">
+<p>
+<tscreen><verb>
+[y] = iscomplex(x)
+ iscomplex(x) returns 1 if x is a complex array or scalar,
+   and 0 if it is real or integer or a nonnumeric object.
+</verb>
+See also: <ref id="isreal" name="isreal">, <ref id="isfloat" name="isfloat">, <ref id="isint" name="isint">.
+</tscreen>
+
+<sect1>isdefined<label id="isdefined">
+<p>
+<tscreen><verb>
+[y] = isdefined(x)
+ isdefined(x) returns 1 if x is not undefined and 0 if
+   it is undefined. Optional function arguments are undefined
+   if not assigned by the caller; isdefined can be used
+   inside the function to test whether this is the case.
+</verb>
+See also: <ref id="isundefined" name="isundefined">.
+</tscreen>
+
+<sect1>isfinite<label id="isfinite">
+<p>
+<tscreen><verb>
+[y] = isfinite(x)
+ isfinite(x) returns 1 if x is a finite number and 0 otherwise.
+   If x is array, the operation is applied componentwise.
+   If x is non-numeric it is considered not finite.
+   Integer and consequently strings and chars are always finite. 
+</verb>
+</tscreen>
+
+<sect1>isfloat<label id="isfloat">
+<p>
+<tscreen><verb>
+[y] = isfloat(x)
+ isfloat(x) returns 1 if x is a floating point array
+   or scalar, and 0 otherwise. Notice the difference between
+   isfloat and isreal. isreal(x) is 1 for integer objects,
+   while isfloat(x) is 0.
+</verb>
+See also: <ref id="isreal" name="isreal">, <ref id="isint" name="isint">, <ref id="iscomplex" name="iscomplex">.
+</tscreen>
+
+<sect1>isfunction<label id="isfunction">
+<p>
+<tscreen><verb>
+[y] = isfunction(x)
+ isfunction(x) returns 1 if x is a function
+   (Tela-function, C-tela function or intrinsic function)
+   and 0 otherwise.
+</verb>
+See also: <ref id="isCfunction" name="isCfunction">, <ref id="isTfunction" name="isTfunction">.
+</tscreen>
+
+<sect1>isint<label id="isint">
+<p>
+<tscreen><verb>
+[y] = isint(x)
+ isint(x) returns 1 if x is integer scalar or array
+   and 0 if it is not.
+</verb>
+See also: <ref id="isreal" name="isreal">, <ref id="isfloat" name="isfloat">, <ref id="iscomplex" name="iscomplex">.
+</tscreen>
+
+<sect1>islist<label id="islist">
+<p>
+<tscreen><verb>
+[y] = islist(x)
+ islist(x) returns 1 if x is a heterogenous collection and 0 otherwise. 
+</verb>
+</tscreen>
+
+<sect1>ismatrix<label id="ismatrix">
+<p>
+<tscreen><verb>
+[y] = ismatrix(x)
+ ismatrix(x) returns 1 if x is a matrix (2D array)
+   and 0 if it is not.
+</verb>
+See also: <ref id="isscalar" name="isscalar">, <ref id="isvector" name="isvector">, <ref id="isarray" name="isarray">.
+</tscreen>
+
+<sect1>isreal<label id="isreal">
+<p>
+<tscreen><verb>
+[y] = isreal(x)
+ isreal(x) returns 1 if x is numerical non-complex
+   array or scalar, and 0 otherwise.
+</verb>
+See also: <ref id="isfloat" name="isfloat">, <ref id="isint" name="isint">, <ref id="iscomplex" name="iscomplex">.
+</tscreen>
+
+<sect1>isscalar<label id="isscalar">
+<p>
+<tscreen><verb>
+[y] = isscalar(x)
+ isscalar(x) returns 1 if x is scalar and 0 if it is not.
+</verb>
+See also: <ref id="isvector" name="isvector">, <ref id="ismatrix" name="ismatrix">, <ref id="isarray" name="isarray">.
+</tscreen>
+
+<sect1>isstr<label id="isstr">
+<p>
+<tscreen><verb>
+[y] = isstr(x)
+ isstr(x) returns 1 if x is a character or string
+   and 0 otherwise.
+</verb>
+See also: <ref id="isstring" name="isstring">, <ref id="ischar" name="ischar">.
+</tscreen>
+
+<sect1>isstring<label id="isstring">
+<p>
+<tscreen><verb>
+[y] = isstring(x)
+ isstring(x) returns 1 if x is a string and 0 otherwise.
+</verb>
+See also: <ref id="ischar" name="ischar">, <ref id="isstr" name="isstr">.
+</tscreen>
+
+<sect1>isundefined<label id="isundefined">
+<p>
+<tscreen><verb>
+[y] = isundefined(x)
+ isundefined(x) returns 1 if x is not undefined and 0 if
+   it is undefined. Optional function arguments are undefined
+   if not assigned by the caller; isdefined can be used
+   inside the function to test whether this is the case.
+</verb>
+See also: <ref id="isdefined" name="isdefined">.
+</tscreen>
+
+<sect1>isvector<label id="isvector">
+<p>
+<tscreen><verb>
+[y] = isvector(x)
+ isvector(x) returns 1 if x is a vector and 0 if it is not.
+</verb>
+See also: <ref id="isscalar" name="isscalar">, <ref id="ismatrix" name="ismatrix">, <ref id="isarray" name="isarray">.
+</tscreen>
+
+<sect1>isvoid<label id="isvoid">
+<p>
+<tscreen><verb>
+[y] = isvoid(x)
+ isvoid(x) returns 1 if x is a void value and 0 otherwise. 
+</verb>
+</tscreen>
+
+<sect1>length<label id="length">
+<p>
+<tscreen><verb>
+[L] = length(x)
+ length(x) returns the total number of elements in array x.
+   If x is scalar, length(x) is 1. If x is undefined, an error
+   results. Notice that if x is e.g. a matrix, its length is
+   equal to the product of the row and column dimensions,
+   which is different from e.g. the Matlab convention.
+</verb>
+See also: <ref id="size" name="size">, <ref id="rank" name="rank">.
+<verb>
+   Error codes:
+   -1: Argument has undefined value 
+</verb>
+</tscreen>
+
+<sect1>limit<label id="limit">
+<p>
+<tscreen><verb>
+[y] = limit(x,a,b)
+ limit(x,a,b) limits x to the range [a,b].
+   x may be an integer or real array or scalar,
+   the a and b arguments must be integer or real
+   scalars. The result type is integer only
+   if all x,a,b are integers, otherwise it is real.
+   limit(x,a,b) is equivalent to min(b,max(x,a)).
+
+   Notice: limit is builtin function in >=1.23
+   version. Before 1.23 it was a t-file function.
+
+   (Usually a<=b, if a>b then limit(x,a,b) has the
+   value of b but this behavior should not be trusted.)
+   Error codes:
+   -1: First arg not int or real
+   -2: Second arg not int or real scalar
+   -3: Third arg not int or real scalar
+
+</verb>
+</tscreen>
+
+<sect1>link<label id="link">
+<p>
+<tscreen><verb>
+[] = link(filename)
+ link("file.o") makes C-tela functions in "file.o" available
+   to Tela. "file.o" must be compiled from a C-tela file
+   (usually "file.ct").
+   Error codes:
+   1: Cannot initialize DLD
+   2: Cannot link-load file
+   3: Argument not string or char
+   4: Cannot find fninfo pointer
+   5: Internal inconsistency
+   6: Undefined symbols remain
+   7: main function returned error code
+   8: Could not dlclose the previous linkage
+   9: Too many dynamically linked modules
+   10: File not found
+   
+</verb>
+</tscreen>
+
+<sect1>linsolve<label id="linsolve">
+<p>
+<tscreen><verb>
+[x] = linsolve(A,b)
+ linsolve(A,b) solves the linear system A**x == b.
+   If A is square, the result x is roughly the same as
+   computing inv(A)**b (however, using linsolve is
+   faster and numerically more accurate). If A is not
+   square, a least-square problem is solved. If the system
+   is overdetermined, the solution x minimizes the quantity
+   |A**x - b|. If the system is underdetermined, the
+   solution x minimizes |x| among all x that satisfy
+   A**x==b.
+   The second argument may be a vector or a matrix.
+   If it is a matrix, several linear systems are effectively
+   solved simultaneously.
+</verb>
+See also: <ref id="inv" name="inv">, <ref id="LU" name="LU">, <ref id="eig" name="eig">, <ref id="SVD" name="SVD">.
+<verb>
+   Error codes:
+   -1: First input arg is not an array
+   -2: First input arg is not a matrix
+   -3: Second input arg is not an array
+   -4: Second input arg is not a vector or matrix
+   -5: Incompatible dimensions in first/second args
+   -6: Matrix must be square
+   -7: Singular matrix
+   -8: Internal error
+   
+</verb>
+</tscreen>
+
+<sect1>load<label id="load">
+<p>
+<tscreen><verb>
+[] = load(filename)
+ load("file") loads the contents of "file" in Tela workspace.
+   "file" must have been previously created using the 'save'
+   command; it must be in a certain HDF format.
+   
+   Filename conventions:
+   If the filename starts with "/", "./" or "..",
+   it is considered absolute. Otherwise it is searched
+   along TELAPATH. This applies to other file
+   operations as well.
+   
+   The counterpart of load is save.
+   To read more general HDF files and ASCII files, see import1.
+   To load more general HDF files and MATLAB binary files,
+   see import.
+   
+</verb>
+See also: <ref id="save" name="save">, <ref id="import" name="import">, <ref id="import1" name="import1">, <ref id="export_matlab" name="export_matlab">.
+<verb>
+   Error codes:
+   1: Argument not string or char
+   2: Argument is not an HDF file
+   3: File not found
+   4: Argument is not an HDF or netCDF file
+   5: Cannot load this HDF file
+   6: HDF file load incomplete
+   
+</verb>
+</tscreen>
+
+<sect1>log<label id="log">
+<p>
+<tscreen><verb>
+[y] = log(x)
+ y = log(x) computes the natural logarithm of x.
+   If x is complex, the result is complex. If x is real or
+   integer, but negative, the result is complex (purely
+   imaginary). If x is real or integer and non-negative,
+   the result is real.
+   If x is an array, the operation is applied componentwise.
+   If some of the components are negative, all components
+   of the result are complex. 
+</verb>
+</tscreen>
+
+<sect1>logfact<label id="logfact">
+<p>
+<tscreen><verb>
+[y] = logfact(x)
+ logfact(x) returns log(x!) for any numerical x, including complex.
+   The result for real or int x is usually real, but may be complex
+   if x is negative. For arrays, the function is applied componentwise.
+   In the array case, the result is complex if any of the imaginary
+   parts becomes nonzero, otherwise real.
+</verb>
+See also: <ref id="fact" name="fact">, <ref id="Gamma" name="Gamma">, <ref id="logGamma" name="logGamma">.
+<verb>
+   Error codes:
+   -1: Argument not numerical
+ 
+</verb>
+</tscreen>
+
+<sect1>map<label id="map">
+<p>
+<tscreen><verb>
+[B] = map(fn,A,darg)
+ [B] = map(fn,A,d) maps function fn along d'th dimension
+   in array A. Fn is a functional argument. It must return a scalar
+   or a vector when called with one vector argument. The type and length
+   of the returned value must not change from call to call.
+
+   For example, map(mean,A,1) computes the columnwise means
+   of matrix A, returning a vector. map(sort,A,2) sorts all rows
+   of matrix A in ascending order. Notice than many standard
+   functions, including mean, have a builtin mapping capabability;
+   using map in these cases is unnecessary.
+</verb>
+See also: <ref id="mapmin" name="mapmin">, <ref id="mapmax" name="mapmax">, <ref id="flip" name="flip">.
+<verb>
+   Error codes:
+   -1: First arg not a function
+   -2: Second arg not a numerical array
+   -3: Third arg not an integer scalar
+   -4: Third arg (the dimension) out of range
+   -5: First arg (function) did not return a numerical object
+   -6: First arg (function) unexpectedly changed its return type
+   -7: First arg is an intrinsic function; it is no good
+   -8: Function returned rank>1 array when first called
+
+</verb>
+</tscreen>
+
+<sect1>mapmax<label id="mapmax">
+<p>
+<tscreen><verb>
+[y;P] = mapmax(x;d)
+ mapmax(x,d) finds maximum along d'th dimension in array x.
+   The result is an array with rank one less than rank(x).
+   The array may not be complex.
+   [M,p] = mapmax(x,d) returns the maximum positions p along with
+   the maximums m. The array p is of the same shape as M, but is
+   integer-valued.
+
+   mapmax(x) is a flattened form which returns a scalar result.
+   It is equivalent to max(x). [M,p] = mapmax(x) also works.
+
+   Using mapmax is faster than using map and max together.
+   In the latter case you would also have to define another function:
+       function y=max1(x) {y=max(x)}
+   because being intrinsic function, max can not be passed
+   to map directly. 
+   
+</verb>
+See also: <ref id="mapmin" name="mapmin">, <ref id="map" name="map">, <ref id="limit" name="limit">.
+<verb>
+   Error codes:
+   -1: First arg not a numerical array
+   -2: Second arg not an integer scalar
+   -3: Second arg (the dimension) out of range
+   -4: First arg is complex 
+</verb>
+</tscreen>
+
+<sect1>mapmin<label id="mapmin">
+<p>
+<tscreen><verb>
+[y;P] = mapmin(x;d)
+ mapmin(x,d) finds minimum along d'th dimension in array x.
+   The result is an array with rank one less than rank(x).
+   The array x may not be complex.
+   [m,p] = mapmin(x,d) returns the minimum positions p along with
+   the minimum values m. The array p is of the same shape as m,
+   but is integer-valued.
+
+   mapmin(x) is a flattened form which returns a scalar result.
+   It is equivalent to min(x). [m,p] = mapmin(x) also works.
+
+   Using mapmin is faster than using map and min together.
+   In the latter case you would also have to define another function:
+       function y=min1(x) {y=min(x)}
+   because being intrinsic function, min can not be passed
+   to map directly. 
+   
+</verb>
+See also: <ref id="mapmax" name="mapmax">, <ref id="map" name="map">, <ref id="limit" name="limit">.
+<verb>
+   Error codes:
+   -1: First arg not a numerical array
+   -2: Second arg not an integer scalar
+   -3: Second arg (the dimension) out of range
+   -4: First arg is complex 
+</verb>
+</tscreen>
+
+<sect1>matprod<label id="matprod">
+<p>
+<tscreen><verb>
+[C] = matprod(A,B; Aflag,Bflag)
+ matprod(A,B) returns the matrix product of A and B.
+   If at least one of A and B is scalar, matprod(A,B) is the
+   same as their ordinary product A*B. If both A and B
+   are arrays, their "inner" dimensions must agree.
+   That is, the last dimension of A must equal the first
+   dimension of B.
+   You can abbreviate matprod(A,B) as A**B.
+
+   Optional args: matprod(A,B,aflag,bflag) can be used to
+   transpose or Hermitian-conjugate the factors before the
+   product. 'n' means no operation, 't' means transpose and
+   'h' means Hermitian conjugate. For example,
+
+   matprod(A,B,'h') = A'**B = herm(A)**B
+   matprod(A,B,'n','t') = A**B.' = A**transpose(B)
+
+   Normally you need not use matprod explicitly, but you
+   can use the operator **, which is internally translated
+   to matprod. Hermitian conjugates and transposes in
+   connection with ** produce the corresponding 'h' and
+   't' options in matprod. For example,
+
+   A'**B        generates       matprod(A,B,'h')
+   A.'**B'      generates       matprod(A,B,'t','h')
+   A**B.'       generates       matprod(A,B,'n','t')
+
+   and so on. The runtime is optimal for all these operations.
+
+</verb>
+See also: <ref id="inv" name="inv">.
+<verb>
+   
+   Error codes:
+   -1: Inner dimensions do not agree
+   -2: Resulting array would have too high rank
+   -3: Third arg not one of 'n', 't', 'h'
+   -4: Fourth arg not one of 'n', 't', 'h'
+   
+</verb>
+</tscreen>
+
+<sect1>meminuse<label id="meminuse">
+<p>
+<tscreen><verb>
+[m] = meminuse()
+ meminuse() returns the size of the current Tela process
+   in bytes. The result is a real number.
+
+   Implementation: It uses the getrusage function if it is available
+   and if it seems to be working properly. Otherwise it calls sbrk(0),
+   which should return the data segment size in bytes. On Cray UNICOS
+   it multiplies the sbrk(0) value by 8 (Cray is a word machine).
+   If sbrk is not available, it returns always 0.
+   - Surprisingly, many Unix systems have the getrusage function but
+   the relevant field in struct rusage is always returned as zero.
+   In this case the sbrk method is used.
+   - On some machines the result is unreliable.
+
+   If Tela has been compiled with TELASPECIFIC_NEWDELETE defined,
+   Tela's own new/delete operators are in use. In this case meminuse
+   will report the memory asked from the OS with malloc from C++ code
+   only. Any use of malloc from C code (GNU readline library, HDF library ...)
+   will thus not be included, as also not the data segment and stack size.
+   The result can nevertheless be a useful measure of the user memory.
+   You can tell if TELASPECIFIC_NEWDELETE is on by looking at the output
+   of the info() function.
+</verb>
+See also: <ref id="info" name="info">.
+<verb>
+
+</verb>
+</tscreen>
+
+<sect1>menu<label id="menu">
+<p>
+<tscreen><verb>
+[result] = menu(title...)
+ choice = menu("title","choice1","choice2",...) displays
+   a menu of choices and returns the number entered by
+   the user.
+</verb>
+See also: <ref id="smenu" name="smenu">.
+<verb>
+   Error codes:
+   -1: Less than two input args 
+</verb>
+</tscreen>
+
+<sect1>mesh<label id="mesh">
+<p>
+<tscreen><verb>
+[] = mesh(z...)
+ mesh(z[,options]) plots the matrix z as a 3D mesh.
+   mesh(z,"xgrid",<x-grid-vector>,"ygrid",<y-grid-vector>[,other opts])
+   specifies a nonuniform grid in X and Y.
+</verb>
+See also: <ref id="annotate" name="annotate">, <ref id="plot" name="plot">, <ref id="contour" name="contour">, <ref id="pcolor" name="pcolor">, <ref id="vplot" name="vplot">.
+<verb>
+   Error codes:
+   1: Could not open temporary MTV file
+   2: First argument is not a numeric 2D array
+   3: Syntax error in graph options
+   4: Write error in MTV file - file system full? 
+</verb>
+</tscreen>
+
+<sect1>ones<label id="ones">
+<p>
+<tscreen><verb>
+[y] = ones(...)
+ ones(n,m...) returns an integer array with all elements
+   equal to 1 of size n x m x ... .
+
+   ones(V) where V is an integer vector, and thus
+   ones(size(A)), works also.
+
+</verb>
+See also: <ref id="rand" name="rand">, <ref id="eye" name="eye">.
+<verb>
+   
+   Error codes:
+   -1: Input argument not an integer or IntVector
+   -2: Rank of requested tensor array exceeds MAXRANK
+   -3: Non-positive input argument
+   -4: Negative input argument
+   -5: Integer array rank not 1
+   
+</verb>
+</tscreen>
+
+<sect1>panel<label id="panel">
+<p>
+<tscreen><verb>
+[] = panel(...)
+ panel() finishes the current SPPC panel by drawing the pending
+   curve and pseudo objects.
+   Do 'help sppcopts' for list of valid options.
+</verb>
+See also: <ref id="curve" name="curve">, <ref id="sppcmark" name="sppcmark">, <ref id="pseudo" name="pseudo">, <ref id="endpanels" name="endpanels">, <ref id="sppcopts" name="sppcopts">, <ref id="xlabels" name="xlabels">.
+<verb>
+   Error codes:
+   1: Calling panel before calling curve or pseudo
+   5: Odd number of arguments
+   6: Option name not a string
+   7: Unknown option
+   8: Bad option value
+
+</verb>
+</tscreen>
+
+<sect1>parseEPOCH<label id="parseEPOCH">
+<p>
+<tscreen><verb>
+[epoch] = parseEPOCH(s)
+ parseEPOCH(epochstring) parses an epoch string
+   and returns the epoch value (number of milliseconds since
+   01-Jan-0000 00:00:00.000). The epoch string must be of the
+   form dd-mmm-yyyy hh:mm:ss.ccc where
+     dd   is the day of month (1-31)
+	 mmm  is the month (Jan,Feb,Mar,Apr,May,Jun,Jul,Aug,Sep,Oct,Nov,Dec)
+	 yyyy is the year
+	 hh   is the hour (0-23)
+     mm   is the minute (0-59)
+	 sec  is the second (0-59)
+	 ccc  is the millisecond (0-999)
+   If an invalid string is given, -1.0 is returned.
+</verb>
+See also: <ref id="computeEPOCH" name="computeEPOCH">, <ref id="EPOCHbreakdown" name="EPOCHbreakdown">, <ref id="encodeEPOCH" name="encodeEPOCH">.
+<verb>
+   Error codes:
+   -1: Argument not a string
+
+</verb>
+</tscreen>
+
+<sect1>pause<label id="pause">
+<p>
+<tscreen><verb>
+[] = pause(;seconds)
+ pause() will wait for a keypress on keyboard.
+   pause(n) will pause for n seconds and then continue.
+   The argument n may be integer or real.
+
+   Note: some systems implicitly round a real argument
+   to nearest whole number.
+   Error codes:
+   1: Argument not a real scalar
+   2: Argument is negative
+   3: This system does not support pausing for n seconds 
+</verb>
+</tscreen>
+
+<sect1>pcolor<label id="pcolor">
+<p>
+<tscreen><verb>
+[] = pcolor(z...)
+ pcolor(z[,options]) plots the matrix z as a pseudocolor density plot.
+   pcolor(z,"xgrid",<x-grid-vector>,"ygrid",<y-grid-vector>[,other opts])
+   specifies a nonuniform grid in X and Y.
+</verb>
+See also: <ref id="annotate" name="annotate">, <ref id="plot" name="plot">, <ref id="contour" name="contour">, <ref id="mesh" name="mesh">, <ref id="vplot" name="vplot">.
+<verb>
+   Error codes:
+   1: Could not open temporary MTV file
+   2: First argument is not a numeric 2D array
+   3: Syntax error in graph options
+   4: Write error in MTV file - file system full? 
+</verb>
+</tscreen>
+
+<sect1>perf<label id="perf">
+<p>
+<tscreen><verb>
+[v] = perf()
+ perf() returns an array containing all maintained operation
+   counters. To measure performance of a code segment, do
+
+   p0=perf(); mycode(); p=perf()-p0;
+
+   Now you can apply various performance-related functions to p:
+   for example cputime(p), Mflops(p). 
+</verb>
+</tscreen>
+
+<sect1>pixmap<label id="pixmap">
+<p>
+<tscreen><verb>
+[] = pixmap(flag)
+ pixmap(off) tells PlotMTV not to use pixmaps for faster redraw.
+   pixmap(on) turns the pixmap mode on, which is the default.
+   
+   If your X server uses backing store, you can save memory
+   by turning pixmap(off) without hurting performance.
+   Error codes:
+   1: Argument is not an integer 
+</verb>
+</tscreen>
+
+<sect1>plot<label id="plot">
+<p>
+<tscreen><verb>
+[] = plot(...)
+ plot(x1,y1,[options1], x2,y2,[options2],...) is the basic 2D plot function.
+   Each vector yi is plotted versus the corresponding xi. All curves yi are
+   displayed in the same figure. The option sequences must consist of keyword-
+   value pairs. Example:
+
+       x = 0:0.1:4*pi;
+       plot(x,sin(x), "linewidth",3,"linecolor",2);
+
+   The abscissa x may be missing, in which case the default of 1:length(y)
+   is used. The ordinates y may be matrices; then each row produces one
+   curve. If also abscissa x is matrix, the x-value may be different for each
+   curve.
+</verb>
+See also: <ref id="plot3" name="plot3">, <ref id="annotate" name="annotate">, <ref id="plotopt" name="plotopt">, <ref id="mesh" name="mesh">, <ref id="contour" name="contour">, <ref id="pcolor" name="pcolor">, <ref id="vplot" name="vplot">, <ref id="colormap" name="colormap">.
+<verb>
+   Error codes:
+   1: Could not open temporary MTV file
+   2: Nonnumeric or complex data argument
+   3: Syntax error in graph options
+   4: The abscissa ("x") must be a vector or a matrix
+   5: The ordinate ("y") must be a vector or a matrix
+   6: x and y dimensions disagree
+   
+</verb>
+</tscreen>
+
+<sect1>plot3<label id="plot3">
+<p>
+<tscreen><verb>
+[] = plot3(x,y,z...)
+ plot3(x,y,z[,options]) produces parametric space curves.
+   The quantities x,y,z must have equal ranks, and they can
+   be either vectors or matrices. If they are vectors, only
+   one space curve is drawn. If they are matrices, the number
+   of curves produces equals the number of rows.
+</verb>
+See also: <ref id="plot" name="plot">, <ref id="annotate" name="annotate">.
+<verb>
+   Error codes:
+   1: Could not open temporary MTV file
+   2: y dimensionality disagrees with x dimensionality
+   3: z dimensionality disagrees with x dimensionality
+   4: Input arrays must be integer or real arrays
+   5: Input arrays must have rank equal to 1 or 2
+   6: Syntax error in graph options
+   
+</verb>
+</tscreen>
+
+<sect1>plotopt<label id="plotopt">
+<p>
+<tscreen><verb>
+[] = plotopt(s)
+ plotopt("-3d -colorps -landscape...") sets a set of PlotMTV command
+   line options for subsequent graphics commands (global setting).
+</verb>
+See also: <ref id="plot" name="plot">, <ref id="annotate" name="annotate">.
+<verb>
+
+   NOTICE: plotopt is usually not required. You can pass the option string
+   to all plot commands directly, for example:
+
+   plot(x,sin(x),"-3d -landscape");
+
+   These options affect only the current (or next outputted, if hold is used)
+   plot. All graphics function optional string args which start with minus sign
+   are assumed to be PlotMTV command line options.
+   
+   Error codes:
+   1: Argument not a string 
+</verb>
+</tscreen>
+
+<sect1>poissonrand<label id="poissonrand">
+<p>
+<tscreen><verb>
+[y] = poissonrand(x)
+ poissonrand(x) returns a Poisson-distributed random integer
+   whose expectation value is x (x >= 0). The probability that
+   the result is n (n>=0) is x^n*exp(-x)/n!.
+   If (x < 0) the result is always 0.
+   If x is an array, the result is the same shape as x.
+   The result is always integer-valued.
+</verb>
+See also: <ref id="rand" name="rand">, <ref id="srand" name="srand">, <ref id="gaussrand" name="gaussrand">.
+<verb>
+   Error codes:
+   -1: Argument not real scalar or array
+
+</verb>
+</tscreen>
+
+<sect1>printf<label id="printf">
+<p>
+<tscreen><verb>
+[] = printf(formatstr...)
+ printf("format-string",arg1,arg2,...) is an interface to the C
+   printf function. The format string should have a percent slot
+   for every arg. The args may be integer or real scalars or strings.
+</verb>
+See also: <ref id="fprintf" name="fprintf">, <ref id="sprintf" name="sprintf">, <ref id="format" name="format">.
+<verb>
+   Error codes:
+   1: Bad argument type
+   2: First arg not a string
+   
+</verb>
+</tscreen>
+
+<sect1>prod<label id="prod">
+<p>
+<tscreen><verb>
+[y] = prod(x;d)
+ prod(x) multiplies all the elements of x, if x is an array.
+   prod(x,d) takes the product along d'th dimension only, returning
+   an array of rank one less than rank(x).
+   If x is scalar, it is returned as such.
+   If I is integer array, prod(I) will be of type real if the product
+   would cause integer overflow. In all other cases, including prod(I,d),
+   the type of y equals the component type of x.
+</verb>
+See also: <ref id="sum" name="sum">, <ref id="cumprod" name="cumprod">.
+<verb>
+   Error codes:
+   -1: Nonnumeric input arg
+   -2: Second argument not an integer
+   -3: Second argument (dimension spec) out of range 
+</verb>
+</tscreen>
+
+<sect1>pseudo<label id="pseudo">
+<p>
+<tscreen><verb>
+[] = pseudo(x,y,z...)
+ pseudo(x,y,z) plots a pseudocolor plot in the current SPPC panel.
+   SPPC option-value pairs can be added as further arguments,
+   for example, pseudo(x,y,z,"interp","true) uses smooth rendering.
+   Do 'help sppcopts' for list of valid options.
+</verb>
+See also: <ref id="curve" name="curve">, <ref id="sppcmark" name="sppcmark">, <ref id="panel" name="panel">, <ref id="endpanels" name="endpanels">, <ref id="sppcopts" name="sppcopts">, <ref id="xlabels" name="xlabels">.
+<verb>
+   Error codes:
+   1: Could not open temporary MTV file
+   2: First argument (x) not a real vector
+   3: Second argument (y) not a real vector
+   4: Third argument (z) not a real matrix
+   5: Odd number of arguments
+   6: Option name not a string
+   7: Unknown option
+   8: Bad option value
+   9: Third argument (z) dimensions do not match x,y lengths
+
+</verb>
+</tscreen>
+
+<sect1>putenv<label id="putenv">
+<p>
+<tscreen><verb>
+[] = putenv(varname,value)
+ putenv("varname","value") sets an environment variable.
+   The environment variables are inherited to Unix system programs
+   invoked with system() and run(), as well as new PlotMTV windows.
+   For example:
+   putenv("MTV_PSFONT1","32");	// set large font
+   plot(x,y,"toplabel","Large");
+
+</verb>
+See also: <ref id="getenv" name="getenv">.
+<verb>
+   Error codes:
+   -1: First argument not a string
+   -2: Second argument not a string
+   -3: First argument an empty string
+   -4: Environment variable name may not contain the '=' character
+   -5: Environment variable value may not contain the '=' character
+   1: System call failed to set environment variable
+
+</verb>
+</tscreen>
+
+<sect1>quit<label id="quit">
+<p>
+<tscreen><verb>
+[] = quit(;rv)
+ quit() stops Tela, returning zero (success) exit code
+   to the calling process.
+
+   quit(n) returns exit code n instead of zero.
+   n must be an int scalar.
+
+   Function quit is a synonym for exit.
+
+</verb>
+See also: <ref id="error" name="error">.
+<verb>
+Error codes:
+    1: expecting integer scalar for EXIT_CODE (arg 1).
+
+</verb>
+</tscreen>
+
+<sect1>rand<label id="rand">
+<p>
+<tscreen><verb>
+[x] = rand(...)
+ rand() returns a uniformly distributed random real x, 0<=x<1.
+   rand(N) (N positive integer) returns a real random vector of length N.
+   rand(N,M) returns a random matrix, and so on.
+</verb>
+See also: <ref id="srand" name="srand">, <ref id="gaussrand" name="gaussrand">.
+<verb>
+   Error codes:
+   -1: Tried to create too high rank array
+   -2: Argument not an integer
+   -3: Non-positive integer argument 
+</verb>
+</tscreen>
+
+<sect1>rank<label id="rank">
+<p>
+<tscreen><verb>
+[y] = rank(x)
+ rank(A) returns the number of dimensions of array A.
+   The rank of a scalar is 0. The rank of a nonnumeric
+   object, including undefined value, is -1. The rank function
+   never generates an error.
+</verb>
+See also: <ref id="length" name="length">, <ref id="size" name="size">.
+</tscreen>
+
+<sect1>read_CDF<label id="read_CDF">
+<p>
+<tscreen><verb>
+[...] = read_CDF(fn...)
+ read_CDF("fyle","varname") reads the variable "varname"
+   in CDF file "fyle.cdf" and returns its value.
+   You can leave out the suffix .cdf from filename.
+   It can also read *.cdf.gz files, uncompressing them
+   automatically.
+
+   [out1,out2,...] = read_CDF("fyle","name1","name2",...)
+   reads several variables and assigns them into the
+   output parameters in order. There must be at least as
+   many names as there are outputs; if there are more,
+   a warning message is given.
+
+   CDF 'record dimensions' are turned into the first dimension of the
+   Tela arrays. Likewise, CDF 'number of elements', which is used for
+   character strings, is turned into the last dimension. Thus you get
+   all the data stored in the variables in all cases.
+
+   Use read_CDF if you want to load only some variables and/or want
+   to give them new names or load them into local variables.
+   If it is OK to read the variables with their default names into
+   global variables, it is easier to use import_CDF.
+   
+</verb>
+See also: <ref id="import_CDF" name="import_CDF">, <ref id="export_CDF" name="export_CDF">.
+<verb>
+   Error codes:
+   1: Loading INT2/UINT2 CDF data, but this Tela kernel has sizeof(short int) != 2
+   2: Loading INT4/UINT4 CDF data, but this Tela kernel has sizeof(int) != 4
+   3: Loading FLOAT CDF data, but this Tela kernel has sizeof(float) != 4
+   4: Loading DOUBLE CDF data, but this Tela kernel has sizeof(double) != 8
+   5: Empty variable name in CDF file - ignoring
+   6: Too high rank in CDF file for this Tela kernel (variable(s) skipped)
+   10: More named variables than output args
+   -1: First argument not a string
+   -2: Fatal CDF library error
+   -3: Unsupported data type
+   -5: Function called with more than one argument and the rest are not all strings
+   -6: Could not generate temporary file
+   -10: Internal error
+   -11: More output args than named variables
+
+</verb>
+</tscreen>
+
+<sect1>realFFT<label id="realFFT">
+<p>
+<tscreen><verb>
+[f] = realFFT(u; dim)
+ realFFT(u) gives the Fast Fourier Transform of real array u.
+   If u's rank is more than one, the transform is computed
+   only along the first dimension (many independent 1D
+   transforms).
+
+   realFFT(u,dim) computes the FFT along the specified dimension.
+   The first dimension is labeled 1 and so on.
+
+   The result of realFFT() is the same as FFT() except that only
+   nonnegative frequency components are returned. The result is
+   always complex array. The first component (0 frequency) has always
+   zero imaginary part. If the transform length is even, the last
+   component has zero imaginary part as well. Notice that these
+   conventions are different from some generally used C and Fortran
+   library routines, which return a real array force-fitted
+   in the same space as the input array by not storing the zero
+   imaginary parts. The Tela convention allows you to manipulate the
+   result in k-space more easily because it is already complex.
+
+   realFFT is the most efficient when the transform length is
+   a product of small primes.
+   
+</verb>
+See also: <ref id="invrealFFT" name="invrealFFT">, <ref id="FFT" name="FFT">, <ref id="sinFFT" name="sinFFT">, <ref id="cosFFT" name="cosFFT">, <ref id="sinqFFT" name="sinqFFT">, <ref id="cosqFFT" name="cosqFFT">, <ref id="Lomb" name="Lomb">.
+<verb>
+   Error codes:
+   -1: First argument not a real array
+   -2: Second argument not integer
+   -3: Second argument out of range
+   
+</verb>
+</tscreen>
+
+<sect1>remove<label id="remove">
+<p>
+<tscreen><verb>
+[] = remove(fn)
+ remove("file") removes the named file.
+   If the file does not exist or some other error occurs,
+   no warning or error message is given.
+   Error codes:
+   1: Argument not a string
+   
+</verb>
+</tscreen>
+
+<sect1>reset_alt_display<label id="reset_alt_display">
+<p>
+<tscreen><verb>
+[] = reset_alt_display()
+ reset_alt_display() must be used after set_alt_display
+   to return to normal settings (to direct X11 commands to
+   DISPLAY environment variable again).
+</verb>
+See also: <ref id="set_alt_display" name="set_alt_display">.
+<verb>
+
+</verb>
+</tscreen>
+
+<sect1>reshape<label id="reshape">
+<p>
+<tscreen><verb>
+[B] = reshape(A...)
+ reshape(A,n,m,...) returns the data in array A rearranged
+   to have dimensionality n x m x ... . The product of the indices
+   must equal the length of A.
+   reshape(A,#(n,m...)) works also.
+
+   Example: reshape(#(1,2,3,4,5,6), 2,3) returns
+       #(1, 2, 3;
+	     4, 5, 6)  
+   Error codes:
+   -1: First argument not an array
+   -2: Later argument not an integer
+   -3: Product of dimensions does not equal the length of first argument
+   -4: Number of input arguments exceeds MAXRANK
+   -5: Second arg is array but not integer vector
+   
+</verb>
+</tscreen>
+
+<sect1>round<label id="round">
+<p>
+<tscreen><verb>
+[y] = round(x)
+ round(x) returns the nearest integer.
+   x must be integer or real scalar or array. If it is an array,
+   the operation is applied componentwise.
+</verb>
+See also: <ref id="floor" name="floor">, <ref id="ceil" name="ceil">, <ref id="trunc" name="trunc">.
+<verb>
+   Error codes:
+   -1: Complex or nonnumeric input argument 
+</verb>
+</tscreen>
+
+<sect1>run<label id="run">
+<p>
+<tscreen><verb>
+[output] = run(cmd; input)
+ run("cmd","input") runs operating system (Unix) command
+   "cmd", using contents of the second argument string as
+   standard input. It returns the standard output of "cmd"
+   as a string.
+
+   The form run("cmd") may be used if the command does not
+   read standard input. The command is executed by /bin/sh.
+
+</verb>
+See also: <ref id="system" name="system">.
+<verb>
+
+   Error codes:
+   -1: First argument not a string
+   -2: Second argument not a string
+   -3: Error with temporary file
+   -4: Error with internal pipe
+   -5: run not supported: OS does not provide unistd.h nor popen()
+   7: wait(2) returned error
+   -8: pipe(2) returned error
+   -9: cannot fork(2) a child process
+   
+</verb>
+</tscreen>
+
+<sect1>save<label id="save">
+<p>
+<tscreen><verb>
+[] = save(fn...)
+ save("file") saves all variables in Tela workspace
+   in "file". Any previous contents of "file" is
+   overwritten. The data are written as Scientific
+   Data Sets in HDF format. Hidden variables are not saved.
+   
+   save("file","var1","var2"...) saves only the
+   specified variables. Notice that you have to give
+   the variable names as strings.
+   
+   Limitations (bugs): It is not possible to save
+   local variables, since they are not bound to
+   symbols. If you try, the global one, if any,
+   will be saved.
+   
+</verb>
+See also: <ref id="HDFNewMode" name="HDFNewMode">, <ref id="load" name="load">, <ref id="export_matlab" name="export_matlab">, <ref id="export_netCDF" name="export_netCDF">.
+<verb>
+   Error codes:
+   1: Too few arguments
+   2: Argument not a string or char
+   3: Unexpected HDF error
+   4: Cannot open new-style HDF SD file
+
+</verb>
+</tscreen>
+
+<sect1>sec<label id="sec">
+<p>
+<tscreen><verb>
+[y] = sec(x)
+ y = sec(x) is the secant function
+   sec(x) = 1/cos(x). 
+</verb>
+</tscreen>
+
+<sect1>set_alt_display<label id="set_alt_display">
+<p>
+<tscreen><verb>
+[] = set_alt_display(s)
+ set_alt_display("X display name") informs Tela that
+   subsequent PlotMTV commands use the given X display name
+   instead of the default (DISPLAY environment variable).
+   If you want to temporarily redirect your display to somewhere
+   else, be it mydisplay:1 do the following:
+
+   closefig(1);	... 	// close all figures that you will manipulate below
+   set_alt_display("mydisplay:1");
+   plotopt("-display mydisplay:1 ...");
+   //  Do your graphics commands here ...
+   reset_alt_display();	// return to normal setting
+   plotopt("...");	// i.e  without -display argument
+
+   You MUST ensure that the display given to PlotMTV via
+   p|otopt (or directly, using a plot command option) is the same
+   as that used in set_alt_display.
+
+</verb>
+See also: <ref id="plot" name="plot">, <ref id="reset_alt_display" name="reset_alt_display">.
+<verb>
+   Error codes:
+   -1: Argument not a string
+
+</verb>
+</tscreen>
+
+<sect1>sformat<label id="sformat">
+<p>
+<tscreen><verb>
+[s] = sformat(formatstr...)
+ sformat("format-string",arg1,arg2,...) is similar to format,
+   except that it does not output to stdout but returns a string
+   variable.
+</verb>
+See also: <ref id="format" name="format">, <ref id="fformat" name="fformat">, <ref id="sprintf" name="sprintf">.
+<verb>
+   Error codes:
+   -1: First argument not a string or char 
+</verb>
+</tscreen>
+
+<sect1>showcompiled<label id="showcompiled">
+<p>
+<tscreen><verb>
+[] = showcompiled(filename...)
+ showcompiled("filename.ct",f1,f2,...) compiles functions
+   f1,f2,... to C-tela code, creating "filename.ct".
+   If no suffix is given in "filename", the suffix
+   ".ct" will be assumed.
+   showcompiled(f1,f2,...) displays on standard output.
+</verb>
+See also: <ref id="t2ct" name="t2ct">.
+<verb>
+   Error codes:
+   1: One of the args is not a Tela-function
+   2: Cannot open output file
+   
+</verb>
+</tscreen>
+
+<sect1>sign<label id="sign">
+<p>
+<tscreen><verb>
+[y] = sign(x)
+ y = sign(x) returns 1 if x>0, 0 if x==0, and -1 if x<0.
+   x must be real. If x is array, the operation is applied componentwise.
+</verb>
+See also: <ref id="HeavisideTheta" name="HeavisideTheta">.
+<verb>
+   Error codes:
+   -1: Complex or nonnumeric input argument 
+</verb>
+</tscreen>
+
+<sect1>sin<label id="sin">
+<p>
+<tscreen><verb>
+[y] = sin(x)
+ y = sin(x) computes the sine function of x.
+   If x is complex, the result is complex, otherwise real.
+   The argument must be in radians.
+   If x is an array, the operation is applied componentwise.
+</verb>
+</tscreen>
+
+<sect1>sinFFT<label id="sinFFT">
+<p>
+<tscreen><verb>
+[f] = sinFFT(u; dim)
+ sinFFT(u) gives the sine Fast Fourier Transform of array u.
+   If u's rank is more than one, the transform is computed
+   only along the first dimension (many independent 1D
+   transforms).
+
+   sinFFT(u,dim) computes the FFT along the specified dimension.
+   The first dimension is labeled 1 and so on.
+
+   For vector u, f=sinFFT(u) is equivalent with
+
+   n = length(u); f = zeros(n);
+   for (j=1; j<=n; j++)
+       f[j] = 2*sum(u*sin((1:n)*j*pi/(n+1)));
+
+   Note that sinFFT is the most efficient when n+1 is a product of
+   small primes, where n is the transform length.
+	   
+</verb>
+See also: <ref id="invsinFFT" name="invsinFFT">, <ref id="cosFFT" name="cosFFT">, <ref id="sinqFFT" name="sinqFFT">, <ref id="cosqFFT" name="cosqFFT">, <ref id="realFFT" name="realFFT">, <ref id="FFT" name="FFT">.
+<verb>
+   Error codes:
+   -1: First argument not a real array
+   -2: Second argument not integer
+   -3: Second argument out of range
+   
+</verb>
+</tscreen>
+
+<sect1>sinh<label id="sinh">
+<p>
+<tscreen><verb>
+[y] = sinh(x)
+ y = sinh(x) computes the hyperbolic sine function of x.
+   If x is complex, the result is complex, otherwise real.
+   If x is an array, the operation is applied componentwise.
+</verb>
+</tscreen>
+
+<sect1>sinqFFT<label id="sinqFFT">
+<p>
+<tscreen><verb>
+[f] = sinqFFT(u; dim)
+ sinqFFT computes the quarter-wave sine Fourier transform of array u.
+   Except for the quarter-wave sine character, it works similarly to sinFFT.
+   
+   For vector u, f=sinqFFT(u) is equivalent with
+
+   n = length(u); f = zeros(n);
+   for (j=1; j<=n; j++)
+       f[j] = (-1)^(j-1)*u[n] + 2*sum(u[1:n-1]*sin((2*j-1)*(1:n-1)*pi/(2*n)));
+
+   sinqFFT is most efficient when the transform length is a product
+   of small primes.
+	   
+</verb>
+See also: <ref id="invsinqFFT" name="invsinqFFT">, <ref id="realFFT" name="realFFT">, <ref id="cosqFFT" name="cosqFFT">, <ref id="FFT" name="FFT">.
+<verb>
+   Error codes:
+   -1: First argument not a real array
+   -2: Second argument not integer
+   -3: Second argument out of range
+   
+</verb>
+</tscreen>
+
+<sect1>size<label id="size">
+<p>
+<tscreen><verb>
+[...] = size(x)
+ [n,m,...] = size(A) finds out the dimensions of array A.
+   The number of n,m... must not exceed rank(A). If rank(A)==0
+   (that is, A is scalar), n=size(A) sets 1 to n.
+   V = size(A) assigns the dimension vector [n,m,..] to V.
+   If A is scalar, V is set to 1, if A is vector, V becomes
+   a one-element vector.
+</verb>
+See also: <ref id="length" name="length">, <ref id="rank" name="rank">.
+<verb>
+   Error codes:
+   -1: No output arguments
+   -2: Argument has undefined value
+   1: More than one output arg but non-array input arg
+   2: Too many output args relative to input arg rank 
+</verb>
+</tscreen>
+
+<sect1>smenu<label id="smenu">
+<p>
+<tscreen><verb>
+[result] = smenu(title...)
+ choice = smenu("title","choice1","choice2",...) displays
+   a menu of choices and returns the "choice" string corresponding
+   to the number entered by the user.
+</verb>
+See also: <ref id="menu" name="menu">.
+<verb>
+   Error codes:
+   -1: Less than two input args 
+</verb>
+</tscreen>
+
+<sect1>sort<label id="sort">
+<p>
+<tscreen><verb>
+[y,I] = sort(abs(z));
+
+Then y=z[I] is the wanted result. This method, when applicable,
+is most probably faster than supplying a user-defined comparison
+function.
+
+sort() is a rewritten function which should be backward compatible
+with the old one. In this Tela version the old sort function is
+still available under sort_old().
+Error codes:
+   1: Internal error
+   2: Expecting Tela or CTela function in CMP (arg 2)
+   3: CMP signature is not b = CMP(x1, x2)
+
+</verb>
+</tscreen>
+
+<sect1>sort_old<label id="sort_old">
+<p>
+<tscreen><verb>
+[y;I] = sort_old(x)
+ sort_old is the old sort routine. Use it only if you
+   encounter problems with sort(), sort_old will be
+   removed in a later version. The new sort() function
+   accepts a second input argument (user-defined comparison)
+   but is otherwise identical in semantics.
+   
+   sort_old(x) returns array x sorted in ascending order.
+   If x is complex, it is sorted by the real parts.
+   If x is not an array, it is returned as is.
+   [y,I] = sort_old(x) returns also an index vector I such that
+   y == x[I].
+
+   To sort with user-defined comparisons, do the following.
+   For example, if you want to sort a complex vector z by
+   absolute value as Matlab does, first sort a vector of
+   absolute values saving the index information:
+
+   [y,I] = sort_old(abs(z));
+
+   Then y=z[I] is the wanted result.
+
+   If x is multidimensional, it is implicitly flattened.
+   Use the map function to get around this problem.
+
+</verb>
+</tscreen>
+
+<sect1>source<label id="source">
+<p>
+<tscreen><verb>
+[] = source(fn)
+ source("file.t") loads the tela code from given file.
+</verb>
+See also: <ref id="source_silent" name="source_silent">, <ref id="autosource" name="autosource">, <ref id="load" name="load">.
+<verb>
+   Error codes:
+   1: Operation did not succeed
+   2: Argument not a string 
+</verb>
+</tscreen>
+
+<sect1>source_silent<label id="source_silent">
+<p>
+<tscreen><verb>
+[] = source_silent(fn)
+ source_silent("file.t") is similar to source("file.t"),
+   but it does not complain if e.g. the file does not exist.
+</verb>
+See also: <ref id="source" name="source">, <ref id="autosource" name="autosource">, <ref id="load" name="load">.
+<verb>
+   Error codes:
+   1: Argument not a string 
+</verb>
+</tscreen>
+
+<sect1>sppcmark<label id="sppcmark">
+<p>
+<tscreen><verb>
+[] = sppcmark(x,y...)
+ sppcmark(x,y) sets a marker in the current SPPC panel.
+   The following options can be given, in addition to those
+   listed under 'help sppcopts':
+
+   Option      Type       Explanation
+   ------      ----       -----------
+   label       string     Text to draw at (x,y)
+   markertype  integer    0=none,1=dot,2=+,3=X,4=box,5=filled box,
+                            6=diamond, 7=filled diamond, 8=triangle,
+                            9=filled triangle, 10=inverted triangle,
+                            11=filled inverted triangle, 12=circle,
+                            13=filled circle
+   markersize  real       in points (1/72 inch), default 6
+   markercolor 3-vector   Color of marker and text
+   endpoint_x  real       Draws a line from (x,y)
+   endpoint_y  real          to (endpoint_x,endpoint_y).
+                             Current linewidth, linetype, linecolor
+                             are used.
+   arrow       true/false Whether to draw arrowhead at line end							 
+   
+</verb>
+See also: <ref id="curve" name="curve">, <ref id="pseudo" name="pseudo">, <ref id="panel" name="panel">, <ref id="endpanels" name="endpanels">, <ref id="sppcopts" name="sppcopts">, <ref id="xlabels" name="xlabels">.
+<verb>
+   Error codes:
+   1: Bad first argument x (not scalar)
+   2: Bad second argument y (not scalar)
+   5: Odd number of arguments
+   6: Option name not a string
+   7: Unknown option
+   8: Bad option value
+
+</verb>
+</tscreen>
+
+<sect1>sppcopts<label id="sppcopts">
+<p>
+<tscreen><verb>
+[] = sppcopts(...)
+ sppcopts([,"option",value,...]) provides a method for giving
+   SPPC options without using any SPPC primitive. The following
+   options can be given. These can also be, and usually are,
+   attached to the plotting functions themselves (curve, pseudo, etc.).
+   Options marked with (*) are global, others are reset after
+   each panel:
+
+   Option name       Type         Explanation
+   ------------------------------------------
+  *title             string       Overall title of page
+   leftlabel         string       Left label of this panel
+   rightlabel        string       Right label of this panel
+   xrightlabel       string       Right label on bottom horiz axis
+   xleftlabel        string       Left label on bottom horiz axis
+   linetype          integer      0=none,1=solid,2=dashed,3=dotted,
+                                    4=dotdashed
+   linecolor         3-vector     Curve color, RGB-values in 0..1 range
+   fillcolor         3-vector     Fill color (for filled curves only)
+  *foreground        3-vector     Color of axes, labels etc.
+  *background        3-vector     Background color of page
+  *framewidth        real or int  Frame and axis line width, in 1/72-inch
+   linewidth         real or int  Curve line width, in 1/72-inch
+  *xmin,*xmax,ymin,               Manually given axis limits,
+     ymax,zmin,zmax  real           z refers to pseudocolor scaling
+   ymin_right,ymax_right real     Right vertical axis min,max
+   rightcurve        true/false   This curve uses the right vertical axis.
+                                    Reset after each curve.
+   houraxis          true/false   This xlabels() is hours, render as hh:mm
+   xlabelskip        integer      Tick marks between each xlabel (default 1)
+  *houraxis_x        true/false   Horizontal axis is hour axis
+  *grid              true/false   Whether to draw dotted grid lines
+  *interp            true/false   If true, draws pseudocolor surfs smoothly
+  *palette           3x256 matrix Color palette, Int matrix, values in 0..255
+                     "default"    Rainbow palette
+  *xlog              true/false   Logarithmic horizontal axis
+   ylog              true/false   Logarithmic vertical axis
+   zlog              true/false   Logarithmic color scaling for pseudos
+  *showneg           true/false   If log scale: show <= 0 values as smallest
+  *titlefontsize     real         Size of title font in 1/72-inch units
+  *labelfontsize     real         Size of side label font
+  *axisfontsize      real         Size of axis tickmark label font
+  *annotfontsize     real         Size of marker label font
+  *usebinary         true/false   Default true; if false, uses ASCII in tmpfile
+   panelheight       real         Relative height of panel, default 1.0
+
+   Using SPPC in batch mode: see endpanels.
+  
+</verb>
+See also: <ref id="curve" name="curve">, <ref id="sppcmark" name="sppcmark">, <ref id="pseudo" name="pseudo">, <ref id="panel" name="panel">, <ref id="xlabels" name="xlabels">, <ref id="endpanels" name="endpanels">.
+<verb>
+   Error codes:
+   5: Odd number of arguments
+   6: Option name not a string
+   7: Unknown option
+   8: Bad option value
+
+</verb>
+</tscreen>
+
+<sect1>sprintf<label id="sprintf">
+<p>
+<tscreen><verb>
+[s] = sprintf(formatstr,arg)
+ sprintf("format-string",arg1,arg2,...) is an interface to the C
+   sprintf function. The format string should have a percent
+   slot for every arg. The args may be integer or real scalars
+   or strings.
+</verb>
+See also: <ref id="sformat" name="sformat">.
+<verb>
+
+   LIMITATIONS:
+       This implementation allows only one arg (arg1).
+       The resulting string may not become larger than
+	   500 chars or Tela may crash.
+   Error codes:
+   -1: First arg not a string
+   -2: Args may only be scalar ints or reals, or strings
+   
+</verb>
+</tscreen>
+
+<sect1>sqrt<label id="sqrt">
+<p>
+<tscreen><verb>
+[y] = sqrt(x)
+ y = sqrt(x) computes the square root of x.
+   If x is complex, the result is complex. If x is real or
+   integer, but negative, the result is complex (purely
+   imaginary). If x is real or integer and non-negative,
+   the result is real.
+   If x is an array, the operation is applied componentwise.
+   If some of the components are negative, all components
+   of the result are complex.
+</verb>
+</tscreen>
+
+<sect1>srand<label id="srand">
+<p>
+<tscreen><verb>
+[] = srand(seed)
+ srand(seed) seeds the random number generator.
+   The same seed will always produce the same random
+   number sequence. The argument must be an integer.
+</verb>
+See also: <ref id="rand" name="rand">.
+<verb>
+   Error codes:
+   1: Argument not an integer 
+</verb>
+</tscreen>
+
+<sect1>stencil2d_4<label id="stencil2d_4">
+<p>
+<tscreen><verb>
+[Lu] = stencil2d_4(u,ap0,am0,a0p,a0m)
+ stencil2d_4(u,ap0,am0,a0p,a0m) computes the two-dimensional
+   five-point "molecule" where the coefficient of the central
+   term is unity:
+
+   Lu = u[i,j]
+      + ap0*u[i+1,j] + am0*u[i-1,j]
+	  + a0p*u[i,j+1] + a0m*u[i,j-1];
+
+   where the indices i and j run from 2..nx and 2..ny where
+   [nx,ny] = size(u). The size of ap0,am0,a0p,a0m must be two
+   less than the size of u in both directions.
+   Error codes:
+   -1: One of the arguments is not a real matrix
+   -2: One of the coefficient args has bad size
+
+</verb>
+</tscreen>
+
+<sect1>str2num<label id="str2num">
+<p>
+<tscreen><verb>
+[y] = str2num(s)
+ str2num(s) converts a string to a number.
+   The string must represent a scalar. If an error
+   occurs, str2num returns a void value.
+   Error codes:
+   1: Argument not a string 
+</verb>
+</tscreen>
+
+<sect1>streq<label id="streq">
+<p>
+<tscreen><verb>
+[y] = streq(s1,s2)
+ streq("string1","string2") returns 1 if the argument
+   strings are exactly equal and 0 otherwise. If one of
+   the args is not a string, the result is also 0.
+</verb>
+See also: <ref id="strstarteq" name="strstarteq">.
+</tscreen>
+
+<sect1>strmat<label id="strmat">
+<p>
+<tscreen><verb>
+[x] = strmat(...)
+ strmat("string1","string2",...) makes a string matrix
+   ouf of individual strings. The strings need not be same length,
+   they are padded with zeros (invisible) if they are not.
+
+   Usage example:
+   S = strmat("string1","longer_string");
+   s = tostring(S[1,:]);
+   after which streq(s,"string1") will return true (1).
+   The function tostring is needed to get rid of possible
+   extra zeros at the end of the string.
+   
+</verb>
+See also: <ref id="strmat2" name="strmat2">, <ref id="tostring" name="tostring">, <ref id="streq" name="streq">.
+<verb>
+   Error codes:
+   -1: Argument not a string
+
+</verb>
+</tscreen>
+
+<sect1>strmat2<label id="strmat2">
+<p>
+<tscreen><verb>
+[x] = strmat2(str; sep)
+ strmat2("string") creates a string matrix from "string"
+   interpreting the newline character as row ending marker.
+   strmat2("string",sep) uses separator sep instead of
+   newline char; sep may be either character or string.
+   If sep is a string, any character that is a member of sep
+   is taken to be a separator. If the rows have unequal lengths,
+   they are padded with zeros.
+</verb>
+See also: <ref id="strmat" name="strmat">.
+<verb>
+   Error codes:
+   -1: First arg not a string
+   -2: Second arg not a char or string
+   
+</verb>
+</tscreen>
+
+<sect1>strstarteq<label id="strstarteq">
+<p>
+<tscreen><verb>
+[y] = strstarteq(s1,s2)
+ strstarteq("string1","string2") returns 1 if the argument
+   strings are equal on the first min(length(s1),length(s2))
+   characters and 0 otherwise.
+   If one of the the args is not a string, the result is also 0.
+</verb>
+See also: <ref id="streq" name="streq">.
+</tscreen>
+
+<sect1>sum<label id="sum">
+<p>
+<tscreen><verb>
+[y] = sum(x;d)
+ sum(x) sums all the elements of x, if x is an array.
+   The result type is always the same as the component type
+   of x. If x is scalar, it is returned as such.
+   sum(x,d) sums only along d'th dimension, returning array
+   of rank one less than rank(x).
+</verb>
+See also: <ref id="cumsum" name="cumsum">, <ref id="prod" name="prod">, <ref id="map" name="map">.
+<verb>
+   Error codes:
+   -1: Nonnumeric input arg
+   -2: Second argument not an integer
+   -3: Second argument (dimension spec) out of range 
+</verb>
+</tscreen>
+
+<sect1>system<label id="system">
+<p>
+<tscreen><verb>
+[] = system(s)
+ system("string") executes string as an external operating system
+   command.
+
+</verb>
+See also: <ref id="system_with_returnvalue" name="system_with_returnvalue">, <ref id="run" name="run">.
+<verb>
+
+   Error codes:
+   1: Argument not a string 
+</verb>
+</tscreen>
+
+<sect1>system_with_returnvalue<label id="system_with_returnvalue">
+<p>
+<tscreen><verb>
+[;rv] = system_with_returnvalue(s)
+ system_with_returnvalue("string") executes string as an external operating system
+   command and returns the return value rv of the command.
+
+</verb>
+See also: <ref id="system" name="system">, <ref id="run" name="run">.
+<verb>
+
+   Error codes:
+   1: Argument not a string 
+</verb>
+</tscreen>
+
+<sect1>t2ct<label id="t2ct">
+<p>
+<tscreen><verb>
+[] = t2ct(fn)
+ t2ct("filename.t") translates t-code to ct-code.
+   This makes it possible to compile t-files into
+   faster code.
+
+   To compile a t-file "fyle.t", do the following:
+
+   (1) Generate "fyle.ct" by t2ct("fyle.t") from Tela.
+   You can also do this from the shell prompt or Makefile by
+
+   tela -sbe 't2ct("fyle.t")'
+
+   (use single quotes around the argument but cannot show it here, sorry).
+   
+   (2) Compile it using
+
+   telakka -c fyle.ct
+
+   from the shell or the Makefile. (From within Tela,
+   you can use the system function, or precede the command
+   line by "!" in interactive mode.)
+
+   (3) The resulting object file fyle.o can be linked directly
+   to Tela on some systems (e.g. Linux using the DLD library):
+
+   link("fyle.o")
+
+   On systems using the DSO library (SGI, Sun ...) you must first
+   make a shared object file:
+
+   ld -o fyle.so -shared fyle.o
+
+   The DSO file can now be linked to Tela:
+
+   link("fyle.so")
+
+   (When using the DLD library you can emulate the previous step
+   by ld -o fyle.so -r fyle.o, this makes it possible to write machine-
+   independent Makefiles using gmake.)
+
+   (3b) If you do not want dynamic linking, or if your system does
+   not support it (e.g. UNICOS), you can always link your stuff in
+   a new Tela kernel by simply using the telakka command:
+
+   telakka -o newtela fyle.o
+
+   When you start the binary 'newtela' the functions defined in
+   fyle.t are available.
+   
+</verb>
+See also: <ref id="avoid_constructors" name="avoid_constructors">, <ref id="system" name="system">.
+<verb>
+   Error codes:
+   1: Operation did not succeed
+   2: Argument not a string
+   3: Could not open output file
+   
+</verb>
+</tscreen>
+
+<sect1>tan<label id="tan">
+<p>
+<tscreen><verb>
+[y] = tan(x)
+ y = tan(x) computes the tangent function of x.
+   If x is complex, the result is complex, otherwise real.
+   The argument must be in radians.
+   If x is an array, the operation is applied componentwise.
+</verb>
+</tscreen>
+
+<sect1>tanh<label id="tanh">
+<p>
+<tscreen><verb>
+[y] = tanh(x)
+ y = tanh(x) computes the hyperbolic tangent function of x.
+   If x is complex, the result is complex, otherwise real.
+   If x is an array, the operation is applied componentwise.
+</verb>
+</tscreen>
+
+<sect1>telapath<label id="telapath">
+<p>
+<tscreen><verb>
+[currentpath; maxelements] = telapath(;newpath)
+ telapath() returns the current Tela path as a string.
+   telapath(NEWPATH) sets the Tela search path to NEWPATH and returns
+   the *old* search path.
+   [oldpath,maxelems] = telapath()
+   also returns the maximum number of members in the
+   search path in maxelems (currently 100).
+   Error codes:
+   -1: expecting string NEWPATH (arg 1)
+    1: too many elements in NEWPATH (arg 1); ignoring trailing elements
+
+</verb>
+</tscreen>
+
+<sect1>tic<label id="tic">
+<p>
+<tscreen><verb>
+[] = tic()
+ tic() marks the CPU time at which it was invoked.
+   To measure CPU time, use tic() and toc().
+</verb>
+See also: <ref id="cputime" name="cputime">, <ref id="toc" name="toc">.
+<verb>
+   Example:
+
+      a = rand(100,100); tic(); b=inv(a); toc()
+
+  This would measure the CPU time in inverting a 100x100
+  random real matrix. See also: toc. 
+</verb>
+</tscreen>
+
+<sect1>toc<label id="toc">
+<p>
+<tscreen><verb>
+[t] = toc()
+ toc() gives the CPU seconds used since the last call to tic().
+</verb>
+See also: <ref id="tic" name="tic">, <ref id="cputime" name="cputime">.
+</tscreen>
+
+<sect1>tostring<label id="tostring">
+<p>
+<tscreen><verb>
+[y] = tostring(x)
+ tostring(x) converts an integer vector to a string.
+   Transfer of characters is stopped if zero element
+   is encountered.
+   tostring(A) where A is geneeral integer array copies
+   A and sets the string flag.
+   Error codes:
+   -1: Argument not an integer array
+   
+</verb>
+</tscreen>
+
+<sect1>transpose<label id="transpose">
+<p>
+<tscreen><verb>
+[B] = transpose(A; P)
+ B = transpose(A) returns a transpose of array A: B[i,j,k...l] = A[l...k,j,i].
+   B = transpose(A,P) where P is integer vector transposes the indices according
+   to the permutation defined by P.
+   For example if A has rank 3, B = transpose(A,[2,1,3]) causes the assignment
+   B[j,i,k] = A[i,j,k] to be carried out. B = transpose(A) would in this case
+   correspond to B[k,j,i] = A[i,j,k].
+
+   The second argument is meaningful only if rank(A) is greater than 2.
+   
+   You can abbreviate "transpose(A)" by "A.'".
+</verb>
+See also: <ref id="herm" name="herm">, <ref id="flip" name="flip">.
+<verb>
+   Error codes:
+   -1: Permutation argument not integer array
+   -2: Permutation argument of bad rank or size
+   -3: Permutation argument contains invalid integers 
+</verb>
+</tscreen>
+
+<sect1>trunc<label id="trunc">
+<p>
+<tscreen><verb>
+[y] = trunc(x)
+ trunc(x) returns the nearest integer not larger in absolute value.
+   x must be integer or real scalar or array. If it is an array,
+   the operation is applied componentwise.
+</verb>
+See also: <ref id="floor" name="floor">, <ref id="ceil" name="ceil">, <ref id="round" name="round">.
+<verb>
+   Error codes:
+   -1: Complex or nonnumeric input argument 
+</verb>
+</tscreen>
+
+<sect1>ungetc<label id="ungetc">
+<p>
+<tscreen><verb>
+[] = ungetc(ch,fnum)
+ ungetc(ch,fnum) puts the character ch back to the file defined
+   by identification number fnum. The success of the operation
+   depends on the implementation underlying C library ungetc call;
+   ANSI C guarantees only one character of pushback but many libraries
+   allow more.
+   Ungetc does not return a value. If the operation is unsuccessful,
+   a warning message is generated.
+   Error codes:
+   -1: Bad first argument: not integer
+   -2: Bad first argument: outside range
+   -3: File was not open
+   -4: First argument not an integer
+   1: Cannot push back character
+
+</verb>
+</tscreen>
+
+<sect1>unhide<label id="unhide">
+<p>
+<tscreen><verb>
+[] = unhide(...)
+ hide("sym-name",...) unsets the 'hidden' attribute to
+   specified symbols.
+</verb>
+See also: <ref id="whos" name="whos">, <ref id="hide" name="hide">.
+<verb>
+   Error codes:
+   1: Argument not a string
+   2: Argument does not name a symbol
+   
+</verb>
+</tscreen>
+
+<sect1>version<label id="version">
+<p>
+<tscreen><verb>
+[x] = version()
+ version() returns the Tela version number (real) currently
+   in use. 
+</verb>
+</tscreen>
+
+<sect1>vplot<label id="vplot">
+<p>
+<tscreen><verb>
+[] = vplot(x,y,vx,vy...)
+ vplot(x,y,vx,vy[,options]) produces a 2D vector plot of the vector
+   field (vx,vy). All arguments x,y,vx and vy must be 2D integer or
+   real arrays and of the same size. Each 2D vector will be positioned
+   at (x[i,j],y[i,j]) and its direction will be (vx[i,j],vy[i,j]) where
+   (i,j) run over rows and columns of the matrices.
+</verb>
+See also: <ref id="annotate" name="annotate">, <ref id="plot" name="plot">, <ref id="mesh" name="mesh">, <ref id="contour" name="contour">, <ref id="pcolor" name="pcolor">.
+<verb>
+   Error codes:
+   1: Could not open temporary MTV file
+   2: One of first four args is not a numeric array
+   3: One of first four args has rank not equal to 2
+   4: Dimensions of first four args disagree
+   5: Syntax error in graph options 
+</verb>
+</tscreen>
+
+<sect1>where<label id="where">
+<p>
+<tscreen><verb>
+[y] = where(c,a,b)
+ where(c,a,b) returns a where c is nonzero and b where c is zero.
+   Usually the arguments are arrays, and if they are, they must be
+   of similar dimensions.
+   Error codes:
+   -1: First argument not integer-valued
+   -2: Second arg non-numeric
+   -3: Second arg is incompatible array
+   -4: Third arg non-numeric
+   -5: Third arg incompatible array
+
+</verb>
+</tscreen>
+
+<sect1>whos<label id="whos">
+<p>
+<tscreen><verb>
+[] = whos(;hidden)
+ whos() displays names of variables together with their
+   types and values, if short. 'Hidden' symbols are not shown.
+   whos("hidden") shows also hidden symbols.
+</verb>
+See also: <ref id="hide" name="hide">, <ref id="unhide" name="unhide">.
+<verb>
+   Error codes:
+   1: Bad argument
+   -1: Cannot open pipe to sort
+   
+</verb>
+</tscreen>
+
+<sect1>xlabels<label id="xlabels">
+<p>
+<tscreen><verb>
+[] = xlabels(x,y...)
+ xlabels(x,y) puts a xlabel vector to SPPC page.
+   xlabels(x,y,"houraxis","true") assumes y represents hours
+   and renders the labels as hh:mm.
+   Do 'help sppcopts' to see other valid options (especially
+   rightlabel and leftlabel).
+</verb>
+See also: <ref id="curve" name="curve">, <ref id="sppcmark" name="sppcmark">, <ref id="pseudo" name="pseudo">, <ref id="endpanels" name="endpanels">, <ref id="sppcopts" name="sppcopts">, <ref id="panel" name="panel">.
+<verb>
+   Error codes:
+   1: Could not open temporary MTV file
+   2: First argument (x) not a real vector
+   3: Second argument (y) not a real vector
+   4: First two arguments of different lengths
+   5: Odd number of arguments
+   6: Option name not a string
+   7: Unknown option
+   8: Bad option value
+
+</verb>
+</tscreen>
+
+</article>

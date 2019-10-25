@@ -1,0 +1,112 @@
+=head1 NAME
+
+m2t - Matlab to Tela translator
+
+=head1 SYNOPSIS
+
+B<m2t>	S<[ B<-s> ]> S<[ B<-d> ]> S<[ B<-v> ]>  S<[ I<m-file> [ I<m-file> [...] ] ]>
+
+B<m2t>	S<[ B<-s> ]> S<[ B<-d> ]> S<[ B<-v> ]> S<[ B<-F> ]> S<[ B<-S> ]> B<-m> S<[ I<m-file> [ I<m-file> [...] ] ]>
+
+B<m2t>	S<[ B<-h> | B<-?> ]>
+
+=head1 DESCRIPTION
+
+B<m2t> translates Matlab m-files into Tela t-files.
+
+The first form takes one or more m-files from the command line or, if
+no m-file is given, from standard input, translates them into Tela's
+format, and prints them on standard output.  Usually, with this form,
+only one file is translated at a time.
+
+The second form takes one ore more m-files from the command line, and
+translates each of them into a seperate t-file with the same name as
+the m-file's basename and the extension I<.t> appended.
+
+The third form displays a brief help message.
+
+=head1 OPTIONS
+
+=over 8
+
+=item B<-s>
+
+Silent mode: suppress all warnings.
+
+=item B<-v>
+
+Verbose mode: print a symbol table for each file.
+
+=item B<-d>
+
+Suppress matrix division warnings.
+
+=item B<-m>
+
+Multi-file mode: generate t-files using the respective m-file
+basenames.
+
+=item B<-F>
+
+Ignore script files, translate functions only.
+
+=item B<-S>
+
+Ignore function files, translate scripts only.
+
+=item B<-h>, B<-?>
+
+Display help message.
+
+=back
+
+=head1 EXAMPLES
+
+Translate I<myfun.m> into I<myfun.t>:
+
+    m2t myfun.m > myfun.t
+
+or
+
+    m2t < myfun.m > myfun.t
+
+Compile all function files in the current working directory into
+I<funcs.t>:
+
+    m2t -F *.m > funcs.t    
+
+Translate all m-scripts in the current working directory into separate
+t-files:
+
+    m2t -Sm *.m            
+
+=head1 SEE ALSO
+
+    tela	Tela interpreter
+    telakka	Tela extension utility
+    ctpp	Tela preprocessor
+    plotmtv	Standard associated graphics package
+    sppc	Alternative graphics package
+
+=head1 WARNINGS
+
+=over 4
+
+=item *
+
+Use B<m2t> at your own risk!  You must almost always do some hand
+editing afterwards.  B<m2t> is intended to make the transition to Tela
+easier, not to "emulate" Matlab.
+
+=item *
+
+It may be possible to violate the law by translating copyrighted
+Matlab code to Tela.  The authors of this program do not take any
+responsibility for that kind of problems, and you as a user must find
+out under what conditions you can use this program.
+
+=back
+
+=head1 HISTORY
+
+m2t by S<Pekka Janhunen>; man page by S<Ch. L. Spiel>, 2000-12-7.

@@ -1,0 +1,28 @@
+<title>Writing t-files</title>
+<h1>4 <a name="s4"> Writing t-files </h1>
+<p> <a href="usrguide.html#toc4"> Contents of this section</a></p>
+
+<p></p>
+<p>Tela source files (t-files, filenames ending with ``.t'') consist of
+Tela statements separated by semicolons. A function definition is just
+one type of statement in Tela, thus you can define as many functions
+in one t-file as you wish. This feature sets Tela apart from Matlab,
+where each M-file always defines only one function. Functions become
+defined in the code generation phase. For this reason the order in
+which the functions appear in the t-file is unessential, and a
+function call may textually precede its definition. Whether this is
+good programming style is up to you. Usually there is no point in
+putting function definitions inside other functions; if you do it, the
+result is the same as if it were a toplevel definition.</p>
+<p>Examples of t-files can be found in /usr/local/lib/tela/t, or
+whereever you have installed Tela. It is a bit difficult to give a
+simple meaningful example which defines multiple functions. A
+comprehensive example is provided by the file ``madala.t'', for
+example. It also uses the <b>package</b> mechanism to make it a clean
+entity that does not unnecessarily conflict with other packages' name
+spaces.</p>
+<p></p>
+<p><a href="usrguide-5.html"> Next </a> Chapter, <a href="usrguide-3.html"> Previous </a> Chapter</p><p>Table of contents of <a href="usrguide.html#toc4">this chapter</a>,
+ General <a href="usrguide.html#toc">table of contents</a></p>
+<p><a href="usrguide.html"> Top </a> of the document,
+ <a href="#0"> Beginning of this Chapter</a></p>

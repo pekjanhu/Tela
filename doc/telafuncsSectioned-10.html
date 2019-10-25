@@ -1,0 +1,499 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="LinuxDoc-Tools 0.9.21">
+ <TITLE>Builtin Tela functions: fileio.ct</TITLE>
+ <LINK HREF="telafuncsSectioned-11.html" REL=next>
+ <LINK HREF="telafuncsSectioned-9.html" REL=previous>
+ <LINK HREF="telafuncsSectioned.html#toc10" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="telafuncsSectioned-11.html">Next</A>
+<A HREF="telafuncsSectioned-9.html">Previous</A>
+<A HREF="telafuncsSectioned.html#toc10">Contents</A>
+<HR>
+<H2><A NAME="s10">10.</A> <A HREF="telafuncsSectioned.html#toc10">fileio.ct</A></H2>
+
+<P>This section describes functions from file fileio.ct.</P>
+
+<H2><A NAME="fclose"></A> <A NAME="ss10.1">10.1</A> <A HREF="telafuncsSectioned.html#toc10.1">fclose</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[] = fclose(fnum)
+ fclose(fnum) closes file with given identification number.
+   The fnum must have been previously obtained from fopen.
+</PRE>
+
+See also: 
+<A HREF="#fopen">fopen</A>, 
+<A HREF="#fformat">fformat</A>, 
+<A HREF="#fread">fread</A>, 
+<A HREF="#fwrite">fwrite</A>, 
+<A HREF="#fgetc">fgetc</A>, 
+<A HREF="#fgetc">fgetc</A>.
+<PRE>
+   Error codes:
+   -1: Bad argument: not integer
+   -2: Bad argument: outside range
+   3: File was not open
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="feof"></A> <A NAME="ss10.2">10.2</A> <A HREF="telafuncsSectioned.html#toc10.2">feof</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[result] = feof(fnum)
+ feof(fnum) checks whether end of file has been reached
+   on previously opened file with identification number fnum.
+   Return value is 1 in case of EOF and 0 otherwise.
+   Return value is -1 if the file is not open.
+</PRE>
+
+See also: 
+<A HREF="#fgetc">fgetc</A>, 
+<A HREF="#fgets">fgets</A>, 
+<A HREF="#fopen">fopen</A>, 
+<A HREF="#fread">fread</A>, 
+<A HREF="#fwrite">fwrite</A>.
+<PRE>
+   Error codes:
+   -1: Bad argument: not integer
+   -2: Bad argument: outside range
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="fformat"></A> <A NAME="ss10.3">10.3</A> <A HREF="telafuncsSectioned.html#toc10.3">fformat</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[] = fformat(fnum,str...)
+ fformat(fnum,"format-string",arg1,arg2,...) is similar to format,
+   except that it does not output to stdout but to opened file.
+</PRE>
+
+See also: 
+<A HREF="#format">format</A>, 
+<A HREF="#sformat">sformat</A>, 
+<A HREF="#fopen">fopen</A>.
+<PRE>
+   Error codes:
+   -1: First argument not integer
+   -2: First argument not a valid file number
+   -3: Second argument not a string or char
+   4: File is not open
+   
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="fgetc"></A> <A NAME="ss10.4">10.4</A> <A HREF="telafuncsSectioned.html#toc10.4">fgetc</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[ch] = fgetc(fnum)
+ fgetc(fnum) returns the next character from previously
+   opened file with identification number fnum, or VOID
+   value if end of file has been reached.
+</PRE>
+
+See also: 
+<A HREF="#fgets">fgets</A>, 
+<A HREF="#fopen">fopen</A>, 
+<A HREF="#feof">feof</A>, 
+<A HREF="#fread">fread</A>, 
+<A HREF="#fwrite">fwrite</A>.
+<PRE>
+   Error codes:
+   -1: Bad argument: not integer
+   -2: Bad argument: out of range
+   -3: File was not open
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="fgets"></A> <A NAME="ss10.5">10.5</A> <A HREF="telafuncsSectioned.html#toc10.5">fgets</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[s;endletter] = fgets(fnum;endletters)
+ s=fgets(fnum) reads a string from previously opened
+   file with identification number fnum. The string
+   is terminated with a newline, which is removed from
+   the stream but not returned.
+   s=fgets(fnum,t) where t is a string uses characters
+   in t as terminators, the default for t is "\n".
+   [s,t1]=fgets(..) also returns the terminating character
+   in t1.
+</PRE>
+
+See also: 
+<A HREF="#fgetc">fgetc</A>, 
+<A HREF="#fopen">fopen</A>, 
+<A HREF="#feof">feof</A>, 
+<A HREF="#fread">fread</A>, 
+<A HREF="#fwrite">fwrite</A>.
+<PRE>
+   Error codes:
+   -1: Bad first argument: not integer
+   -2: Bad first argument: outside range
+   -3: File was not open
+   -4: Bad second argument: not a string
+   
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="fopen"></A> <A NAME="ss10.6">10.6</A> <A HREF="telafuncsSectioned.html#toc10.6">fopen</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[fnum] = fopen(name,mode)
+ fopen("filename",mode) opens a file and returns
+   its identifier (integer). The mode parameter can be
+   "r", "w" or "a" for reading, writing and appending,
+   respectively. If the open is not succesful, -1 is returned.
+</PRE>
+
+See also: 
+<A HREF="#fformat">fformat</A>, 
+<A HREF="#fclose">fclose</A>, 
+<A HREF="#fgetc">fgetc</A>, 
+<A HREF="#fgets">fgets</A>, 
+<A HREF="#fread">fread</A>, 
+<A HREF="#fwrite">fwrite</A>.
+<PRE>
+   Error codes:
+   -1: First arg not a string
+   -2: Second arg not a string
+   -3: Too many open files
+   -4: Bad string for second arg
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="format"></A> <A NAME="ss10.7">10.7</A> <A HREF="telafuncsSectioned.html#toc10.7">format</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[] = format(str...)
+ format("format-string",arg1,arg2,...) prints "format-string"
+   to standard output, replacing occurrences of `format-spec`
+   with consecutive args. `Format-spec` is either empty, i.e. ``,
+   or of the form
+
+       `[-]w[.d]`.
+
+   Here w is the field width (unsigned integer) and d is the number
+   of significant digits, also unsigned integer. By default the
+   argument is printed left-justified, but the optional minus sign
+   dictates right justification. The backquote character `  can be
+   produced by writing it three times: ```.
+   
+   Hint: You can add any number of spaces before the closing backquote,
+   for example `20.7    `.
+   These spaces do not affect the output. This feature can be used
+   to justify source code lines.
+</PRE>
+
+See also: 
+<A HREF="#fformat">fformat</A>, 
+<A HREF="#sformat">sformat</A>.
+<PRE>
+   Error codes:
+   1: First argument not a string or char 
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="fparse"></A> <A NAME="ss10.8">10.8</A> <A HREF="telafuncsSectioned.html#toc10.8">fparse</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[n...] = fparse(fnum,controlstr)
+ [n,a,b,c,...] = fparse(fnum,"contolstring") scans input file
+   with identification number fnum (obtained with fopen).
+   Occurrences of `` in "controlstring" denote objects to be
+   read and placed to output variables a,b,c,... in order.
+   The number of objects succesfully read added by one is
+   placed in n in the normal case.
+   The notation `i`, `r`, `z` and `c` can be used to read
+   integer, real or complex numbers, or single characters.
+
+   For example,
+
+   fnum = fopen("inputfile","r");
+   [n,c,i,z] = fparse(fnum,"N`c` = `i`, a = `z`;");
+   if (n != 4) error("...");
+
+   would accept the input
+
+   N3=  35,a   =3.4;
+
+   after which c would be '3', i would be 35 and z would
+   be 3.4. White space characters in controlstring are special,
+   they match any number (including zero) of whitespace characters
+   in input. Other characters in controlstring must appear
+   literally in input. The variable n would be assigned the value
+   4 in this case. Every time an object is succesfully read,
+   the return value is incremented. If the end of the control string
+   after the last `` item matches the input, the return value is
+   incremented once more. Thus, in the above example, n==1 would
+   mean that error occurred between `c` and `i``, n==1 would
+   indicate error between `i` and `z` and n==3 would indicate a
+   missing semicolon after `z`. Perfectly correct input always
+   produced n equal to the total number of output arguments,
+   four in the above example.
+
+   Currently there is no way to quote the ` character
+   in control string. To read `, read it as `c` and later
+   check that it really was a backquote.
+   
+</PRE>
+
+See also: 
+<A HREF="#fopen">fopen</A>, 
+<A HREF="#feof">feof</A>, 
+<A HREF="#fgets">fgets</A>, 
+<A HREF="#fgetc">fgetc</A>, 
+<A HREF="#fread">fread</A>, 
+<A HREF="#fwrite">fwrite</A>.
+<PRE>
+   Error codes:
+   -1: First input arg not an integer
+   -2: Second input arg not a string
+   -3: Bad first argument: outside range
+   -4: File is not open
+   -5: Unended `` item in control string
+   -6: Too few output arguments as compared to control string
+   -7: Bad `` item: must be `c`, `i`, `r` or `z`
+   -8: `x` item does not end with backquote character
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="fprintf"></A> <A NAME="ss10.9">10.9</A> <A HREF="telafuncsSectioned.html#toc10.9">fprintf</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[] = fprintf(fnum,formatstr...)
+ fprintf(fnum,"format-string",arg1,arg2,...) is an interface to the C
+   fprintf function. The format string should have a percent slot
+   for every arg. The args may be integer or real scalars or strings.
+   The file identifier fnum must have been obtained from fopen.
+
+   Notice: The stream is not flushed after every fprintf operation,
+   but a flush occurs whenever you switch from using fprintf to
+   fformat on the same file. Therefore avoid mixing fprintf and fformat
+   on the same file if performance is an issue for you!
+   
+</PRE>
+
+See also: 
+<A HREF="#fopen">fopen</A>, 
+<A HREF="#printf">printf</A>, 
+<A HREF="#sprintf">sprintf</A>, 
+<A HREF="#format">format</A>.
+<PRE>
+   Error codes:
+   1: Bad argument type
+   2: Second arg not a string
+   3: First argument not an integer
+   4: Bad file identifier: out of range
+   5: File is not open
+   6: Internal error: fdopen failed
+   
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="fread"></A> <A NAME="ss10.10">10.10</A> <A HREF="telafuncsSectioned.html#toc10.10">fread</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[s] = fread(fnum,n)
+ fread(fnum,n) reads next n characters (bytes) from
+   previously opened file with identification number fnum,
+   and returns the result as a string.
+   If EOF is reached during read, the read is terminated earlier,
+   resulting in length(s) being less than n (possibly zero).
+</PRE>
+
+See also: 
+<A HREF="#fwrite">fwrite</A>, 
+<A HREF="#fgets">fgets</A>, 
+<A HREF="#fopen">fopen</A>, 
+<A HREF="#feof">feof</A>, 
+<A HREF="#fgetc">fgetc</A>.
+<PRE>
+   Error codes:
+   -1: Bad first arg, not integer
+   -2: Bad first arg, out of range
+   -3: Bad second arg, not integer
+   -4: File was not open
+   -5: Number of bytes to be read is negative
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="fwrite"></A> <A NAME="ss10.11">10.11</A> <A HREF="telafuncsSectioned.html#toc10.11">fwrite</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[] = fwrite(fnum,arr)
+ fwrite(fnum,arr) writes the elements of integer array arr
+   as unsigned bytes in a previously opened file with
+   identification number fnum. The elements of arr are clamped
+   to the range 0..255 before writing them in the file.
+</PRE>
+
+See also: 
+<A HREF="#fread">fread</A>, 
+<A HREF="#fgets">fgets</A>, 
+<A HREF="#fopen">fopen</A>, 
+<A HREF="#feof">feof</A>, 
+<A HREF="#fgetc">fgetc</A>.
+<PRE>
+   Error codes:
+   -1: Bad first arg, not integer
+   -2: Bad first arg, out of range
+   -3: Bad second arg, not integer array
+   -4: File was not open
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="printf"></A> <A NAME="ss10.12">10.12</A> <A HREF="telafuncsSectioned.html#toc10.12">printf</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[] = printf(formatstr...)
+ printf("format-string",arg1,arg2,...) is an interface to the C
+   printf function. The format string should have a percent slot
+   for every arg. The args may be integer or real scalars or strings.
+</PRE>
+
+See also: 
+<A HREF="#fprintf">fprintf</A>, 
+<A HREF="#sprintf">sprintf</A>, 
+<A HREF="#format">format</A>.
+<PRE>
+   Error codes:
+   1: Bad argument type
+   2: First arg not a string
+   
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="remove"></A> <A NAME="ss10.13">10.13</A> <A HREF="telafuncsSectioned.html#toc10.13">remove</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[] = remove(fn)
+ remove("file") removes the named file.
+   If the file does not exist or some other error occurs,
+   no warning or error message is given.
+   Error codes:
+   1: Argument not a string
+   
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="sformat"></A> <A NAME="ss10.14">10.14</A> <A HREF="telafuncsSectioned.html#toc10.14">sformat</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[s] = sformat(formatstr...)
+ sformat("format-string",arg1,arg2,...) is similar to format,
+   except that it does not output to stdout but returns a string
+   variable.
+</PRE>
+
+See also: 
+<A HREF="#format">format</A>, 
+<A HREF="#fformat">fformat</A>, 
+<A HREF="#sprintf">sprintf</A>.
+<PRE>
+   Error codes:
+   -1: First argument not a string or char 
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="sprintf"></A> <A NAME="ss10.15">10.15</A> <A HREF="telafuncsSectioned.html#toc10.15">sprintf</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[s] = sprintf(formatstr,arg)
+ sprintf("format-string",arg1,arg2,...) is an interface to the C
+   sprintf function. The format string should have a percent
+   slot for every arg. The args may be integer or real scalars
+   or strings.
+</PRE>
+
+See also: 
+<A HREF="#sformat">sformat</A>.
+<PRE>
+
+   LIMITATIONS:
+       This implementation allows only one arg (arg1).
+       The resulting string may not become larger than
+           500 chars or Tela may crash.
+   Error codes:
+   -1: First arg not a string
+   -2: Args may only be scalar ints or reals, or strings
+   
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="ungetc"></A> <A NAME="ss10.16">10.16</A> <A HREF="telafuncsSectioned.html#toc10.16">ungetc</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[] = ungetc(ch,fnum)
+ ungetc(ch,fnum) puts the character ch back to the file defined
+   by identification number fnum. The success of the operation
+   depends on the implementation underlying C library ungetc call;
+   ANSI C guarantees only one character of pushback but many libraries
+   allow more.
+   Ungetc does not return a value. If the operation is unsuccessful,
+   a warning message is generated.
+   Error codes:
+   -1: Bad first argument: not integer
+   -2: Bad first argument: outside range
+   -3: File was not open
+   -4: First argument not an integer
+   1: Cannot push back character
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+
+<HR>
+<A HREF="telafuncsSectioned-11.html">Next</A>
+<A HREF="telafuncsSectioned-9.html">Previous</A>
+<A HREF="telafuncsSectioned.html#toc10">Contents</A>
+</BODY>
+</HTML>

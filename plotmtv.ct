@@ -1,0 +1,1552 @@
+/*
+ * This file is part of tela the Tensor Language.
+ * Copyright (c) 1994-1999 Pekka Janhunen
+ */
+
+/*
+	plotmtv.ct
+	Graphics functions.
+	Preprocess with ctpp.
+	C-tela code is C++ equipped with []=f() style function definition.
+*/
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <signal.h>
+#include <ctype.h>
+#if HAVE_UNISTD_H && !defined(X_DISPLAY_MISSING)
+#  include <unistd.h>
+   extern "C" {
+#  include <X11/Xlib.h>
+   }
+#  define SUPPORT_FIGURES
+#endif
+
+#define FIGURES_MAX 3000	/* Maximum number of graphics windows (figures) */
+#define ARGS_MAX 100        /* Maximum number of arguments to forked PlotMTV processes */
+
+const int UseBinary = 1;	// use binary machine-dependent MTV file format where appropriate
+
+#define FloatFormat "%1.14G"
+#define NPALETTE 32			/* PlotMTV currently has this fixed */
+
+static unsigned char palette[NPALETTE][3];
+static int palette_in_use = 0;
+
+class TMTVFile {
+ private:
+	static char fn[MAXFILENAME];
+	static FILE *fileptr;
+	static int datawritten;
+ public:
+	TMTVFile();
+	static char *options;
+	enum {overlay=1,paging=2,stacking=3};
+	FILE* FilePtr() const {return fileptr;}
+	void SetOptions(const char opts[]) {options=strdup(opts);}
+	void DataWritten() {datawritten=1;}
+	static int hold;
+	static int holdmode;
+	static int pixmapmode;
+	static Tstring UserOptions;
+	static Tstring UserTmpOptions;
+	static int fignum;
+	~TMTVFile();
+};
+
+char TMTVFile::fn[MAXFILENAME] = "";
+FILE *TMTVFile::fileptr = 0;
+int TMTVFile::hold = 0;
+int TMTVFile::datawritten = 0;
+int TMTVFile::fignum = -1;
+int TMTVFile::holdmode = TMTVFile::overlay;
+int TMTVFile::pixmapmode = 1;
+Tstring TMTVFile::UserOptions = (Tchar*)"";
+Tstring TMTVFile::UserTmpOptions = (Tchar*)"";
+char *TMTVFile::options = "";
+
+TMTVFile::TMTVFile() {
+	if (!hold || fileptr==0) {
+		tmpnam(fn);
+		fileptr = fopen(fn,"w");
+	}
+	options = 0;
+}
+	
+#ifdef SUPPORT_FIGURES
+
+#if HAVE_SYS_TYPES_H
+#  include <sys/types.h>
+#endif
+#if HAVE_SYS_WAIT_H
+#  include <sys/wait.h>
+#endif
+
+struct TFigureInfo {
+	FILE *fp;			// Plugged to stdin of the PlotMTV process
+	FILE *outfp;		// Plugged to stdout of the PlotMTV process
+	int figurenumber;	// The user-level handle of the figure
+	int pid;			// Process ID of the PlotMTV process
+	int newstream;		// Flag for newly opened fp
+	Window rtwindow;	// Window-ID of main plot window, where artificial X-events are sent to
+	void reset();
+	TFigureInfo() {reset();}
+};
+
+void TFigureInfo::reset() {
+	fp = outfp = 0;
+	figurenumber = 0;
+	pid = -1;
+	newstream = 1;
+	rtwindow = 0;
+}
+
+class TFigureList {
+ private:
+	int N;
+	TFigureInfo figs[FIGURES_MAX];
+	Display *mydisplay;
+	int is_alive(int i);
+	int init_plotmtv(int i);
+	void set_options(char **args, int& Nargs, const char*s);
+ public:
+	TFigureList() {N=0; mydisplay=0;}
+	int assoc(int fign, int autoresurrect=1);		// Returns index belonging to figure number, or allocatew new one
+	int find(int fign) const;		// Returns index belonging to figure number
+	void sendfile(int i, const char*filename);
+	void kill_plotmtv(int i);		// Close figure with index i
+	void kill_plotmtv();			// Close all figures
+	void init_x11();
+	static int x11_initialized;
+	static const int maxbuff;
+	~TFigureList();
+};
+
+int TFigureList::x11_initialized = 0;
+/* x11_initialized == 0 if X11 has not yet been initialized,
+   1 if it has been successfully initialized, and -1 is initialization
+   has failed.*/
+
+const int TFigureList::maxbuff = 256;
+// maxbuff is the maximum length of the lines written to stdout by PlotMTV
+
+void TFigureList::init_x11() {
+	if (x11_initialized != 0) return;
+	mydisplay = XOpenDisplay("");
+	x11_initialized = mydisplay ? 1 : -1;
+}
+
+int TFigureList::is_alive(int i) {
+	// In IRIX signal zero can be used to test if a process is alive.
+	// For other systems we use SIGUSR1. In PlotMTV there is signal(SIGUSR1,SIG_IGN).
+	// In Irix, if a process has terminated itself, it no longer exists.
+	// In some other OS's, eg. Linux, the process which has terminated but has not been
+	// wait'ed for is a zombie, and kill() can still send signals to it. Therefore
+	// the waitpid() is needed before kill().
+	waitpid(figs[i].pid,0,WNOHANG);
+#	ifdef IRIS4
+	int ret = kill(figs[i].pid,0);
+#	else
+	int ret = kill(figs[i].pid,SIGUSR1);
+#	endif
+	//cerr << figs[i].pid << (ret == 0 ? " is alive" : " is dead") << '\n';
+	return (ret == 0) ? 1 : 0;
+}
+
+void TFigureList::set_options(char **args, int& Nargs, const char*s)
+// Parse string s containing shell-like command line options.
+// Each space-separated option is put in its own entry in args[].
+// Nargs is updated. Check for args[] overflow is made (ARGS_MAX).
+{
+	if (!s) return;
+	int wasspace = 1;
+	char *buff = new char [strlen(s)+2];
+	int j=0;
+	int i;
+	for (i=0; s[i]; i++) {
+		int spc = isspace(s[i]);
+		if (!spc) {
+			buff[j++] = s[i];
+			buff[j] = '\0';
+		} else {	// Current is space
+			if (!wasspace) {
+				if (Nargs > ARGS_MAX-2) {
+					cerr << "Too many (more than " << ARGS_MAX << ") graphics options\n";
+					return;
+				}
+				args[Nargs++] = strdup(buff);
+				j = 0;
+			}
+		}
+		wasspace = spc;
+	}
+	if (j > 0) args[Nargs++] = strdup(buff);
+	delete [] buff;
+}
+
+#ifdef HAVE_SYSCONF
+#  define max_open_files sysconf(_SC_OPEN_MAX)
+#else
+#  define max_open_files 256		/* it doesn't matter if this value is too large */
+#endif
+
+int TFigureList::init_plotmtv(int i)
+// Launch PlotMTV process for ith figure
+{
+	//cerr << "init_plotmtv(" << i << ") for figure " << figs[i].figurenumber << ".\n";
+	char *plotmtv = getenv("TELA_PLOTMTV");
+	if (!plotmtv) plotmtv = "plotmtv";
+	char *holdopt = "";
+	if (TMTVFile::holdmode == TMTVFile::overlay)
+		holdopt = "-plotall";
+	else if (TMTVFile::holdmode == TMTVFile::stacking)
+		holdopt = "-comb";
+	figs[i].newstream = 1;
+	int inputpipe[2];
+	int outputpipe[2];
+	// parent writes to inputpipe[1], child reads from inputpipe[0]
+	// parent reads from outputpipe[0], child writes to outputpipe[1]
+	if (pipe(inputpipe)!=0) return -8;
+	if (pipe(outputpipe)!=0) return -8;
+	/* NOTICE: For some reason, using fstreams and .attach() does not work,
+	   therefore we use fdopen.*/
+	long f;
+	if ((f=fork()) > 0) {	// now in parent
+		figs[i].pid = int(f);
+		//fprintf(stderr,"Launched PlotMTV process %d.\n",int(f));
+		FILE *tostream = fdopen(inputpipe[1],"w");
+		FILE *fromstream = fdopen(outputpipe[0],"r");
+		figs[i].fp = tostream;
+		figs[i].outfp = fromstream;
+		close(inputpipe[0]);	// parent does not read from inputpipe, only child does
+		close(outputpipe[1]);	// parent does not write to outputpipe, only child does
+		// The first input line of PlotMTV is empty; the second one contains the string "Tela-compatible"
+		// if the PlotMTV version is Tela-compatible.
+		char s[maxbuff];
+		fgets(s,maxbuff,fromstream);	// this passes the initial empty line
+		fgets(s,maxbuff,fromstream);
+		if (!strstr(s,"Tela-compatible")) {
+			cerr << "*** You used the figure command but the PlotMTV program '" << plotmtv << "'\n";
+			cerr << "*** does not support this. Did you install the PlotMTV that comes with Tela?\n";
+			cerr << "*** Is your environment variable TELA_PLOTMTV badly set?\n";
+			cerr << "*** Maybe your system has run out of Unix pipes?\n";
+			exit(1);
+		}
+	} else if (f==0) {	/* now in child */
+		fflush(stdout);			// Flush before closing stdin, stdout
+		cout << flush;			//   (dup2 will close descriptors 0 and 1)
+		dup2(inputpipe[0],0);	// stdin from inputpipe[0]
+		dup2(outputpipe[1],1);	// stdout to outputpipe[1]
+		// close all possible open file descriptors above stdin, stdout, stderr
+		for (long fid=max_open_files-1; fid>2; fid--) close((int)fid);
+		char* args[ARGS_MAX+3];
+		int Nargs = 0;
+		args[Nargs++] = plotmtv;
+		if (strlen(holdopt) > 0) args[Nargs++] = holdopt;
+		if (!TMTVFile::pixmapmode) args[Nargs++] = "-nopixmap";
+		args[Nargs++] = "-earlydelete";
+		args[Nargs++] = "-filelist";
+		args[Nargs++] = "-title";
+		char title[80];
+		sprintf(title,"Tela/PlotMTV Figure %d",figs[i].figurenumber);
+		args[Nargs++] = title;
+		set_options(args,Nargs,(const char*)TMTVFile::options);
+		set_options(args,Nargs,(char*)TMTVFile::UserOptions);
+		set_options(args,Nargs,(char*)TMTVFile::UserTmpOptions);
+		args[Nargs] = 0;
+		signal(SIGINT,SIG_IGN);	// prevent Control-C from killing plotmtv
+		signal(SIGQUIT,SIG_IGN);
+		execvp(plotmtv,args);
+		cerr << "*** Executing a new PlotMTV process failed\n";
+		exit(0);	// This child is still Tela so it is better to exit immediately!
+	} else {
+		cerr << "*** Forking a new process failed\n";
+		return -7;
+	}
+	return 0;
+}	
+
+int TFigureList::assoc(int fign, int autoresurrect)
+// Find table index corresponding to figure number fign. If autoresurrect is nonzero,
+// (the default), tries to restart the corresponding PlotMTV process if it has been killed.
+// If not found, allocates a new entry in the table and starts new PlotMTV.
+{
+	int i;
+	for (i=0; i<N; i++) if (figs[i].figurenumber == fign) {
+		if (autoresurrect) {
+			if (!is_alive(i)) {
+				cerr << "[Restarting PlotMTV for figure " << fign << "...";
+				fclose(figs[i].fp);
+				fclose(figs[i].outfp);
+				init_plotmtv(i);
+				cerr << "ok.]\n";
+			}
+		}
+		return i;
+	}
+	if (N > FIGURES_MAX-2) {
+		cerr << "*** Too many graphics windows (more than " << FIGURES_MAX << ")\n";
+		cerr << "*** Fatal error, exiting...\n";
+		exit(1);
+	}
+	figs[N].figurenumber = fign;
+	init_plotmtv(N);
+	N++;
+	return N-1;
+}
+
+int TFigureList::find(int fign) const
+// Finds table index corresponding figure number fign, or -1 if not found.
+{
+	int i;
+	for (i=0; i<N; i++) if (figs[i].figurenumber == fign) return i;
+	return -1;
+}
+
+static char *alt_my_display = 0;
+
+void TFigureList::sendfile(int i, const char*filename) {
+	fputs(filename,figs[i].fp);
+	fputc('\n',figs[i].fp);
+	fflush(figs[i].fp);
+	if (!figs[i].newstream) {
+		int ret;
+		XKeyEvent theEvent;
+		theEvent.type = KeyPress;
+		theEvent.window = figs[i].rtwindow;
+		theEvent.x = 0x14;		/* Magic numbers: ASCII codes for ^T^E^L^A. This is Ctrl-T. */
+		theEvent.y = 0x05;		/* This is Ctrl-E */
+		theEvent.x_root = 0x0C;	/* This is Ctrl-L */
+		theEvent.y_root = 0x01;	/* This is Ctrl-A */
+		theEvent.state = 0;
+		theEvent.keycode = 1;
+		theEvent.same_screen = 1;
+		Display *my_true_display = mydisplay;
+		if (alt_my_display) {
+			my_true_display = XOpenDisplay(alt_my_display);
+		}
+		ret = XSendEvent(my_true_display, figs[i].rtwindow, False, KeyPressMask, (XEvent*)&theEvent);
+		if (ret==0) fprintf(stderr,"*** XSendEvent: Conversion to wire protocol failed.\n");
+		XFlush(my_true_display);		/* *** THIS IS IMPORTANT! */
+		if (alt_my_display) XCloseDisplay(my_true_display);
+		//cout << "tela: X-event sent to window " << long(figs[i].rtwindow) << ".\n";
+	} else {
+		// We must find out the window identifier where to send subsequent messages.
+		// Read lines until we see '*** WINDOW = ' line.
+		char s[maxbuff];
+		while (1) {
+			fgets(s,maxbuff,figs[i].outfp);
+			if (strstr(s,"*** WINDOW = ")) {
+				long window_id;
+				sscanf(s,"*** WINDOW = %ld",&window_id);
+				figs[i].rtwindow = (Window)window_id;
+				break;
+			}
+		}
+	}
+	figs[i].newstream = 0;
+}
+
+void TFigureList::kill_plotmtv(int i) {	// Close the figure with index i
+	if (figs[i].fp) fclose(figs[i].fp);
+	if (figs[i].outfp) fclose(figs[i].outfp);
+	if (figs[i].pid > 0) kill(figs[i].pid,SIGTERM);
+	figs[i].reset();
+}
+
+void TFigureList::kill_plotmtv() {		// Close all figures
+	int i;
+	for (i=0; i<FIGURES_MAX; i++)
+		if (figs[i].fp) kill_plotmtv(i);
+}
+
+TFigureList::~TFigureList() {
+	int i;
+	for (i=0; i<N; i++) kill_plotmtv(i);
+}
+
+static TFigureList FigureList;
+
+#endif	/* SUPPORT_FIGURES */
+
+TMTVFile::~TMTVFile() {
+	if (!hold) {
+		fclose(fileptr);
+		fileptr = 0;
+		if (fignum < 0) {
+			char *s = new char [4*MAXFILENAME+strlen((char*)UserOptions)+strlen((char*)UserTmpOptions)+256];
+			if (datawritten) {
+				char *plotmtv = getenv("TELA_PLOTMTV");
+				if (!plotmtv) plotmtv = "plotmtv";
+				char *holdopt = "";
+				if (holdmode == overlay)
+					holdopt = "-plotall";
+				else if (holdmode == stacking)
+					holdopt = "-comb";
+				char *pixmapopt = pixmapmode ? (char *)"" : (char *)"-nopixmap";
+				sprintf(s,"(%s %s %s %s %s %s %s >/dev/null; rm %s)&",
+						plotmtv,pixmapopt,holdopt,options?options:"",(char*)UserOptions,(char*)UserTmpOptions,fn,fn);
+				UserTmpOptions = (Tchar*)"";
+			} else
+				sprintf(s,"rm %s",fn);
+			system(s);
+			delete [] s;
+		} else if (datawritten) {
+#			ifdef SUPPORT_FIGURES
+			FigureList.sendfile(FigureList.assoc(fignum),fn);
+			UserTmpOptions = (Tchar*)"";
+#			endif
+		}
+		datawritten = 0;
+	}
+	if (options) free(options);	// options was created with strdup, that is, malloc
+}
+
+static int IsPlotArg(const Tobject& x) {
+	return (x.kind()==KIntArray || x.kind()==KRealArray) && !x.IsString();
+}
+
+static int HandleOpts(const TConstObjectPtr argin[], int& p, FILE *fp, int Nargin, int WritingOptions=1,
+					  int chk_nx=0, int chk_ny=0)
+/* Returns -9999 if wants to break from loop, 0 on success, error code otherwise */
+/* Set WritingOptions=0 when writing annotations since these have slightly different syntax */
+{
+	int i;
+	//cerr << "HandleOpts: p=" << p << ", Nargin=" << Nargin << "\n";
+	int WasXYgrid;
+	if (argin[p]->IsString() && argin[p]->IntPtr()[0]!='-') {
+		if (WritingOptions) fprintf(fp,"%% ");
+		//for (i=0; i<argin[p]->length(); i++) fprintf(fp,"%c",(int)(argin[p]->IntPtr()[i]));
+		//fprintf(fp,"=");
+		Tstring s = *argin[p];
+		if (!strcmp((char*)s,"xgrid") || !strcmp((char*)s,"ygrid")) {
+			fprintf(fp,"%s=true\n",(char*)s);
+			WasXYgrid = 1;
+			if (chk_nx==0 || chk_ny==0) {
+				cerr << "Using xgrid or ygrid for non-contour dataset\n";
+				return 2;	// using xgrid or ygrid for non-2D dataset
+			}
+		} else {
+			fprintf(fp,"%s=",(char*)s);
+			WasXYgrid = 0;
+		}
+		if (p>=Nargin-1) return 2;
+		p++;
+		switch (argin[p]->kind()) {
+		case Kint:
+			if (argin[p]->IsChar())
+				fputc((int)(argin[p]->IntValue()),fp);
+			else
+				fprintf(fp,"%d",(int)(argin[p]->IntValue()));
+			break;
+		case Kreal:
+			fprintf(fp,FloatFormat,(double)(argin[p]->RealValue()));
+			break;
+		case KIntArray:
+			if (argin[p]->IsString()) {
+				Tstring s = *argin[p];
+				fprintf(fp,"\"%s\"",(char*)s);
+				//fprintf(fp,"\"");
+				//for (i=0; i<argin[p]->length(); i++) fprintf(fp,"%c",(int)(argin[p]->IntPtr()[i]));
+				//fprintf(fp,"\"");
+			} else {
+				if (!WasXYgrid) return 2;
+				const int chk_n = (!strcmp((char*)s,"xgrid")) ? chk_nx : chk_ny;
+				if (chk_n != argin[p]->length()) {
+					cerr << "xgrid/ygrid length " << argin[p]->length() << ", should be " << chk_n << "\n";
+					return 2;
+				}
+				if (UseBinary) {
+					fprintf(fp,"%%binary=true\n");
+					double *xyarr = new double [argin[p]->length()];
+					for (i=0; i<argin[p]->length(); i++) xyarr[i] = double(argin[p]->IntPtr()[i]);
+					fwrite((char*)xyarr,sizeof(double),argin[p]->length(),fp);
+					delete [] xyarr;
+				} else {
+					for (i=0; i<argin[p]->length(); i++) fprintf(fp," %d",(int)(argin[p]->IntPtr()[i]));
+					fprintf(fp,"\n");
+				}
+			}
+			break;
+		case KRealArray:
+		{
+			if (!WasXYgrid || argin[p]->rank()!=1) return 2;
+			const int chk_n = (!strcmp((char*)s,"xgrid")) ? chk_nx : chk_ny;
+			if (chk_n != argin[p]->length()) {
+				cerr << "xgrid/ygrid length " << argin[p]->length() << ", should be " << chk_n << "\n";
+				return 2;
+			}
+			if (UseBinary) {
+				fprintf(fp,"%%binary=true\n");
+				double *xyarr = new double [argin[p]->length()];
+				for (i=0; i<argin[p]->length(); i++) xyarr[i] = double(argin[p]->RealPtr()[i]);
+				fwrite((char*)xyarr,sizeof(double),argin[p]->length(),fp);
+				delete [] xyarr;
+			} else {
+				for (i=0; i<argin[p]->length(); i++) fprintf(fp," " FloatFormat,(double)(argin[p]->RealPtr()[i]));
+				fprintf(fp,"\n");
+			}
+		}
+		break;
+		default:
+			return 2;
+		}
+		fprintf(fp,WritingOptions ? "\n" : " \\\n");
+	} else if (argin[p]->IsString()) {		// now handle this string as MTV option
+		Tstring s = *argin[p];
+		TMTVFile::UserTmpOptions = s;
+	} else return -9999;
+	return 0;
+}
+
+[] = hold(flag)
+/* hold(on) and hold(off) set the graphics hold mode on and off.
+   When hold is on, all graphics commands will be accumulated and
+   performed only until hold(off).
+   If hold(on) is called many times in succession, also hold(off)
+   must be called as many times until the plots are produced.
+   For example, if
+
+   function f() {hold(on); plot1(); plot2(); hold(off)};
+
+   and it is called as
+
+   hold(on); f(); plot3(); hold(off);
+
+   then all three plots are actually combined in one plot.
+
+   hold(-1) can be used to reset the internal counter.
+   Use it in emergency.
+   
+   See also: plot, holdmode.
+   Error codes:
+   1: Argument not an integer */
+{
+	TMTVFile mtv;	// when the destructor of this is called, plotmtv gets called
+	if (flag.kind()!=Kint) return 1;
+	if (flag.IntValue() == -1)
+		TMTVFile::hold = 0;
+	else if (flag.IntValue())
+		TMTVFile::hold++;
+	else
+		TMTVFile::hold--;
+	if (TMTVFile::hold) mtv.DataWritten();
+	return 0;
+}
+
+[result] = holdmode(;flag)
+/* holdmode(overlay) causes held plots to be combined in same figure.
+   holdmode(paging) shows them as sequential pages in one window.
+   holdmode(stacking) draws them as subplots in one window.
+   holdmode() returns the current setting.
+   See also: hold.
+   Error codes:
+   1: Argument not an integer
+   2: Bad value for argument */
+{
+	if (Nargin == 0)
+		result = Tint(TMTVFile::holdmode);
+	else {
+		result.SetToVoid();
+		if (flag.kind()!=Kint) return 1;
+		const int i = flag.IntValue();
+		if (i == Tint(TMTVFile::overlay) || i == Tint(TMTVFile::paging) || i == Tint(TMTVFile::stacking))
+			TMTVFile::holdmode = i;
+		else
+			return 2;
+	}
+	return 0;
+}
+
+[] = plot(...)
+/* plot(x1,y1,[options1], x2,y2,[options2],...) is the basic 2D plot function.
+   Each vector yi is plotted versus the corresponding xi. All curves yi are
+   displayed in the same figure. The option sequences must consist of keyword-
+   value pairs. Example:
+
+       x = 0:0.1:4*pi;
+       plot(x,sin(x), "linewidth",3,"linecolor",2);
+
+   The abscissa x may be missing, in which case the default of 1:length(y)
+   is used. The ordinates y may be matrices; then each row produces one
+   curve. If also abscissa x is matrix, the x-value may be different for each
+   curve.
+   See also: plot3, annotate, plotopt, mesh, contour, pcolor, vplot, colormap.
+   Error codes:
+   1: Could not open temporary MTV file
+   2: Nonnumeric or complex data argument
+   3: Syntax error in graph options
+   4: The abscissa ("x") must be a vector or a matrix
+   5: The ordinate ("y") must be a vector or a matrix
+   6: x and y dimensions disagree
+   */
+{
+	int i,j;
+	const Tobject *x=0,*y;
+	TMTVFile mtv;
+	FILE *fp = mtv.FilePtr();
+	if (!fp) return 1;
+	for (int p=0; p<Nargin; ) {
+		int twovectors=0;
+		if (!IsPlotArg(*argin[p])) return 2;
+		if (p<Nargin-1) {
+			if (IsPlotArg(*argin[p+1])) {twovectors=1; p++;}
+		}
+		if (twovectors) {
+			x = argin[p-1];
+			y = argin[p];
+			if (x->rank()!=1 && x->rank()!=2) return 4;
+			if (y->rank()!=1 && y->rank()!=2) return 5;
+			if (x->rank()==1) {
+				if (x->length()!=y->dims()[y->rank()-1]) return 6;
+			} else {
+				if (x->dims()!=y->dims()) return 6;
+			}
+		} else {
+			y = argin[p];
+			if (y->rank()!=1 && y->rank()!=2) return 5;
+		}
+		fprintf(fp,y->rank()>=2 && (!twovectors || x->rank()==1) ? "$ DATA=COLUMN\n" : "$ DATA=CURVE2D\n");
+		for (p++; p<Nargin; p++) {
+			int code=HandleOpts(argin,p,fp,Nargin);
+			if (code==-9999) break;
+			if (code) return 3;
+		}
+		// Now write the data
+		Tint Nrows=1, Ncols=y->dims()[y->rank()-1];
+		if (y->rank()>=2) Nrows = y->dims()[0];
+		if (y->rank()>=2 && (!twovectors || x->rank()==1)) {
+			fprintf(fp,"X-Axis");
+			for (j=0; j<Nrows; j++) fprintf(fp," Curve-%d",j+1);
+			fprintf(fp,"\n");
+		}
+		if ((!twovectors || x->rank()==2) && y->rank()==2) {
+			double X,Y;
+			for (j=0; j<Nrows; j++) {
+				for (i=0; i<Ncols; i++) {
+					Tint p = j*Ncols + i;
+					if (twovectors) {
+						if (x->kind() == KIntArray)
+							X = x->IntPtr()[p];
+						else
+							X = x->RealPtr()[p];
+					} else
+						X = i+1;
+					if (y->kind() == KIntArray)
+						Y = y->IntPtr()[p];
+					else
+						Y = y->RealPtr()[p];
+					fprintf(fp, FloatFormat " " FloatFormat "\n", X,Y);
+				}
+				fprintf(fp,"\n");
+			}
+		} else {
+			for (i=0; i<Ncols; i++) {
+				double X,Y;
+				if (twovectors) {
+					if (x->kind()==KIntArray)
+						X = x->IntPtr()[i];
+					else
+						X = x->RealPtr()[i];
+				} else
+					X = i+1;
+				if (Nrows == 1) {					// this branch added 16 March 2004
+					if (y->kind()==KIntArray)		// ... reason: to avoid passing NaNs
+						Y = y->IntPtr()[i];			// ... to PlotMTV (this is not complete
+					else							// ... solution to the problem since NaNs
+						Y = y->RealPtr()[i];		// ... are written also elsewhere in this 
+					if (finite(X) && finite(Y)) {	// ... code, however).
+						fprintf(fp,FloatFormat,X);	// ...
+						fprintf(fp," " FloatFormat,Y);
+						fprintf(fp,"\n");			// ...
+					}								// end of branch
+				} else {
+					fprintf(fp,FloatFormat,X);
+					for (j=0; j<Nrows; j++) {
+						if (y->kind()==KIntArray)
+							Y = y->IntPtr()[j*Ncols+i];
+						else
+							Y = y->RealPtr()[j*Ncols+i];
+						fprintf(fp," " FloatFormat,Y);
+					}
+					fprintf(fp,"\n");
+				}
+			}
+		}
+		fprintf(fp,"\n");
+		mtv.DataWritten();
+	}
+	return 0;
+}
+
+[] = plotopt(s)
+/* plotopt("-3d -colorps -landscape...") sets a set of PlotMTV command
+   line options for subsequent graphics commands (global setting).
+   See also: plot, annotate.
+
+   NOTICE: plotopt is usually not required. You can pass the option string
+   to all plot commands directly, for example:
+
+   plot(x,sin(x),"-3d -landscape");
+
+   These options affect only the current (or next outputted, if hold is used)
+   plot. All graphics function optional string args which start with minus sign
+   are assumed to be PlotMTV command line options.
+   
+   Error codes:
+   1: Argument not a string */
+{
+	if (!s.IsString()) return 1;
+	TMTVFile::UserOptions = Tstring(s);
+	return 0;
+}
+
+[] = colormap(r;g,b)
+/* colormap(r,g,b) sets the colormap (palette) for the next
+   opened graphics window. The arguments r,g,b must be real vectors
+   with equal lengths and with entries in the range 0..1. If they
+   are outside range, they are silently truncated.
+
+   The colormap has an effect only in pcolor plots, and in contour
+   and mesh plots if suitable options are used. The colormap is reset
+   to its default value after each plot.
+
+   colormap(c), where c is a Nx3 matrix, is also accepted.
+   
+   NOTICE: you need PlotMTV1.4.2t or later for this feature
+   to work. If you try to use it with older PlotMTV's, a warning
+   message about unknown option will be displayed.
+   
+   See also: plot, annotate.
+   Error codes:
+   1: Argument is not real vector
+   2: Arguments have unequal lengths
+   3: Argument length less than 2 is not allowed
+   4: You must give either 1 or 3 input arguments
+   5: Single argument is not a Nx3 real matrix
+*/
+{
+	palette_in_use = 0;		// in case of error
+	extern Treal MachineEpsilon; // from tela:C
+	const Treal c256 = 256.0*(1 - 2*MachineEpsilon); // actually 1-MachineEpsilon might work
+	if (Nargin == 1) {
+		if (r.kind()!=KRealArray) return 5;
+		if (r.rank()!=2) return 5;
+		if (r.dims()[1]!=3) return 5;
+		const Tint N = r.dims()[0];
+		if (N < 2) return 3;
+		int i;
+		for (i=0; i<NPALETTE; i++) {
+			const Tint k = iround((i/Treal(NPALETTE))*(N-0.5));
+			const Treal R = max(0.0,min(1.0,r.RealPtr()[3*k+0]));
+			const Treal G = max(0.0,min(1.0,r.RealPtr()[3*k+1]));
+			const Treal B = max(0.0,min(1.0,r.RealPtr()[3*k+2]));
+			palette[i][0] = (unsigned char)(c256*R);
+			palette[i][1] = (unsigned char)(c256*G);
+			palette[i][2] = (unsigned char)(c256*B);
+		}
+	} else {
+		if (Nargin!=3) return 4;
+		if (r.kind()!=KRealArray || g.kind()!=KRealArray || b.kind()!=KRealArray) return 1;
+		if (r.rank()!=1 || g.rank()!=1 || b.rank()!=1) return 1;
+		const Tint N = r.length();
+		if (g.length()!=N || b.length()!=N) return 2;
+		if (N < 2) return 3;
+		int i;
+		for (i=0; i<NPALETTE; i++) {
+			const Tint k = iround((i/Treal(NPALETTE))*(N-0.5));
+			const Treal R = max(0.0,min(1.0,r.RealPtr()[k]));
+			const Treal G = max(0.0,min(1.0,g.RealPtr()[k]));
+			const Treal B = max(0.0,min(1.0,b.RealPtr()[k]));
+			palette[i][0] = (unsigned char)(c256*R);
+			palette[i][1] = (unsigned char)(c256*G);
+			palette[i][2] = (unsigned char)(c256*B);
+		}
+	}
+	palette_in_use = 1;
+	return 0;
+}
+
+[] = annotate(primitive...)
+/* annotate("primitive"[,options]) adds MTV annotations to the previous
+   graph. The plot command(s) and the annotate command(s) must appear
+   inside hold(on) ... hold(off) in order to work correctly.
+   
+   --------------------------------------------
+   Here may be the proper place to list the most frequently used
+   PlotMTV options. These are used by giving them as optional args
+   (option-value pairs) to graphics functions.  See the PlotMTV data
+   format definition (DataFormat.ps) for all the available options.
+   
+   Option name(s)      Possible value(s)       Explanation
+   "xlabel"            string                  X-axis label
+   "ylabel"            string                  Y-axis label
+   "zlabel"            string                  Z-axis label
+   "toplabel"          string                  Plot title
+   "subtitle"          string                  Text below title
+   "comment"           string                  Text on right corner
+   "xmin","xmax"       real number             X-axis min,max
+   "ymin","ymax"       real number             Y-axis min,max
+   "zmin","zmax"       real number             Z-axis min,max
+   "xgrid"             real vector             X gridpoints (nonuniform)
+   "ygrid"             real vector             Y gridpoints (nonuniform)
+   "cmin","cmax"       real number             Contour min/max
+   "nsteps"            integer                 Number of contours
+   "cstep"             real number             Contour spacing
+   "contstyle"         1: normal contours, 2: colored (pcolor),
+                       3: 3D surface
+   "hiddenline"        "true": colored 3D surface, "false": wireframe
+   "linecolor"         color value (integer)
+   "linewidth"         integer
+   "linestyle"         solid,dashed etc.; integers; 0 is no line
+   "markertype"        integers; 0 is no marker (the default)
+   "markersize"        real number
+   "markercolor"       color value (integer)
+   
+   Some color (red,green,blue,pink etc.) names have been defined
+   in telainit.t. Use them for clarity if possible.
+   
+   The most usual PlotMTV command line options (always start with
+   minus sign):
+   -3d                  Initially view in 3D
+   -colorps             Produce color PostScript
+   -landscape           Produce landscape (rotated) PostScript
+   -scale s             PostScript scale factor, default 1
+   -nodate              Drop the date from PostScript figure
+   -title 'my title'    PlotMTV window title
+   
+   For an example in using the annotations, see e.g. the file
+   "3windows.t", usual location is /usr/local/lib/tela/t/.
+   
+   See also: plotopt, hold, plot, pcolor, mesh, contour, vplot, colormap.
+   Error codes:
+   1: Could not open temporary MTV file
+   2: First argument not a string
+   3: Syntax error in graph options */
+{
+	TMTVFile mtv;
+	FILE *fp = mtv.FilePtr();
+	if (!fp) return 1;
+	if (!primitive.IsString() && !primitive.IsChar()) return 2;
+	//fprintf(fp,"@");
+	//for (i=0; i<primitive.length(); i++) fprintf(fp,"%c",primitive.IntPtr()[i]);
+	//fprintf(fp,"  ");
+	Tstring s = primitive;
+	fprintf(fp,"@%s  ",(char*)s);
+	for (int p=1; p<Nargin; p++) {
+		int code=HandleOpts(argin,p,fp,Nargin,0);
+		if (code==-9999) break;
+		if (code) return 3;
+	}
+	fprintf(fp,"\n\n");
+	return 0;
+}
+
+[X,Y] = grid(x,y)
+/* [X,Y] = grid(x,y) produces matrices X,Y that are formed from vectors x,y
+   such that X[i,j] = x[i] for all j, and Y[i,j] = y[j] for all i.
+   See also: grid3.
+   Error codes:
+   -1: Input argument is array but not a vector
+   -2: Input argument is not real array */
+{
+	int nx=x.length(), ny=y.length();
+	if (x.kind()!=KRealArray && x.kind()!=KIntArray) return -2;
+	if (y.kind()!=KRealArray && y.kind()!=KIntArray) return -2;
+	if (x.rank()!=1) return -1;
+	if (y.rank()!=1) return -1;
+	Tobject x1,y1;
+	if (x.kind()==KIntArray) Add(x1,x,Tobject(0.0)); else x1=x;
+	if (y.kind()==KIntArray) Add(y1,y,Tobject(0.0)); else y1=y;
+	TDimPack dp(nx,ny);
+	X.rzeros(dp); Y.rzeros(dp);
+	int i,j;
+	for (i=0; i<nx; i++) X.RealPtr()[i*ny] = x1.RealPtr()[i];
+	for (i=0; i<nx; i++) for (j=0; j<ny; j++)
+		X.RealPtr()[i*ny+j] = X.RealPtr()[i*ny];
+	for (j=0; j<ny; j++) Y.RealPtr()[j] = y1.RealPtr()[j];
+	for (j=0; j<ny; j++) for (i=0; i<nx; i++)
+		Y.RealPtr()[i*ny+j] = Y.RealPtr()[j];
+	return 0;
+}
+
+[X,Y,Z] = grid3(x,y,z)
+/* [X,Y,Z] = grid3(x,y,z) produces 3D arrays X,Y,Z that ar
+   formed from vectors x,y,z such that
+   X[i,j,k] = x[i] for all j,k,
+   Y[i,j,k] = y[j] for all i,k, and
+   Z[i,j,k] = z[k] for all i,j.
+   See also: grid.
+   Error codes:
+   -1: Input arg is array but not a vector
+   -2: Input arg not a real array */
+{
+	int nx=x.length(), ny=y.length(), nz=z.length();
+	if (x.kind()!=KRealArray && x.kind()!=KIntArray) return -2;
+	if (y.kind()!=KRealArray && y.kind()!=KIntArray) return -2;
+	if (z.kind()!=KRealArray && z.kind()!=KIntArray) return -2;
+	if (x.rank()!=1) return -1;
+	if (y.rank()!=1) return -1;
+	if (z.rank()!=1) return -1;
+	Tobject x1,y1,z1;
+	if (x.kind()==KIntArray) Add(x1,x,Tobject(0.0)); else x1=x;
+	if (y.kind()==KIntArray) Add(y1,y,Tobject(0.0)); else y1=y;
+	if (z.kind()==KIntArray) Add(z1,z,Tobject(0.0)); else z1=z;
+	Tint dims[3];
+	dims[0] = nx;
+	dims[1] = ny;
+	dims[2] = nz;
+	TDimPack dp(dims,3);
+	X.rzeros(dp); Y.rzeros(dp); Z.rzeros(dp);
+	int i,j,k;
+	for (i=0; i<nx; i++) X.RealPtr()[i*ny*nz] = x1.RealPtr()[i];
+	for (i=0; i<nx; i++) for (j=0; j<ny; j++) for (k=0; k<nz; k++)
+		X.RealPtr()[i*ny*nz+j*nz+k] = X.RealPtr()[i*ny*nz];
+	for (j=0; j<ny; j++) Y.RealPtr()[j*nz] = y1.RealPtr()[j];
+	for (j=0; j<ny; j++) for (i=0; i<nx; i++) for (k=0; k<nz; k++)
+		Y.RealPtr()[i*ny*nz+j*nz+k] = Y.RealPtr()[j*nz];
+	for (k=0; k<nz; k++) Z.RealPtr()[k] = z1.RealPtr()[k];
+	for (k=0; k<nz; k++) for (i=0; i<nx; i++) for (j=0; j<ny; j++)
+		Z.RealPtr()[i*ny*nz+j*nz+k] = Z.RealPtr()[k];
+	return 0;
+}
+
+[] = plot3(x,y,z...)
+/* plot3(x,y,z[,options]) produces parametric space curves.
+   The quantities x,y,z must have equal ranks, and they can
+   be either vectors or matrices. If they are vectors, only
+   one space curve is drawn. If they are matrices, the number
+   of curves produces equals the number of rows.
+   See also: plot, annotate.
+   Error codes:
+   1: Could not open temporary MTV file
+   2: y dimensionality disagrees with x dimensionality
+   3: z dimensionality disagrees with x dimensionality
+   4: Input arrays must be integer or real arrays
+   5: Input arrays must have rank equal to 1 or 2
+   6: Syntax error in graph options
+   */
+{
+	TMTVFile mtv;
+	mtv.SetOptions("-3d");
+	FILE *fp = mtv.FilePtr();
+	if (!fp) return 1;
+	int i;
+	for (i=0; i<3; i++) {
+		if (argin[i]->kind()!=KIntArray && argin[i]->kind()!=KRealArray) return 4;
+		if (argin[i]->rank()!=1 && argin[i]->rank()!=2) return 5;
+	}
+	TDimPack dims = x.dims();
+	if (y.dims() != dims) return 2;
+	if (z.dims() != dims) return 3;
+	fprintf(fp,"$ DATA=CURVE3D\n");
+	fprintf(fp,"%% xlabel=\"x\" ylabel=\"y\" zlabel=\"z\" toplabel=\"\"\n");
+	for (int p=3; p<Nargin; p++) {
+		int code=HandleOpts(argin,p,fp,Nargin);
+		if (code==-9999) break;
+		if (code) return 6;
+	}
+	if (x.rank()==1) {
+		for (i=0; i<x.length(); i++) {
+			Tint p = i;
+			double X,Y,Z;
+			X = (x.kind()==KIntArray) ? x.IntPtr()[p] : x.RealPtr()[p];
+			Y = (y.kind()==KIntArray) ? y.IntPtr()[p] : y.RealPtr()[p];
+			Z = (z.kind()==KIntArray) ? z.IntPtr()[p] : z.RealPtr()[p];
+			fprintf(fp, FloatFormat " " FloatFormat " " FloatFormat "\n", X,Y,Z);
+		}
+	} else {
+		int j;
+		for (i=0; i<x.dims()[0]; i++) {
+			for (j=0; j<x.dims()[1]; j++) {
+				Tint p = i*x.dims()[1] + j;
+				double X,Y,Z;
+				X = (x.kind()==KIntArray) ? x.IntPtr()[p] : x.RealPtr()[p];
+				Y = (y.kind()==KIntArray) ? y.IntPtr()[p] : y.RealPtr()[p];
+				Z = (z.kind()==KIntArray) ? z.IntPtr()[p] : z.RealPtr()[p];
+				fprintf(fp, FloatFormat " " FloatFormat " " FloatFormat "\n", X,Y,Z);
+			}
+			fprintf(fp,"\n");
+		}
+	}
+	mtv.DataWritten();
+	return 0;
+}
+
+static int GenericContour(const Tobject& z, const TConstObjectPtr argin[], int nargs,
+						  const char opts[], const char prgopts[])
+{
+	TMTVFile mtv;
+	if (prgopts) mtv.SetOptions(prgopts);
+	FILE *fp = mtv.FilePtr();
+	if (!fp) return 1;
+	if (z.rank()!=2) return 2;
+	if (z.kind()!=KIntArray && z.kind()!=KRealArray) return 2;
+	const int nx=z.dims()[0], ny=z.dims()[1];
+	fprintf(fp,"$ DATA=CONTOUR\n");
+	fprintf(fp,"%% nx=%d ny=%d\n",z.dims()[0],z.dims()[1]);
+	fprintf(fp,"%% xmin=%d xmax=%d ymin=%d ymax=%d\n",ArrayBase,ArrayBase+nx,ArrayBase,ArrayBase+ny);
+	fprintf(fp,"%% xlabel=\"x\" ylabel=\"y\" zlabel=\"z\" toplabel=\"\"\n");
+	if (palette_in_use) {
+		fprintf(fp,"%% palette=\"");
+		int i;
+		for (i=0; i<3*NPALETTE; i++) fprintf(fp,"%d ",palette[0][i]);
+		fprintf(fp,"\"\n");
+		palette_in_use = 0;		// use the same palette only once
+	}
+	fprintf(fp,"%% %s\n",opts);
+	for (int p=1; p<nargs; p++) {
+		int code=HandleOpts(argin,p,fp,nargs,1,nx,ny);
+		if (code==-9999) break;
+		if (code) return 3;
+	}
+	int i,j;
+	if (UseBinary) {
+		fprintf(fp,"%%binary=true\n");
+		double *zarr = new double [nx*ny];
+		if (z.kind()==KIntArray) {
+			Tint * const ip = z.IntPtr();
+			for (j=0; j<ny; j++) for (i=0; i<nx; i++)
+				zarr[j*nx+i] = double(ip[i*ny+j]);
+		} else {
+			Treal * const rp = z.RealPtr();
+			for (j=0; j<ny; j++) for (i=0; i<nx; i++)
+				zarr[j*nx+i] = double(rp[i*ny+j]);
+		}
+		if (int(fwrite((char*)zarr,sizeof(double),nx*ny,fp))!=nx*ny) {delete [] zarr; return 4;}
+		delete [] zarr;
+	} else {
+		for (j=0; j<ny; j++) for (i=0; i<nx; i++) {
+			double Z;
+			if (z.kind()==KIntArray)
+				Z = z.IntPtr()[i*ny+j];
+			else
+				Z = z.RealPtr()[i*ny+j];
+			fprintf(fp,FloatFormat "\n",Z);
+		}
+	}
+	fprintf(fp,"\n");
+	mtv.DataWritten();
+	return 0;
+}
+
+[] = contour(z...)
+/* contour(z[,options]) plots the matrix z as a filled contour plot.
+   contour(z,"xgrid",<x-grid-vector>,"ygrid",<y-grid-vector>[,other opts])
+   specifies a nonuniform grid in X and Y.
+   See also: contour3, annotate, plot, mesh, pcolor, vplot.
+   Error codes:
+   1: Could not open temporary MTV file
+   2: First argument is not a numeric 2D array
+   3: Syntax error in graph options
+   4: Write error in MTV file - file system full? */
+{
+	return GenericContour(z,argin,Nargin,"contfill=False comment=\"Contour plot\"",0);
+}
+
+[] = mesh(z...)
+/* mesh(z[,options]) plots the matrix z as a 3D mesh.
+   mesh(z,"xgrid",<x-grid-vector>,"ygrid",<y-grid-vector>[,other opts])
+   specifies a nonuniform grid in X and Y.
+   See also: annotate, plot, contour, pcolor, vplot.
+   Error codes:
+   1: Could not open temporary MTV file
+   2: First argument is not a numeric 2D array
+   3: Syntax error in graph options
+   4: Write error in MTV file - file system full? */
+{
+	return GenericContour(z,argin,Nargin,"meshplot=True contstyle=3 comment=\"3D mesh plot\"","-3d");
+}
+
+[] = pcolor(z...)
+/* pcolor(z[,options]) plots the matrix z as a pseudocolor density plot.
+   pcolor(z,"xgrid",<x-grid-vector>,"ygrid",<y-grid-vector>[,other opts])
+   specifies a nonuniform grid in X and Y.
+   See also: annotate, plot, contour, mesh, vplot.
+   Error codes:
+   1: Could not open temporary MTV file
+   2: First argument is not a numeric 2D array
+   3: Syntax error in graph options
+   4: Write error in MTV file - file system full? */
+{
+	return GenericContour(z,argin,Nargin,
+						  "interpolate=3 nsteps=50 meshplot=False contstyle=2 comment=\"Pseudocolor density plot\"",0);
+}
+
+static int Generic3DContour(const Tobject& z, const TConstObjectPtr argin[], int nargs,
+							const char opts[], const char prgopts[])
+{
+	TMTVFile mtv;
+	if (prgopts) mtv.SetOptions(prgopts);
+	FILE *fp = mtv.FilePtr();
+	if (!fp) return 1;
+	if (z.rank()!=3) return 2;
+	if (z.kind()!=KIntArray && z.kind()!=KRealArray) return 2;
+	const int nx=z.dims()[0], ny=z.dims()[1], nz=z.dims()[2];
+	fprintf(fp,"$ DATA=GRID4D\n");
+	fprintf(fp,"%% nx=%d ny=%d nz=%d\n",nx,ny,nz);
+	fprintf(fp,"%% xlabel=\"x\" ylabel=\"y\" zlabel=\"z\" toplabel=\"\"\n");
+	fprintf(fp,"%% %s\n",opts);
+	for (int p=1; p<nargs; p++) {
+		int code=HandleOpts(argin,p,fp,nargs,1,nx,ny);
+		if (code==-9999) break;
+		if (code) return 3;
+	}
+	int i,j,k;
+	if (UseBinary) {
+		fprintf(fp,"%%binary=true\n");
+		double *tarr = new double [nx*ny*nz];
+		if (z.kind()==KIntArray) {
+			Tint * const ip = z.IntPtr();
+			for (k=0; k<nz; k++) for (j=0; j<ny; j++) for (i=0; i<nx; i++)
+				tarr[k*ny*nx+j*nx+i] = double(ip[i*ny*nz+j*nz+k]);
+		} else {
+			Treal * const rp = z.RealPtr();
+			for (k=0; k<nz; k++) for (j=0; j<ny; j++) for (i=0; i<nx; i++)
+				tarr[k*ny*nx+j*nx+i] = double(rp[i*ny*nz+j*nz+k]);
+		}
+		if (int(fwrite((char*)tarr,sizeof(double),nx*ny*nz,fp))!=nx*ny*nz) {delete [] tarr; return 4;}
+		delete [] tarr;
+	} else {
+		for (k=0; k<nz; k++) for (j=0; j<ny; j++) for (i=0; i<nx; i++) {
+			double Z;
+			if (z.kind()==KIntArray)
+				Z = z.IntPtr()[k*nx*ny+i*ny+j];
+			else
+				Z = z.RealPtr()[k*nx*ny+i*ny+j];
+			fprintf(fp,FloatFormat "\n",Z);
+		}
+	}
+	fprintf(fp,"\n");
+	mtv.DataWritten();
+	return 0;
+}
+
+[] = contour3(z...)
+/* contour3(z[,options]) plots the 3D array as a
+   "volume" plot. Currently this only means that all
+   six faces of the volume are contoured and colored
+   according to options.
+   See also: annotate, plot, mesh, pcolor, vplot,
+   contour.
+   Error codes:
+   1: Could not open temporary MTV file
+   2: First argument is not a real 3D array
+   3: Syntax error in graph options
+   4: Write error in MTV file - file system full? */
+{
+	return Generic3DContour(z,argin,Nargin,"contfill=False comment=\"Volume plot\"",0);
+}
+
+[] = vplot(x,y,vx,vy...)
+/* vplot(x,y,vx,vy[,options]) produces a 2D vector plot of the vector
+   field (vx,vy). All arguments x,y,vx and vy must be 2D integer or
+   real arrays and of the same size. Each 2D vector will be positioned
+   at (x[i,j],y[i,j]) and its direction will be (vx[i,j],vy[i,j]) where
+   (i,j) run over rows and columns of the matrices.
+   See also: annotate, plot, mesh, contour, pcolor.
+   Error codes:
+   1: Could not open temporary MTV file
+   2: One of first four args is not a numeric array
+   3: One of first four args has rank not equal to 2
+   4: Dimensions of first four args disagree
+   5: Syntax error in graph options */
+{
+	TMTVFile mtv;
+	FILE *fp = mtv.FilePtr();
+	if (!fp) return 1;
+	int p;
+	for (p=0; p<4; p++) {
+		if (argin[p]->kind()!=KIntArray && argin[p]->kind()!=KRealArray) return 2;
+//		if (argin[p]->rank()!=2) return 3;
+	}
+	if (y.dims()!=x.dims()) return 4;
+	if (vx.dims()!=x.dims()) return 4;
+	if (vy.dims()!=x.dims()) return 4;
+	fprintf(fp,"$ DATA=VECTOR\n");
+	fprintf(fp,"%% xlabel=\"x\" ylabel=\"y\" zlabel=\"z\" toplabel=\"\"\n");
+	fprintf(fp,"%% comment=\"2D vector plot\"\n");
+	for (p=4; p<Nargin; p++) {
+		int code=HandleOpts(argin,p,fp,Nargin);
+		if (code==-9999) break;
+		if (code) return 5;
+	}
+	const int n=vx.length();
+	int i;
+	for (i=0; i<n; i++) {
+		double X,Y,VX,VY;
+		if (x.kind()==KIntArray)
+			X = x.IntPtr()[i];
+		else
+			X = x.RealPtr()[i];
+		if (y.kind()==KIntArray)
+			Y = y.IntPtr()[i];
+		else
+			Y = y.RealPtr()[i];
+		if (vx.kind()==KIntArray)
+			VX = vx.IntPtr()[i];
+		else
+			VX = vx.RealPtr()[i];
+		if (vy.kind()==KIntArray)
+			VY = vy.IntPtr()[i];
+		else
+			VY = vy.RealPtr()[i];
+		fprintf(fp,FloatFormat " " FloatFormat " 0 " FloatFormat " " FloatFormat " 0\n",X,Y,VX,VY);
+	}
+#if 0
+	int nx=vx.dims()[0], ny=vx.dims()[1];
+	int i,j;
+	for (j=0; j<ny; j++) for (i=0; i<nx; i++) {
+		double X,Y,VX,VY;
+		if (x.kind()==KIntArray)
+			X = x.IntPtr()[i*ny+j];
+		else
+			X = x.RealPtr()[i*ny+j];
+		if (y.kind()==KIntArray)
+			Y = y.IntPtr()[i*ny+j];
+		else
+			Y = y.RealPtr()[i*ny+j];
+		if (vx.kind()==KIntArray)
+			VX = vx.IntPtr()[i*ny+j];
+		else
+			VX = vx.RealPtr()[i*ny+j];
+		if (vy.kind()==KIntArray)
+			VY = vy.IntPtr()[i*ny+j];
+		else
+			VY = vy.RealPtr()[i*ny+j];
+		fprintf(fp,FloatFormat " " FloatFormat " 0 " FloatFormat " " FloatFormat " 0\n",X,Y,VX,VY);
+	}
+#endif
+	mtv.DataWritten();
+	return 0;
+}
+
+[] = bar(x,y,z...)
+/* bar(grouplabels,data,barnames[,options]) produces a bar chart.
+   Example 1:
+   
+   bar(strmat("DEC","HP"),#(111,150.6),"Speed")
+   
+   See also: plot, hist.
+   Error codes:
+   1: First argument not int nor real array
+   2: First argument not a vector nor matrix
+   3: Second argument not int nor real array
+   4: Second argument not a vector nor matrix
+   5: Dimension mismatch between first and second arg
+   6: If second arg is vector, third arg must be a string
+   7: Third arg must be a string or a string matrix
+   8: If second arg is matrix, third arg must be a string matrix
+   9: Dimension mismatch between second and third arg
+   10: Syntax error in graph options
+   11: First arg must not be real matrix
+   12: Could not open temporary MTV file
+   */
+{
+	TMTVFile mtv;
+	FILE *fp = mtv.FilePtr();
+	if (!fp) return 12;
+	Tint i,j,p,n,m=1;		// n: number of bar groups, m: number of bars in a group
+	if (x.kind()!=KIntArray && x.kind()!=KRealArray) return 1;
+	if (x.rank()!=1 && x.rank()!=2) return 2;
+	if (x.rank()==2 && x.kind()==KRealArray) return 11;
+	if (y.kind()!=KIntArray && y.kind()!=KRealArray) return 3;
+	if (y.rank()!=1 && y.rank()!=2) return 4;
+	if (z.kind()!=KIntArray) return 7;
+	if (z.rank()!=1 && z.rank()!=2) return 7;
+	if (y.rank() == 1) {
+		n = y.length();
+		if (!z.IsString()) return 6;
+	} else {					// now y.rank()==2
+		n = y.dims()[0];
+		m = y.dims()[1];
+		if (m > 1) {
+			if (z.rank()!=2) return 8;
+			if (z.dims()[0]!=m) return 9;
+		} else {
+			if (!z.IsString()) return 6;
+		}
+	}
+	if (x.rank()==1) {
+		if (x.length()!=n) return 5;
+	} else {					// now x.rank()==2
+		if (x.dims()[0]!=n) return 5;
+	}
+	fprintf(fp,"$ DATA=BARCHART\n");
+	fprintf(fp,"%% xlabel=\"x\" ylabel=\"y\" zlabel=\"z\" toplabel=\"\"\n");
+	fprintf(fp,"%% comment=\"Bar chart\"\n");
+	for (p=3; p<Nargin; p++) {
+		int code=HandleOpts(argin,p,fp,Nargin);
+		if (code==-9999) break;
+		if (code) return 10;
+	}
+	// Handle z
+	fprintf(fp,"\n");
+	if (z.IsString()) {
+		fprintf(fp,"\"");
+		for (p=0; p<z.length(); p++) fprintf(fp,"%c",z.IntPtr()[p]);
+		fprintf(fp,"\"\n");
+	} else {
+		const int L = z.dims()[1];
+		for (j=0; j<m; j++) {
+			fprintf(fp,"  \"");
+			for (p=0; p<L; p++) if (z.IntPtr()[j*L+p]) fprintf(fp,"%c",z.IntPtr()[j*L+p]);
+			fprintf(fp,"\"");
+		}
+		fprintf(fp,"\n");
+	}
+	// Handle x,y
+	for (i=0; i<n; i++) {
+		if (x.kind()==KIntArray && x.rank()==1) { // x string or int vector
+			if (n == 1) {							  // x must be string
+				fprintf(fp,"\"");
+				for (p=0; p<x.length(); p++) fprintf(fp,"%c",x.IntPtr()[p]);
+				fprintf(fp,"\" ");
+			} else						// x must be int vector
+				fprintf(fp,"%ld ",long(x.IntPtr()[i]));
+		} else if (x.kind()==KIntArray && x.rank()==2) { // x is string matrix, print its i'th string
+			const int L = x.dims()[1];
+			fprintf(fp,"\"");
+			for (p=0; p<L; p++) if (x.IntPtr()[i*L+p]) fprintf(fp,"%c",x.IntPtr()[i*L+p]);
+			fprintf(fp,"\" ");
+		} else if (x.kind()==KRealArray) { // x is real vector
+			fprintf(fp,FloatFormat " ",double(x.RealPtr()[i]));
+		}
+		if (y.rank()==1) {
+			if (y.kind()==KIntArray)
+				fprintf(fp,"%ld",long(y.IntPtr()[i]));
+			else
+				fprintf(fp,FloatFormat,double(y.RealPtr()[i]));
+		} else {
+			for (j=0; j<m; j++) {
+				if (y.kind()==KIntArray)
+					fprintf(fp," %ld",long(y.IntPtr()[i*m+j]));
+				else
+					fprintf(fp," " FloatFormat,double(y.RealPtr()[i*m+j]));
+			}
+		}
+		fprintf(fp,"\n");
+	}
+	mtv.DataWritten();
+	return 0;
+}
+
+extern Treal MachineEpsilon; // from tela.C
+
+[;ndata,xdata] = hist(x...)
+/* hist(x) produces a histogram of vector x.
+   The range min(x)..max(x) is divided in bins, and the
+   number of x values in each bin is counted. The count determines
+   the height of each bin.
+   
+   hist(x) uses 10 bins, hist(x,n) uses n bins.
+   hist(x,n,a) starts from x=a.
+   hist(x,n,a,b) ignores x values outside interval a..b.
+   Rest of the args may contain other MTV options.
+   [ndata,xdata] = hist(args) returns the count and abscissa vectors
+   but does not draw anything. bar(xdata,ndata,"lab") can be used to draw
+   the histogram later. Graphics options are ignored in this case.
+   See also: plot, bar.
+   Error codes:
+   1: First argument not a (real) vector
+   2: Second arg not a positive integer
+   3: Third arg not a (real) scalar
+   4: Fourth arg not a (real) scalar
+   5: Third arg greater of equal than fourth arg
+   6: Could not open temporary MTV file
+   7: Syntax error in graph options
+   */
+{
+	const Tkind xk = x.kind();
+	if (xk!=KIntArray && xk!=KRealArray) return 1;
+	if (x.rank()!=1) return 1;
+	Tint N=10;
+	Treal A,B;
+	Tobject aa,bb;
+	Min(aa,x);
+	Max(bb,x);
+	if (xk==KIntArray) B=bb.IntValue(); else B=bb.RealValue();
+	if (xk==KIntArray) A=aa.IntValue(); else A=aa.RealValue();
+	Tint p = 1;
+	if (Nargin>1 && !argin[1]->IsString()) {
+		if (argin[1]->kind()!=Kint) return 2;
+		N = argin[1]->IntValue();
+		if (N <= 0) return 2;
+		p++;
+		if (Nargin>2 && !argin[2]->IsString()) {
+			if (argin[2]->kind()!=Kint && argin[2]->kind()!=Kreal) return 3;
+			if (argin[2]->kind()==Kint) A=argin[2]->IntValue(); else A=argin[2]->RealValue();
+			p++;
+			if (Nargin>3 && !argin[3]->IsString()) {
+				if (argin[3]->kind()!=Kint && argin[3]->kind()!=Kreal) return 4;
+				if (argin[3]->kind()==Kint) B=argin[3]->IntValue(); else B=argin[3]->RealValue();
+				if (A>=B) return 5;
+				p++;
+			}
+		}
+	}
+	Treal binstart = A;
+	Treal binwidth = (B-A)/N;
+	if (Nargout == 2) {
+		ndata.izeros(N);
+		xdata.rzeros(N);
+		int i;
+		for (i=0; i<x.length(); i++) {
+			Treal val = (xk == KIntArray) ? Treal(x.IntPtr()[i]) : x.RealPtr()[i];
+			Tint index = (Tint)floor((1-N*MachineEpsilon)*(val - A)/binwidth);
+			if (0<=index && index<N) ndata.IntPtr()[index]++;
+		}
+		for (i=0; i<N; i++) xdata.RealPtr()[i] = A + binwidth*i;
+	} else {
+		TMTVFile mtv;
+		ndata.SetToVoid();
+		FILE *fp = mtv.FilePtr();
+		if (!fp) return 6;
+		fprintf(fp,"$ DATA=HISTOGRAM\n");
+		fprintf(fp,"%% xlabel=\"x\" ylabel=\"y\" zlabel=\"z\" toplabel=\"\"\n");
+		fprintf(fp,"%% comment=\"Histogram\"\n");
+		fprintf(fp,"%% binstart=" FloatFormat "\n",double(binstart));
+		fprintf(fp,"%% binwidth=" FloatFormat "\n",double(binwidth));
+		for (; p<Nargin; p++) {
+			int code=HandleOpts(argin,p,fp,Nargin);
+			if (code==-9999) break;
+			if (code) return 7;
+		}
+		int i;
+		for (i=0; i<x.length(); i++) {
+			double val = (xk == KIntArray) ? double(x.IntPtr()[i]) : double(x.RealPtr()[i]);
+			if (A<=val && val<=B)
+				fprintf(fp,FloatFormat "\n",val);
+		}
+		mtv.DataWritten();
+	}
+	return 0;
+}
+
+[] = figure(n)
+/* figure(n) causes subsequent plot commands to use
+   window (figure) number n (n=1,2,...). Figures with
+   n>1 are drawn over by each new plot command.
+   
+   figure(-1) restores the default behavior, which is
+   to create standalone windows. These plots are never
+   replaced by new graphics and are quit only by the user.
+   
+   Using this command for n>1 requires that you use the
+   Tela-compatible PlotMTV version.
+   
+   See also: closefig
+   Error codes:
+   1: Argument is not an integer
+   2: Figure number zero is reserved, don't use it
+   3: This Tela installation does not support the figure command
+   4: Failed X11 initialization, cannot synchronize with PlotMTV
+   */
+{
+	if (n.kind()!=Kint) return 1;
+	if (n.IntValue()==0) return 2;
+#	ifdef SUPPORT_FIGURES
+	FigureList.init_x11();
+	if (FigureList.x11_initialized != 1) return 4;
+#	else
+	if (n.IntValue()>0) return 3;
+#	endif
+	TMTVFile::fignum = n.IntValue();
+	return 0;
+}
+
+[] = closefig(n)
+/* closefig(n) (n>1) closes the nth graphics window.
+   The active window is not changed, so if n is the active
+   window, subsequent plot commands will reopen it.
+   If the window has never been opened or has already been
+   closed, closefig is silent about it.
+
+   closefig("all") closes all figures.
+   See also: figure.
+   Error codes:
+   1: Argument not an integer
+   2: Argument not positive
+   3: This Tela installation does not support the closefig command
+   4: No n>1 figures are currently open (and X11 initialization has failed)
+   */
+{
+	int closeall = 0;
+	if (n.IsString()) {
+		Tstring N = n;
+		closeall = !strcmp((Tchar*)N,(Tchar*)"all");
+		if (!closeall) return 5;
+	} else {
+		if (n.kind()!=Kint) return 1;
+		if (n.IntValue()<=0) return 2;
+	}
+#	ifdef SUPPORT_FIGURES
+	FigureList.init_x11();
+	if (FigureList.x11_initialized != 1) return 4;
+	if (closeall) {
+		FigureList.kill_plotmtv();		// Close all figures
+	} else {
+		int index = FigureList.find(n.IntValue());
+		if (index < 0) return 0;
+		FigureList.kill_plotmtv(index);
+	}
+#	else
+	if (!closeall && n.IntValue() <= 0) return 3;
+#	endif
+	return 0;
+}
+
+[] = pixmap(flag)
+/* pixmap(off) tells PlotMTV not to use pixmaps for faster redraw.
+   pixmap(on) turns the pixmap mode on, which is the default.
+   
+   If your X server uses backing store, you can save memory
+   by turning pixmap(off) without hurting performance.
+   Error codes:
+   1: Argument is not an integer */
+{
+	if (flag.kind()!=Kint) return 1;
+	TMTVFile::pixmapmode = flag.IntValue();
+	return 0;
+}
+
+[] = set_alt_display(s)
+/* set_alt_display("X display name") informs Tela that
+   subsequent PlotMTV commands use the given X display name
+   instead of the default (DISPLAY environment variable).
+   If you want to temporarily redirect your display to somewhere
+   else, be it mydisplay:1 do the following:
+
+   closefig(1);	... 	// close all figures that you will manipulate below
+   set_alt_display("mydisplay:1");
+   plotopt("-display mydisplay:1 ...");
+   //  Do your graphics commands here ...
+   reset_alt_display();	// return to normal setting
+   plotopt("...");	// i.e  without -display argument
+
+   You MUST ensure that the display given to PlotMTV via
+   p|otopt (or directly, using a plot command option) is the same
+   as that used in set_alt_display.
+
+   See also: plot, reset_alt_display
+   Error codes:
+   -1: Argument not a string
+*/
+{
+	if (!s.IsString()) return -1;
+	Tstring S = s;
+	alt_my_display = strdup((char*)S);
+	return 0;
+}
+
+[] = reset_alt_display()
+/* reset_alt_display() must be used after set_alt_display
+   to return to normal settings (to direct X11 commands to
+   DISPLAY environment variable again).
+   See also: set_alt_display.
+*/
+{
+	alt_my_display = 0;
+	return 0;
+}

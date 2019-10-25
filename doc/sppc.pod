@@ -1,0 +1,121 @@
+=head1 NAME
+
+sppc - Simple Plot Panel Composer
+
+=head1 SYNOPSIS
+
+B<sppc>	B<-gl> S<[ B<-nocopyright> ]> S<[ I<sppc-file> ]>
+
+B<sppc>	B<-ps> S<[ B<-landscape> | B<-portrait> ]> S<[ B<-papertype> I<type> ]> S<[ I<sppc-file> ]>
+
+B<sppc>	B<-ppm>  S<[ B<-nocopyright> ]> S<[ I<sppc-file> ]>
+
+B<sppc>	B<-gif> S<[ B<-fast> | B<-slow> | B<-best> ]> S<[ I<sppc-file> ]>
+
+=head1 DESCRIPTION
+
+B<sppc> displays or translates the sppc-graphic files.  It either
+reads from the sppc-file given at the command line, or, if no filename
+is supplied from standard input.
+
+The first from displays the graphics in an OpenGL window.
+
+The second to fourth form translate the sppc-file into different
+formats: PostScript, PPM, or GIF.  The output always goes to standard
+output.
+
+=head1 OPTIONS
+
+Output format options:
+
+=over 8
+
+=item B<-ps>
+
+Write a PostScript file to standard output.
+
+=item B<-gl>
+
+Open an OpenGL window, display the graphics, and wait for C-C.
+
+=item B<-ppm>
+
+Write a PPM file to standard output.
+
+=item B<-gif>
+
+Write a GIF file to standard output.
+
+=back
+
+Media options:
+
+=over 8
+
+=item B<-papertype> I<Type>
+
+I<Type>       ::= I<Predefined> | I<Variable>
+
+I<Predefined> ::= B<a4> | B<a3> | B<b5> | B<letter> | B<legal> | B<tabloid>
+
+I<Variable>   ::= I<Height>xI<Width>I<Unit>
+
+I<Unit>       ::= B<cm> | B<in> | B<mm> | B<pt>
+
+I<Height>, I<Width> are decimal numbers.
+
+=item B<-landscape>
+
+Select landscape paper orientation.
+
+=item B<-portrait>
+
+Select upright paper orientation.  This is the default.
+
+=back
+
+The following options are only available in GIF mode.
+
+=over 8
+
+=item B<-fast>
+
+Select "fast" 24bit to 8bit conversion.
+
+=item B<-slow>
+
+Select "slow" 24bit to 8bit conversion.  This is the default.
+
+=item B<-best>
+
+Select "best" 24bit to 8bit conversion.  This is slower than B<-slow>.
+
+=back
+
+The next option is only applies in GL and PPM modes.
+
+=over 8
+
+=item B<-nocopyright>
+
+Suppress copyright line in GL and PPM images.
+
+=back
+
+=head1 EXAMPLES
+
+    sppc -gl test.sppc
+
+    sppc -ps test.sppc > test.ps
+
+=head1 SEE ALSO
+
+    tela	Tela interpreter
+    telakka	Tela extension utility
+    ctpp	Tela preprocessor
+    plotmtv	Standard associated graphics package
+    m2t		Matlab to Tela translator
+
+=head1 HISTORY
+
+sppc by S<Pekka Janhunen>; man page by S<Ch. L. Spiel>, 2000-12-7.

@@ -1,0 +1,189 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="LinuxDoc-Tools 0.9.21">
+ <TITLE>Builtin Tela functions: fftw.ct</TITLE>
+ <LINK HREF="telafuncsSectioned-8.html" REL=next>
+ <LINK HREF="telafuncsSectioned-6.html" REL=previous>
+ <LINK HREF="telafuncsSectioned.html#toc7" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="telafuncsSectioned-8.html">Next</A>
+<A HREF="telafuncsSectioned-6.html">Previous</A>
+<A HREF="telafuncsSectioned.html#toc7">Contents</A>
+<HR>
+<H2><A NAME="s7">7.</A> <A HREF="telafuncsSectioned.html#toc7">fftw.ct</A></H2>
+
+<P>This section describes functions from file fftw.ct.</P>
+
+<H2><A NAME="FFT"></A> <A NAME="ss7.1">7.1</A> <A HREF="telafuncsSectioned.html#toc7.1">FFT</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[f] = FFT(u; dim)
+ FFT(u) gives the complex Fast Fourier Transform of u.
+   If u's rank is more than one, the transform is computed
+   only along the first dimension (many independent 1D
+   transforms).
+
+   FFT(u,dim) computes the FFT along the specified dimension.
+   The first dimension is labeled 1 and so on.
+
+   For vector u, f=FFT(u) is equivalent with
+
+   n = length(u); f = czeros(n);
+   for (j=1; j&lt;=n; j++)
+       f[j] = sum(u*exp(-(j-1)*(0:n-1)*2i*pi/n));
+
+   All Fourier transform functions in Tela can take the transform
+   along any dimension in a multidimensional array, and the transform
+   length is not restricted. The function FFT should be used only in
+   case of complex input data. Use realFFT for real input array.
+
+   Functions FFT, realFFT, sinqFFT, cosFFT and their inverses
+   are the most efficient when the transform length n is a product
+   of small primes.
+
+   Functions sinFFT and invsinFFT are efficient when n+1 is
+   a product of small primes
+           
+   Functions cosFFT and invcosFFT are efficient when n-1 is
+   a product of small primes
+           
+</PRE>
+
+See also: 
+<A HREF="#invFFT">invFFT</A>, 
+<A HREF="#realFFT">realFFT</A>, 
+<A HREF="telafuncsSectioned-8.html#sinFFT">sinFFT</A>, 
+<A HREF="telafuncsSectioned-8.html#cosFFT">cosFFT</A>, 
+<A HREF="telafuncsSectioned-8.html#sinqFFT">sinqFFT</A>, 
+<A HREF="telafuncsSectioned-8.html#cosqFFT">cosqFFT</A>, 
+<A HREF="telafuncsSectioned-11.html#Lomb">Lomb</A>.
+<PRE>
+   Error codes:
+   -1: First argument not a numeric array
+   -2: Second argument not integer
+   -3: Second argument out of range
+   
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="invFFT"></A> <A NAME="ss7.2">7.2</A> <A HREF="telafuncsSectioned.html#toc7.2">invFFT</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[f] = invFFT(u; dim)
+ invFFT() is the inverse of FFT().
+   For vector f, u=invFFT(f) is equivalent with
+
+   n = length(f); u = czeros(n);
+   for (j=1; j&lt;=n; j++)
+       u[j] = (1/n)*sum(f*exp((j-1)*(0:n-1)*2i*pi/n));
+
+   Differences with FFT: sign of i is plus, scale factor 1/n.
+   
+</PRE>
+
+See also: 
+<A HREF="#FFT">FFT</A>.
+<PRE>
+   Error codes:
+   -1: First argument not a numeric array
+   -2: Second argument not integer
+   -3: Second argument out of range
+   
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="invrealFFT"></A> <A NAME="ss7.3">7.3</A> <A HREF="telafuncsSectioned.html#toc7.3">invrealFFT</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[f] = invrealFFT(u; dim,oddevenspec)
+ invrealFFT() is the inverse of realFFT().
+   invrealFFT(u,dim,"even") and invrealFFT(u,dim,"odd") specifies
+   even or odd transform length, respectively.
+   invrealFFT(u,dim,N) uses the same evenness as the integer N has.
+
+   If the evenness is not specified explicitly, the imaginary parts
+   of the highest frequency components are tested. If they are all zero
+   the transform length is even, otherwise odd. However, this automatic
+   method will fail if the imaginary parts are not EXACTLY zero. If you
+   use multiple FFTs to solve a PDE, for example, you should probably
+   specify the evenness explicitly.
+</PRE>
+
+See also: 
+<A HREF="#realFFT">realFFT</A>.
+<PRE>
+   Error codes:
+   -1: First argument not a complex array
+   -2: Second argument not integer
+   -3: Second argument out of range
+   -4: Third argument not "even", "odd" or an integer
+   
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="realFFT"></A> <A NAME="ss7.4">7.4</A> <A HREF="telafuncsSectioned.html#toc7.4">realFFT</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[f] = realFFT(u; dim)
+ realFFT(u) gives the Fast Fourier Transform of real array u.
+   If u's rank is more than one, the transform is computed
+   only along the first dimension (many independent 1D
+   transforms).
+
+   realFFT(u,dim) computes the FFT along the specified dimension.
+   The first dimension is labeled 1 and so on.
+
+   The result of realFFT() is the same as FFT() except that only
+   nonnegative frequency components are returned. The result is
+   always complex array. The first component (0 frequency) has always
+   zero imaginary part. If the transform length is even, the last
+   component has zero imaginary part as well. Notice that these
+   conventions are different from some generally used C and Fortran
+   library routines, which return a real array force-fitted
+   in the same space as the input array by not storing the zero
+   imaginary parts. The Tela convention allows you to manipulate the
+   result in k-space more easily because it is already complex.
+
+   realFFT is the most efficient when the transform length is
+   a product of small primes.
+   
+</PRE>
+
+See also: 
+<A HREF="#invrealFFT">invrealFFT</A>, 
+<A HREF="#FFT">FFT</A>, 
+<A HREF="telafuncsSectioned-8.html#sinFFT">sinFFT</A>, 
+<A HREF="telafuncsSectioned-8.html#cosFFT">cosFFT</A>, 
+<A HREF="telafuncsSectioned-8.html#sinqFFT">sinqFFT</A>, 
+<A HREF="telafuncsSectioned-8.html#cosqFFT">cosqFFT</A>, 
+<A HREF="telafuncsSectioned-11.html#Lomb">Lomb</A>.
+<PRE>
+   Error codes:
+   -1: First argument not a real array
+   -2: Second argument not integer
+   -3: Second argument out of range
+   
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+
+<HR>
+<A HREF="telafuncsSectioned-8.html">Next</A>
+<A HREF="telafuncsSectioned-6.html">Previous</A>
+<A HREF="telafuncsSectioned.html#toc7">Contents</A>
+</BODY>
+</HTML>

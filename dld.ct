@@ -1,0 +1,175 @@
+/*
+ * This file is part of tela the Tensor Language.
+ * Copyright (c) 1994-1999 Pekka Janhunen
+ */
+
+/*
+	dld.ct
+	Support for DSO (Irix5.2 etc.) and DLD (PD program) dynamic link editor.
+	Preprocess with ctpp.
+	C-tela code is C++ equipped with []=f() style function definition.
+*/
+
+#define MAXMODULES 100		/* Maximum number of dynamically linked modules */
+#define FNAME_APPENDIX "function"	/* must be same as in ctpp.C */
+
+#include "symbol.H"
+extern "C" {
+#if HAVE_DLFCN_H
+#  include <dlfcn.h>
+#  define USE_DSO
+#elif HAVE_DLD_H
+#  include "dld.h"
+#  define USE_DLD
+#else
+#  define USE_NONE
+#endif
+}
+
+static int DLDInitialized = 0;
+static char* DLDModuleList[MAXMODULES];
+
+static void basename(const Tchar *fn, Tchar base[MAXFILENAME])
+// basename("/dir/fyle.suf",s) ==> s="fyle"
+// basename("fyle.suf",s)      ==> s="fyle"
+{
+	const Tchar *lastSlash = strrchr(fn,'/');
+	const Tchar *firstChar = lastSlash ? lastSlash+1 : fn;
+	int i=0;
+	for (const Tchar*p=firstChar; *p && *p!='.'; p++) base[i++] = *p;
+	base[i] = '\0';
+}
+
+#ifdef USE_DLD
+static int CheckFunctions(TCFunctionInfo infos[])
+// Check that all functions are executable and if not, print
+// out undefined symbols
+{
+	for (int i=0; infos[i].Cfname; i++) {
+		Tchar fullfname[80];
+		strcpy(fullfname,infos[i].Cfname);
+		strcat(fullfname,(const Tchar*)FNAME_APPENDIX);
+		if (!dld_function_executable_p(fullfname)) {
+			clog << "Warning: Function " << fullfname << " is not executable.\n";
+		}
+	}
+	char **undefined = dld_list_undefined_sym();
+	for (i=0; i<dld_undefined_sym_count; i++)
+		cerr << "Undefined: " << undefined[i] << ".\n";
+	if (undefined) free(undefined);
+	return dld_undefined_sym_count ? 6 : 0;
+}
+#endif
+
+extern int CompleteFileName(const Tchar *fn, Tchar totalfn[MAXFILENAME]);	// from tela.C
+
+[] = link(filename)
+/* link("file.o") makes C-tela functions in "file.o" available
+   to Tela. "file.o" must be compiled from a C-tela file
+   (usually "file.ct").
+   Error codes:
+   1: Cannot initialize DLD
+   2: Cannot link-load file
+   3: Argument not string or char
+   4: Cannot find fninfo pointer
+   5: Internal inconsistency
+   6: Undefined symbols remain
+   7: main function returned error code
+   8: Could not dlclose the previous linkage
+   9: Too many dynamically linked modules
+   10: File not found
+   */
+{
+	if (!filename.IsString() && !filename.IsChar()) return 3;
+	Tstring FN1 = filename;
+	Tchar fn[MAXFILENAME];
+	if (!CompleteFileName((Tchar*)FN1,fn)) return 10;
+
+	// If it is a proper C-tela module, it has global symbol 'fninfo_modulename'
+	// containing array of function pointers and other info.
+	Tchar fninfoname[MAXFILENAME];
+	strcpy(fninfoname,(const Tchar*)"fninfo_");
+	Tchar *base = fninfoname + strlen(fninfoname);
+	basename(fn,base);
+	// It MAY also have a global symbol 'main_modulename', the toplevel function
+	// of t->ct code
+	Tchar mainname[MAXFILENAME];
+	strcpy(mainname,(const Tchar*)"main_");
+	strcat(mainname,base);
+
+#	ifdef USE_DLD
+
+	/* Code invoked when DLD is used */
+	// Initialize DLD if not yet done
+	if (!DLDInitialized) {
+		if (dld_init(dld_find_executable(global::argv0))!=0) return 1;
+		DLDInitialized = 1;
+	}
+	// Try to unlink file first. If it was not yet loaded, the unlink
+	// will fail, but it doesn't hurt. Don't have to check return value.
+	// The parameter 'hard' is set to 1 to unconditionally unlink it.
+	dld_unlink_by_file((char*)fn,1);
+	// Then try to link the file.
+	if (dld_link((char*)fn)!=0) return 2;
+	TCFunctionInfo* InfoPtr = (TCFunctionInfo*)dld_get_symbol(fninfoname);
+	if (InfoPtr==0) return 4;
+	int errcode = CheckFunctions(InfoPtr);
+	Install(InfoPtr,base);
+	if (errcode) return errcode;
+	TCFunctionPtr MainPtr = TCFunctionPtr(dld_get_symbol((char*)mainname));
+
+#	elif defined(USE_DSO)
+
+	/* Code invoked when Dynamical Shared Objects (Irix5.2 etc.) is used */
+	static int FirstTime = 1;
+	if (FirstTime) {
+		dlopen(0,RTLD_LAZY);		// Make symbols in tela executable available
+		FirstTime = 0;
+	}
+	struct Thandleinfo {
+		char *name;
+		void *handle;
+	};
+	static Thandleinfo h[MAXMODULES];
+	static int Nmodules = 0;
+	// Look for filename among stored filenames
+	int found = 0;
+    int i;
+	for (i=0; i<Nmodules; i++)
+		if (!strcmp((char*)fn,h[i].name)) {found=1; break;}
+	if (found) {	// Unlink if already there
+		int retval = dlclose(h[i].handle);
+		if (retval!=0) {cerr << dlerror() << '\n'; return 8;}
+	} else {		// Make a new entry in handles table
+		if (Nmodules >= MAXMODULES) return 9;
+		h[Nmodules].name = strdup((char*)fn);
+		i = Nmodules;
+		Nmodules++;
+	}
+	// Then try to link the file.
+	h[i].handle = dlopen((char*)fn,RTLD_LAZY);
+	if (!h[i].handle) {cerr << dlerror() << '\n'; return 2;}
+	TCFunctionInfo* InfoPtr = (TCFunctionInfo*)dlsym(h[i].handle,(char*)fninfoname);
+	if (InfoPtr==0) return 4;
+	Install(InfoPtr,base);
+	TCFunctionPtr MainPtr = TCFunctionPtr(dlsym(h[i].handle,(char*)mainname));
+
+#	elif defined(USE_NONE)
+
+	/* Code invoked when no linking is supported */
+	cerr << "Warning: This Tela kernel does not support dynamic linking.\n";
+	TCFunctionPtr MainPtr = 0;	// no main function of course
+
+#	endif
+
+	// Call the 'main' function if one exists
+	if (MainPtr) {
+		TConstObjectPtr inputs[1];
+		TObjectPtr outputs[1];
+		int retval = (*MainPtr)(inputs,0,outputs,0);
+		if (retval) return 7;
+	}
+
+	return 0;
+
+}

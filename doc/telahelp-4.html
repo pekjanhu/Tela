@@ -1,0 +1,112 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="LinuxDoc-Tools 0.9.21">
+ <TITLE>Tela Help File: Intrinsic functions</TITLE>
+ <LINK HREF="telahelp-5.html" REL=next>
+ <LINK HREF="telahelp-3.html" REL=previous>
+ <LINK HREF="telahelp.html#toc4" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="telahelp-5.html">Next</A>
+<A HREF="telahelp-3.html">Previous</A>
+<A HREF="telahelp.html#toc4">Contents</A>
+<HR>
+<H2><A NAME="s4">4.</A> <A HREF="telahelp.html#toc4">Intrinsic functions</A></H2>
+
+<H2><A NAME="zeros"></A> <A NAME="ss4.1">4.1</A> <A HREF="telahelp.html#toc4.1">zeros, izeros, rzeros, czeros</A>
+</H2>
+
+<P>Intrinsic functions: zeros, izeros, rzeros, czeros</P>
+<P>zeros(nx) returns a real zeroed vector of length nx, zeros(nx,ny)
+returns a zeroed real matrix and so on. You can use it to "dimension"
+arrays that are indexed later, and to set the initial value to
+zero. The companion functions izeros and czeros create integer and
+complex zeroed arrays, respectively. rzeros is a synonym for zeros.</P>
+
+<H2><A NAME="voids"></A> <A NAME="ss4.2">4.2</A> <A HREF="telahelp.html#toc4.2">voids</A>
+</H2>
+
+<P>Intrinsic function: voids</P>
+<P>voids(nx) returns an empty vector of Tela objects; voids(nx,ny)
+returns an empty matrix and so on.  A void object can hold any other
+Tela object in every position, i.e., voids can represent heterogenous
+collections like lists in lisp, though they are indexed like vectors
+or arrays.</P>
+<P>Voids can be nested.  This is a special case of a void holding another
+void.</P>
+
+<H2><A NAME="abs"></A> <A NAME="ss4.3">4.3</A> <A HREF="telahelp.html#toc4.3">abs</A>
+</H2>
+
+<P>Intrinsic function: abs</P>
+<P>abs(x) returns the absolute value of x, which may be of any numeric
+object.  If x is an array, the operation is performed componentwise.
+If x is a string, an integer vector of the character ASCII codes
+is returned.</P>
+
+<H2><A NAME="min"></A> <A NAME="ss4.4">4.4</A> <A HREF="telahelp.html#toc4.4">min, max</A>
+</H2>
+
+<P>Intrinsic functions: min, max</P>
+<P>min(x) returns the smallest element of array x, or x itself if x is
+scalar.</P>
+<P>[m,p] = min(x) returns the minimum in m and the minimum position in p.</P>
+<P>min(x,y) returns the smaller of x and y. If both are arrays, their
+dimensions must agree. If one is scalar, it is promoted to array if
+needed.</P>
+<P>min(x,y,...,z) effectively expands to min(x,min(y,...z)...).</P>
+<P>The function max works similarly. The arguments may not be complex.</P>
+
+<H2><A NAME="Nargin"></A> <A NAME="ss4.5">4.5</A> <A HREF="telahelp.html#toc4.5">Nargin, Nargout</A>
+</H2>
+
+<P>Intrinsic functions: Nargin, Nargout</P>
+<P>Nargin() returns the number of optional arguments passed to current
+function.  Optional arguments are specified using the ellipsis (...)
+notation in the formal argument list. You may not use Nargin() in
+functions whose argument list does not end with an ellipsis.</P>
+<P>Nargout() works similarly. For example, the following function f can
+be called with any number of input/output arguments; it displays the
+numbers:</P>
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+    function [...] = f(...) {
+        format("`` input args, `` output args.\n",Nargin(),Nargout())
+    };
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<P>See also: 
+<A HREF="#argin">argin</A></P>
+
+<H2><A NAME="argin"></A> <A NAME="ss4.6">4.6</A> <A HREF="telahelp.html#toc4.6">argin, argout, SetArgOut</A>
+</H2>
+
+<P>Intrinsic functions: argin, argout, SetArgOut</P>
+<P>The function argin(n) returns the n-th optional input argument. The
+first optional argument has n=1. Similarly, argout(n) returns the
+value of the n-th optional output argument.</P>
+<P>SetArgOut(n,x) sets the n-th optional output argument to x.</P>
+<P>Please notice that the functions argin, argout and SetArgOut do not
+count the preceeding 'normal' arguments, but the first optional always
+has index n=1.</P>
+<P>See also: 
+<A HREF="#Nargin">Nargin</A></P>
+
+<H2><A NAME="nop"></A> <A NAME="ss4.7">4.7</A> <A HREF="telahelp.html#toc4.7">nop</A>
+</H2>
+
+<P>Intrinsic function: nop</P>
+<P>nop() generates a 'no-operation' instruction. It is useful (?) for
+benchmarking purposes. For example,</P>
+<P>nop(); nop(); nop(); nop(); nop();</P>
+<P>generates five NOP instructions in the flatcode stream.</P>
+
+<HR>
+<A HREF="telahelp-5.html">Next</A>
+<A HREF="telahelp-3.html">Previous</A>
+<A HREF="telahelp.html#toc4">Contents</A>
+</BODY>
+</HTML>

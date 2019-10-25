@@ -1,0 +1,108 @@
+.\" $FMI/GEO: m2t.1,v 1.0 94/11/20 14:40:00 pjanhune $
+.TH M2T 1 "Version 1.0" ""
+.SH NAME
+m2t \- Matlab to Tela translator
+.SH SYNOPSIS
+.B m2t
+[
+.B \-h
+] [
+.B -?
+]                  (give help)
+.br
+.B m2t
+[
+.B \-svd
+] <file.m >file.t       (basic usage)
+.br
+.B m2t
+[
+.B \-FSmsvd
+] files.m >file.t    (many files at once)
+.SH DESCRIPTION
+\fIm2t\fP is an auxiliary program to be used with \fItela\fP(1).  It
+translates \fIMatlab\fP function and script M-files to t-files, which can
+be executed from Tela using the function \fIsource\fP.
+.SH OPTIONS
+.TP 8
+.B \-F
+Process Function files only, ignore script files.
+.TP 8
+.B \-S
+Process Script files only, ignore function files.
+.TP 8
+.B \-m
+Multi-file mode: generate .t files using .m file basenames.
+.TP 8
+.B \-s
+Silent mode, suppress all warnings.
+.TP 8
+.B \-v
+Verbose mode, output symbol tables etc.
+.TP 8
+.B \-d
+Suppress matrix division warnings. Matlab's matrix division \fI/\fP
+is translated to \fI/\fP, although in \fITela\fP it means pointwise
+division. Thus \fIm2t\fP by default warns at every \fI/\fP operator
+it encounters. If the Matlab code never uses \fI/\fP for true
+matrix divisions, you can safely ignore these warnings. If it does,
+you must hand-edit the \fI.t\fP file to call \fILinearSolve\fP.
+.TP 8
+.B \-h, \-?
+Print usage instructions alike this manpage.
+.SH BUGS (Really too numerous to list)
+\fIm2t\fP does not even try to be a true faithful translator.
+Almost always you have to edit the resulting code at some places.
+In short, \fIm2t\fP only translates the basic language constructs
+correctly, but does not try to do a complete job in translating
+the semantic and syntax of every possible function that are slightly
+different in Matlab and Tela. However it does translate
+some of the most frequently used functions, such as \fIzeros\fP,
+correctly.
+
+In addition to differences in individual functions, there are two
+other areas where \fIm2t\fP may have considerable difficulties.
+These are Matlab array constructors \fI[...]\fP, where the components
+are not separated by commas. Leaving the commas out is legal in Matlab
+but not in Tela. For example, \fI[a 1+ b c +d]\fP is legal in Matlab,
+and it means \fI[a, 1+b, c, d]\fP. To avoid trouble, always \fIwrite commas
+where they belong in any new Matlab code you write\fP.
+
+The second problematic issue is in deciding when a reference \fIa(i)\fP
+means array reference or function call, because in Tela array references
+use brackets while function calls use parentheses. The translator tries
+to make an educated guess. For example, if \fIa\fP has been previously
+assigned to, or if it is one of the function arguments, \fIa(i)\fP
+is array reference. Sometimes the translator guesses wrong, and you have to
+\fIbe prepared to changing parentheses to brackets or vice versa\fP.
+
+The function header should be on one line in order to be interpreted correctly.
+Some of the function conversions, like zeros(n,n) -> zeros(n) work correctly
+only when n is a simple expression containing no parentheses.
+.SH REPORTING BUGS
+If you want to, you can use the usual \fITela\fP email aliases
+<\fItela-bugs@fmi.fi\fP> and <\fItela-suggestions@fmi.fi\fP>
+for \fIm2t\fP as well.
+However, correcting \fIm2t\fP bugs has a much lower priority than fixing
+\fITela\fP bugs. If you have experience and interest in writing translators,
+be encouraged to improve \fIm2t\fP and sharing your code with the author!
+.SH FILES
+.TP 8
+.I *.m
+(Input) \fIMatlab\fP script or function M-files.
+.TP 8
+.I *.t
+(Output) \fITela\fP source code files.
+.SH SEE ALSO
+\fItela\fP(1), the \fITe\fPnsor \fILa\fPnguage.
+.SH COPYRIGHT
+Copyright 1994, Pekka Janhunen.
+.SH COPYING POLICY
+GNU General Public License (\fIGPL\fP) version 2 or later.
+.SH AUTHORS
+Pekka Janhunen <Pekka.Janhunen@fmi.fi>,
+.br
+Finnish Meteorological Institute/
+.br
+Dept. of Geophysics (\fIFMI/GEO\fP).
+

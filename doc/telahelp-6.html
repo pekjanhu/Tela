@@ -1,0 +1,147 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="LinuxDoc-Tools 0.9.21">
+ <TITLE>Tela Help File: Other Tela-related material</TITLE>
+ <LINK HREF="telahelp-5.html" REL=previous>
+ <LINK HREF="telahelp.html#toc6" REL=contents>
+</HEAD>
+<BODY>
+Next
+<A HREF="telahelp-5.html">Previous</A>
+<A HREF="telahelp.html#toc6">Contents</A>
+<HR>
+<H2><A NAME="s6">6.</A> <A HREF="telahelp.html#toc6">Other Tela-related material</A></H2>
+
+<H2><A NAME="telakka"></A> <A NAME="ss6.1">6.1</A> <A HREF="telahelp.html#toc6.1">telakka</A>
+</H2>
+
+
+<P>telakka (TeLa Kernel Konstruction Accessory) is a program that
+generates new Tela kernels. It is implemented as a shell script. It is
+used much as a C compiler. C-tela files (.ct files) written by you can
+be compiled and linked into Tela using telakka. For example, if
+mystuff.ct contains your own function named myfunction,</P>
+<P>
+<BLOCKQUOTE><CODE>
+<HR>
+<PRE>
+unix> cat mystuff.ct
+[y] = myfunction(x)
+/* This does something really stupid */
+{
+    cout &lt;&lt; "in myfunction, x = " &lt;&lt; x &lt;&lt; "\n";
+    y = 3.14;
+    Add(y,y,x);
+    return 0;    // successful exit to Tela
+}
+unix> telakka -o mytela mystuff.ct
+unix> ./mytela
+This tela is a tensor language, Version 0.5g.
+Type  ?help  for help.
+->Try: docview(), source("demo")
+>help myfunction
+This does something really stupid 
+>myfunction(42)
+in myfunction, x = 42
+45.14
+>
+</PRE>
+<HR>
+</CODE></BLOCKQUOTE>
+</P>
+<P>The executable mytela is a full Tela plus the C-tela functions from
+mystuff.ct. The help command finds the C-style comment /* ... */
+following the function header automatically. Also name completion will
+recognize myfunction. C-tela code is C++ code with one syntactic
+extention: the function header is simpler and follows Tela
+conventions. There is a preprocessor, named ctpp, which converts
+C-tela to ordinary C++ by transforming function headers. Telakka calls
+ctpp, the system C++ compiler and the linker automatically as
+needed. You can pass other object files, libraries and C compilation
+switches to telakka as you need.</P>
+<P>On systems that support DLD dynamic linking there is a faster method
+to bring your own code in Tela. Just compile the .ct file with telakka
+-c to produce an .o file. Then use the link function in Tela to bring
+the functions in Tela executable; in this way you don't have to
+generate a full new copy of the kernel. The link function does not
+exist on systems that do not have DLD.</P>
+
+<H2><A NAME="m2t"></A> <A NAME="ss6.2">6.2</A> <A HREF="telahelp.html#toc6.2">m2t</A>
+</H2>
+
+
+<P>m2t is Matlab to Tela translator. Usage is as follows:</P>
+<P>
+<BLOCKQUOTE><CODE>
+<HR>
+<PRE>
+       m2t [-h?]                       (give help)
+   or: m2t [-sd] &lt;file.m >file.t       (basic usage)
+   or: m2t [-FSmsd] [files.m] >file.t  (many files at once)
+
+List of possible command line options:
+
+    -F        Ignore script files (process Functions only)
+    -S        Ignore function files (process Scripts only)
+    -m        Multi-file mode: generate .t files using .m file basenames
+    -s        Silent mode, suppress all warnings
+    -d        Suppress matrix division warnings
+    -h, -?    Produce this message
+
+Examples:
+
+    m2t -F *.m >funcs.t    Compile all function files into "funcs.t"
+    m2t -Sm *.m            Compile all scripts in separate t-files
+</PRE>
+<HR>
+</CODE></BLOCKQUOTE>
+</P>
+<P>Many Tela functions can reside in one source file, therefore m2t
+by default writes to standard output. If you want to stick to Matlab
+convention and use only one function per file, you use the -m flag.</P>
+<P>The -F and -S arguments are useful tools for selecting either only
+function M-files or script M-files. The default is to process both
+types of files.</P>
+<P>It is important to realize that m2t is not a full-fledged translator.
+You almost always have to edit its input in order to run it suffesfully
+in Tela. Despite this shortcoming, many people have found m2t extremely
+useful. Particularly, m2t has difficulties in recognizing vectors built
+without commas. For example, in Matlab is is legal to write</P>
+<P>
+<BLOCKQUOTE><CODE>
+<HR>
+<PRE>
+a = [1 2 a+3]
+</PRE>
+<HR>
+</CODE></BLOCKQUOTE>
+</P>
+<P>instead of </P>
+<P>
+<BLOCKQUOTE><CODE>
+<HR>
+<PRE>
+a = [1,2,a+3].
+</PRE>
+<HR>
+</CODE></BLOCKQUOTE>
+</P>
+<P>However, m2t properly recognizes only the second form except in some
+trivial cases. Keep this in mind when writing new M-files. The other weak
+point is in deciding which symbol is a function and which symbol is a matrix.
+In Matlab, both function calls and array references use (..) parentheses.
+In Tela array refererence must use [..] brackets. m2t does what is possible
+to guess what is function and what is variable, but it sometimes guesses
+wrong.</P>
+<P>It is also important to realize that m2t can be misused, i.e. it can be
+used to translate copyrighted M-files to Tela. This is true with any
+translator. You as a user are completely responsible for ensuring that
+copyright is not violated when using m2t.</P>
+
+<HR>
+Next
+<A HREF="telahelp-5.html">Previous</A>
+<A HREF="telahelp.html#toc6">Contents</A>
+</BODY>
+</HTML>

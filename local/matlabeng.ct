@@ -1,0 +1,336 @@
+/*
+ * This file is part of tela the Tensor Language.
+ * Copyright (c) 1994 Pekka Janhunen
+ */
+
+/*
+	matlabeng.ct
+	Runtime interface to Matlab
+	Preprocess with ctpp.
+	C-tela code is C++ equipped with []=f() style function definition.
+*/
+
+/* defines matlab_start, matlab_stop, matlab_eval, matlab_put, matlab_get, matlab_call */
+
+extern "C" {
+#include "engine.h"
+}
+
+static Engine *EnginePtr = 0;	// all functions in this file use this static var
+
+[] = matlab_start(;startcmd)
+/* matlab_start() starts a new Matlab process on background.
+   You can send to it commands with matlab_eval.
+   matlab_start("startcmd") uses "startcmd" to start up
+   Matlab. The default "startcmd" is "matlab".
+   If matlab_start() has already been called, a new call
+   is harmless and does nothing.
+   See also: matlab_eval, matlab_call, matlab_stop.
+   Error codes:
+   1: Could not start Matlab
+   -1: Argument not a string
+   */
+{
+	if (EnginePtr) return 0;
+	if (Nargin==1 && !startcmd.IsString()) return -1;
+	if (Nargin==1) {
+		Tstring S = startcmd;
+		EnginePtr = engOpen((char*)S);
+	} else
+		EnginePtr = engOpen(0);
+	if (!EnginePtr) return 1;
+	return 0;
+}
+
+[retval] = matlab_eval(str)
+/* matlab_eval("command") sends "command" to currently
+   running Matlab background process. It returns 1
+   if succesful 0 if an error occurred.
+   See also: matlab_start, matlab_put, matlab_call.
+   Error codes:
+   -1: Argument not a string
+   -2: No Matlab process running, use matlab_start first
+   */
+{
+	if (!str.IsString()) return -1;
+	if (!EnginePtr) return -2;
+	Tstring S = str;
+	retval = !engEvalString(EnginePtr,(char*)S);
+	return 0;
+}
+
+[] = matlab_put(name,value)
+/* matlab_put("MatrixName",x) tries to interpret x as
+   a Matlab matrix and sends it to currently running
+   background Matlab process. The matrix is assigned to
+   variable "MatrixName" in Matlab side.
+   matlab_put returns 1 if successful and 0 if not.
+   See also: matlab_start, matlab_get, matlab_eval.
+   Error codes:
+   1: Unknown error
+   -1: First argument not a string
+   -2: No Matlab process running, use matlab_start first
+   -3: Second argument not interpretable as a matrix
+   -4: Second argument has too high (> 2) rank
+   */
+{
+	int retval = 0;
+	if (!EnginePtr) return -2;
+	if (!name.IsString()) return -1;
+	Tstring NAME = name;
+	const Tkind k = value.kind();
+	if (int(k)<Kint || int(k)>KComplexArray) return -3;
+	if (value.rank() > 2) return -4;
+	if (value.IsChar()) {
+		// A one-character string
+		char str[2];
+		str[0] = value.IntValue();
+		str[1] = '\0';
+		Matrix* M = mxCreateString(str);
+		mxSetName(M,(char*)NAME);
+		retval = engPutMatrix(EnginePtr,M);
+		mxFreeMatrix(M);
+	} else if (value.IsString()) {
+		// Ordinary string
+		Tstring STR = value;
+		Matrix* M = mxCreateString((char*)STR);
+		mxSetName(M,(char*)NAME);
+		retval = engPutMatrix(EnginePtr,M);
+		mxFreeMatrix(M);
+	} else {
+		double *pr=0, *pi=0; int imax=1,jmax=1; Tint i,j;
+		switch (k) {
+		case Kint:
+			pr = new double [1];
+			*pr = value.IntValue();
+			break;
+		case Kreal:
+			pr = new double [1];
+			*pr = value.RealValue();
+			break;
+		case Kcomplex:
+			pr = new double [1];
+			pi = new double [1];
+			*pr = real(value.ComplexValue());
+			*pi = imag(value.ComplexValue());
+			break;
+		case KIntArray:
+			pr = new double [value.length()];
+			if (value.rank() == 1) {
+				imax = value.length();
+				for (i=0; i<value.length(); i++) pr[i] = value.IntPtr()[i];
+			} else {
+				imax = value.dims()[0];
+				jmax = value.dims()[1];
+				for (i=0; i<imax; i++) for (j=0; j<jmax; j++)
+					pr[j*imax+i] = value.IntPtr()[i*jmax+j];
+			}
+			break;
+		case KRealArray:
+			pr = new double [value.length()];
+			if (value.rank() == 1) {
+				imax = value.length();
+				for (i=0; i<value.length(); i++) pr[i] = value.RealPtr()[i];
+			} else {
+				imax = value.dims()[0];
+				jmax = value.dims()[1];
+				for (i=0; i<imax; i++) for (j=0; j<jmax; j++)
+					pr[j*imax+i] = value.RealPtr()[i*jmax+j];
+			}
+			break;
+		case KComplexArray:
+			pr = new double [value.length()];
+			pi = new double [value.length()];
+			if (value.rank() == 1) {
+				imax = value.length();
+				for (i=0; i<value.length(); i++) {
+					pr[i] = real(value.ComplexPtr()[i]);
+					pi[i] = imag(value.ComplexPtr()[i]);
+				}
+			} else {
+				imax = value.dims()[0];
+				jmax = value.dims()[1];
+				for (i=0; i<imax; i++) for (j=0; j<jmax; j++) {
+					pr[j*imax+i] = real(value.ComplexPtr()[i*jmax+j]);
+					pi[j*imax+i] = imag(value.ComplexPtr()[i*jmax+j]);
+				}
+			}
+			break;
+		default:;
+		}
+		retval = engPutFull(EnginePtr,(char*)NAME,imax,jmax,pr,pi);
+		delete [] pr;
+		delete [] pi;
+	}
+	return retval;
+}
+
+[y] = matlab_get(name)
+/* matlab_get("MatrixName") asks a currently running background
+   Matlab process for a variable named "MatrixName", and returns
+   its value.
+   See also: matlab_start, matlab_put, matlab_eval.
+   Error codes:
+   -1: Argument not a string
+   -2: No Matlab process running, use matlab_start first
+   3: No such variable in Matlab workspace
+   4: The variable is of unsupported type (not double)
+   5: The variable is of unsupported type (not full matrix)
+   */
+{
+	if (!name.IsString()) return -1;
+	if (!EnginePtr) return -2;
+	Tstring NAME = name;
+	int imax,jmax;
+	double *pr=0,*pi=0;
+	Tint i,j;
+	Matrix* M = engGetMatrix(EnginePtr,(char*)NAME);
+	if (!M) return 3;
+	if (!mxIsDouble(M)) {mxFreeMatrix(M); return 4;}
+	if (!mxIsFull(M)) {mxFreeMatrix(M); return 5;}
+	pr = mxGetPr(M);
+	imax = mxGetM(M);
+	jmax = mxGetN(M);
+	if (mxIsComplex(M)) {
+		pi = mxGetPi(M);
+		if (imax == 1) {
+			if (jmax == 1) {
+				y = Tcomplex(*pr,*pi);
+			} else {
+				y.creserv(jmax);
+				for (i=0; i<jmax; i++) y.ComplexPtr()[i] = Tcomplex(pr[i],pi[i]);
+			}
+		} else {
+			if (jmax == 1) {
+				y.creserv(imax);
+				for (i=0; i<imax; i++) y.ComplexPtr()[i] = Tcomplex(pr[i],pi[i]);
+			} else {
+				y.creserv(TDimPack(imax,jmax));
+				for (i=0; i<imax; i++) for (j=0; j<jmax; j++)
+					y.ComplexPtr()[i*jmax+j] = Tcomplex(pr[j*imax+i],pi[j*imax+i]);
+			}
+		}
+	} else {	// Is not complex
+		if (imax == 1) {
+			if (jmax == 1) {
+				if (mxIsString(M)) {
+					Tchar str[2];
+					str[0] = Tchar(mxGetScalar(M));
+					str[1] = Tchar('\0');
+					y = str;
+				} else
+					y = mxGetScalar(M);
+			} else {
+				if (mxIsString(M)) {
+					y.ireserv(jmax);
+					for (i=0; i<jmax; i++) y.IntPtr()[i] = Tint(pr[i]);
+					y.SetStringFlag();
+				} else {
+					y.rreserv(jmax);
+					for (i=0; i<jmax; i++) y.RealPtr()[i] = pr[i];
+				}
+			}
+		} else {
+			if (jmax == 1) {
+				y.rreserv(imax);
+				for (i=0; i<imax; i++) y.RealPtr()[i] = pr[i];
+			} else {
+				y.rreserv(TDimPack(imax,jmax));
+				for (i=0; i<imax; i++) for (j=0; j<jmax; j++)
+					y.RealPtr()[i*jmax+j] = pr[j*imax+i];
+			}
+		}
+	}
+	mxFreeMatrix(M);
+	return 0;
+}
+
+[...] = matlab_call(fname...)
+/* [a,b,c,...] = matlab_call("fname",d,e,f,...)
+   calls a Matlab function in a currently running background
+   Matlab process. Input arguments (any number) d,e,f,...
+   are sent to Matlab prior to call, and output arguments
+   (any number) a,b,c,... are collected and returned to Tela
+   after the function has completed.
+   See also: matlab_start, matlab_eval, matlab_put, matlab_get.
+   Error codes:
+   1: Unknown error when sending input argument
+   2: Function call unsuccessful
+   3: Internal error: No such output argument in Matlab workspace
+   4: Output argument is of unsupported type (not double)
+   5: Output argument is of unsupported type (not full matrix)
+   -1: Internal error: matlab_put or matlab_get first argument not a string
+   -2: No Matlab process running, use matlab_start first
+   -3: Input argument not interpretable as a matrix
+   -4: Input argument has too high (> 2) rank
+   -5: First argument not a string
+   */
+{
+	// The error codes conform to matlab_put and matlab_get
+	const char *ARGIN = "argin_";	// Template Matlab variable names
+	const char *ARGOUT = "argout_";
+	if (!EnginePtr) return -2;
+	if (!fname.IsString()) return -5;
+	Tstring FNAME = fname;
+	int retval = 0;
+	TConstObjectPtr inputs[2]; TObjectPtr outputs[1];
+	// Send input arguments
+	for (int i=1; i<Nargin; i++) {
+		Tchar argnameStr[20];
+		sprintf((char*)argnameStr,"%s%d",ARGIN,i);
+		Tobject argname = argnameStr;
+		inputs[0] = &argname;
+		inputs[1] = argin[i];
+		retval = matlab_putfunction(inputs,2,outputs,0);
+		if (retval) return retval;
+	}
+	// Perform the function. Collect the evalstring in str.
+	strstream str;
+	if (Nargout > 0) {
+		str << '[';
+		for (i=0; i<Nargout; i++) {
+			str << ARGOUT << i+1;
+			if (i<Nargout-1) str << ',';
+		}
+		str << "] = ";
+	}
+	str << (char*)FNAME;
+	if (Nargin > 1) {
+		str << '(';
+		for (i=1; i<Nargin; i++) {
+			str << ARGIN << i;
+			if (i<Nargin-1) str << ',';
+		}
+		str << ')';
+	}
+	str << ';' << ends;		// use semicolon at end to prevent unnecessary slowing-down output
+	char *charptr = str.str();
+	retval = engEvalString(EnginePtr,charptr);
+	delete [] charptr;
+	if (retval) return 2;
+	// Gather output arguments
+	for (i=0; i<Nargout; i++) {
+		Tchar argnameStr[20];
+		sprintf((char*)argnameStr,"%s%d",ARGOUT,i+1);
+		Tobject argname = argnameStr;
+		inputs[0] = &argname;
+		outputs[0] = argout[i];
+		retval = matlab_getfunction(inputs,1,outputs,1);
+		if (retval) return retval;
+	}
+	return retval;
+}
+
+[] = matlab_stop()
+/* matlab_stop() stops a currently running Matlab process.
+   See also: matlab_start, matlab_eval.
+   Error codes:
+   1: No Matlab process running; none to be stopped
+   2: Unknown error occurred when trying to stop Matlab process
+   */
+{
+	if (!EnginePtr) return 1;
+	if (engClose(EnginePtr)!=0) {EnginePtr=0; return 2;}
+	EnginePtr = 0;
+	return 0;
+}

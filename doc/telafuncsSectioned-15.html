@@ -1,0 +1,204 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="LinuxDoc-Tools 0.9.21">
+ <TITLE>Builtin Tela functions: geopack_ct.ct</TITLE>
+ <LINK HREF="telafuncsSectioned-14.html" REL=previous>
+ <LINK HREF="telafuncsSectioned.html#toc15" REL=contents>
+</HEAD>
+<BODY>
+Next
+<A HREF="telafuncsSectioned-14.html">Previous</A>
+<A HREF="telafuncsSectioned.html#toc15">Contents</A>
+<HR>
+<H2><A NAME="s15">15.</A> <A HREF="telafuncsSectioned.html#toc15">geopack_ct.ct</A></H2>
+
+<P>This section describes functions from file opt/geopack_ct.ct.</P>
+
+<H2><A NAME="geopack_coordtrans"></A> <A NAME="ss15.1">15.1</A> <A HREF="telafuncsSectioned.html#toc15.1">geopack_coordtrans</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[X,Y,Z] = geopack_coordtrans(fromto,x,y,z,epoch)
+ [X,Y,Z] = geopack_coordtrans("fromto",x,y,z,epoch)
+   transforms Cartesian coordinates (x,y,z) to another system.
+   The first argument specifies the transformation, it must be a 4-6-character
+   string containing two coordinate system symbols. Valid coordinate
+   systems are GEO,GSM,GSE,GEI,MAG and SM. For example, "GEOGSM","GEISM",
+   "SMSM" and "MAGGSE" are valid first arguments where e.g. GEOGSM specifices
+   that (x,y,z) is in the GEO system and is to be transformed to the GSM system
+   (X,Y,Z). The last argument (epoch) is the number of milliseconds since
+   January 1, year 0000, see functions computeEPOCH, EPOCHbreakdown, parseEPOCH
+   and encodeEPOCH how to manipulate and construct epoch values.
+
+   The arguments x,y,z,epoch can be scalars or arrays. If they are arrays,
+   the must be of the same size. Scalars and arrays can be mixed, scalars
+   are implicitly promoted to arrays.
+
+   This function calls the GEOPACK Fortran routines by N. Tsyganenko et al.
+   The GEOPACK package operates in single precision.
+   Error codes:
+   -1: First arg not a string
+   -2: Second arg (x) must be int or real scalar or array
+   -3: Third arg (y) must be int or real scalar or array
+   -4: Fourth arg (z) must be int or real scalar or array
+   -5: Fifth arg (epoch) must be int or real scalar or array
+   -6: First arg not a string with 4, 5 or 6 characters
+   -7: First arg not a valid string (allowed coordsys: GEO,GSM,GSE,GEI,MAG,SM)
+   -8: Incompatible array dimensions
+ 
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="geopack_model"></A> <A NAME="ss15.2">15.2</A> <A HREF="telafuncsSectioned.html#toc15.2">geopack_model</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[Bx,By,Bz] = geopack_model(model,params,x,y,z,epoch; tiltangle)
+ [Bx,By,Bz] = geopack_model(model,params,x,y,z,epoch;tiltangle)
+   computes a Tsyganenko model magnetic field.
+   Inputs:
+     model:     string specifying model to use
+         params:    parameter vector for the model
+         x,y,z:     GSM coordinates in units of R_E (6371.2 km)
+         epoch:     Epoch used in IGRF part (and external, if
+                      tiltangle is not given)
+         tiltangle: (optional) Dipole tilt angle in radians,
+                      do not use with IGRF
+   Outputs:
+     Bx,By,Bz:  GSM Cartesian B-field in nanotesla
+
+   Format of model specification string: either "MODEL"
+   or "MODEL,MODEL". Valid MODELs are DIP,IGRF,T89,T96,T96_NOFAC and NONE.
+   Empty string is synonym for NONE. The values are case
+   insensitive, i.e. both "T96" and "t96" can be used.
+   Examples of valid strings: "IGRF", "IGRF,T96", ",DIP",
+   "T89,", "None,t89". The T96_NOFAC is T96 from which Birkeland
+   currents have been left out; this switch was added by P.Janhunen.
+
+   Parameter vector for T96 and T96_NOFAC is #(Pdyn,Dst,By,Bz)
+   where Pdyn is solar wind dynamic pressure (nanopascal),
+   Dst the Dst index (nanotesla), By and Bz the IMF GSM
+   components (nanotesla).
+
+   Parameter vector for T89 is #(Kp), i.e., the vector contains
+   just one element, the Kp index. For DIP (dipole) and IGRF
+   models, the parameter vector is ignored (it must still be a
+   real or int vector, e.g., zeros(0) suffices).
+   
+   If tiltangle is given as seventh input argument, it is used
+   in the external field model, and epoch only affects the internal
+   part. If tiltangle is not given, it is computed automatically
+   from the epoch.
+
+   This function calls the GEOPACK Fortran routines by N. Tsyganenko et al.
+   The GEOPACK package operates in single precision. Using sophisticated
+   methods such as Bulirsch-Stoer or quality-controlled Runge-Kutta for
+   field-line tracing using geopack_model may therefore be problematic;
+   the function geopack_trace that is provided for this purpose uses
+   simpler methods, for this reason. This is a warning to those who would
+   like to improve the speed of geopack_trace by implementing a better
+   ODE integrator.
+   Error codes:
+   -1: First arg (model) not a string
+   -2: Second arg (params) is not a real vector
+   -3: Third arg (x) is not real scalar or array
+   -4: Fourth arg (y) is not real scalar or array
+   -5: Fifth arg (z) is not real scalar or array
+   -6: Sixth arg (epoch) is not real scalar or array
+   -7: Seventh arg (tiltangle) not real scalar
+   -8: First arg (model) is an invalid string
+   -9: Two Tsyganenko models cannot be combined (the other must be IGRF)
+   -10: Second arg (params) is of improper length (must be 1 for T89, 4 for T96/T96_NOFAC)
+   1: tiltangle setting ignored since IGRF model in use (use DIP instead)
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="geopack_trace"></A> <A NAME="ss15.3">15.3</A> <A HREF="telafuncsSectioned.html#toc15.3">geopack_trace</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[x,y,z; X,Y,Z,success] = geopack_trace(model,params,domain,x0,y0,z0,epoch...)
+ [x,y,z; X,Y,Z,success] = geopack_trace(model,params,domain,x0,y0,z0,
+                                          epoch[,optional-args])
+   traces a field line in a model magnetic field, starting from (x0,y0,z0).
+   The model and params arguments are the same as for geopack_model.
+   Coordinates are GSM and measured in Earth radius R_E (6371.2 km).
+   The domain argument defines the region where the tracing is performed.
+   The tracing is stopped when the point moves outside the domain.
+   The meaning of the epoch argument is the same as in geopack_model.
+
+   Format of domain string: "r=1.01,r=4.5,z=0", i.e., a comma-separated
+   list of equations. Valid left-hand-sides are r,x,y,z (r=sqrt(x^2+y^2+z^2)).
+   Coordinates are GSM and units in R_E also here. Any real value is a
+   valid inequality right-hand-side. Up to 8 conditions may be used.
+
+   Optional arguments are var,value pairs where var is a string.
+   Supported are:
+     var         value       meaning
+     "sign"      +1 or -1    +1:trace along B, -1:trace antiparallel to B
+     "tiltangle" real        dipole tilt angle (radians), if not given,
+                               computed from epoch, can be used only if
+                               internal field model is DIP or none.
+     "maxstep"   real        maximum step size in R_E (default: 0.3)
+         "maxsteps"  pos.int     maximum steps to take (default: 2000)
+
+   This function calls the GEOPACK Fortran routines by N. Tsyganenko et al.
+   The GEOPACK package operates in single precision. Therefore, this function
+   uses a simple and robust midpoint method for integrating the field line.
+   Using more sophisticated methods (Bulirsch-Stoer or quality-controlled
+   Runge-Kutta) was tried, but did not work well in this case, because of
+   lack of precision. This is a warning to those who wouldlike to improve
+   the speed of geopack_trace by implementing a better ODE integrator.
+
+   With the default arguments, the error when mapping from x=-13 to
+   ionosphere is about 1 km in the ionospheric plane. By decreasing maxstep
+   from the default (0.3), the accuracy can be improved.
+
+   The optional output arguments X,Y,Z, if given, become vectors containing
+   the full traced trajectory. The seventh output argument (success) is
+   returned as 1 unless the number of maxsteps was exceeded, in which case
+   it will be returned as 0.
+   
+   Notice that tracing can fail sometimes in the sense that the point
+   starts to circling around in the magnetosphere, never hitting the
+   defined boundaries. To avoid such cases from taking too long time
+   you can set the parameter "maxsteps" to smaller value than its default
+   2000 and quaery the success argument.
+
+   Error codes:
+   -1: First arg (model) not a string
+   -2: Second arg (params) is not a real vector
+   -3: Third arg (domain) is not a string
+   -4: Fourth arg (x0) is not int or real scalar
+   -5: Fifth arg (y0) is not int or real scalar
+   -6: Sixth arg (z0) is not int or real scalar
+   -7: Seventh arg (epoch) is not int or real scalar
+   -8: Odd number of optional args
+   -9: Optional args must be var,value,var,value,... where var is a string
+   -10: First arg (model) is an invalid string
+   -11: Two Tsyganenko models cannot be combined (the other must be IGRF)
+   -12: Second arg (params) is of improper length (must be 1 for T89, 4 for T96/T96_NOFAC)
+   -13: Invalid third arg (domain): must be "{R|X|Y|Z}={realvalue},..."
+   -14: Invalid optional argument (supported are: sign,tiltangle,maxstep)
+   -15: Invalid value for optional argument "sign": must be +1 or -1
+   -16: Invalid value for optional argument "tiltangle" (must be int or real scalar)
+   -17: Invalid value for optional argument "maxstep" (must be int or real scalar)
+   -18: Invalid value for optional argument "maxsteps" (must be positive int)
+   1: tiltangle setting ignored since IGRF model in use (use DIP instead)
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+
+<HR>
+Next
+<A HREF="telafuncsSectioned-14.html">Previous</A>
+<A HREF="telafuncsSectioned.html#toc15">Contents</A>
+</BODY>
+</HTML>

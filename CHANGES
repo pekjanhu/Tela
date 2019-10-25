@@ -1,0 +1,1056 @@
+                  ========================
+                  Revision history of Tela
+                  ========================
+
+---------------------------------------------
+VERSION 2.09 (Installed on plasma 11 Dec 2008
+---------------------------------------------
+
+BUG FIXES
+
+- "tail" command in telahelp.sh now uses Posix syntax (tail -n +N instead of old tail +N),
+  old syntax no longer supported by default on new linux distros
+  Symptom was that e.g. "help mean" or any t-file help did not work.
+
+
+--------------------------
+Version 2.07
+--------------------------
+
+BUG FIXES
+
+- define WE_ARE_LITTLE_ENDIAN also if __x86_64 is defined (files.ct, fixes bug in I/O of Matlab files on x86 machines)
+
+-----------------------------------------------
+Version 2.06 (Installed on plasma 4 April 2008)
+-----------------------------------------------
+
+USER-VISIBLE CHANGES
+
+- incorporated 2008 Tsyganenko geopack.f
+
+KNOWN BUGS
+
+- interp(x,y,X) does not work if rank(X) was larger than 1 (std.t)
+
+------------------------------------------------
+Version 2.05 (Installed on plasma 26 March 2008)
+------------------------------------------------
+
+KNOWN BUGS
+
+- interp(x,y,X) does not work if rank(X) was larger than 1 (std.t)
+
+---------------------------------------------------------------
+Versions 2.03-2.04 Small machine-dependent bugfixes and updates
+  to allow compilation on newer gcc versions
+---------------------------------------------------------------
+
+-----------------------------------
+Version 2.02 (Released 20 May 2005)
+-----------------------------------
+
+USER-VISIBLE CHANGES
+
+- incorporated 2005 Tsyganenko geopack.f model and added T96_NOFAC field model option
+  (the T96 model without field-aligned currents, opt/geopack.f, opt/T96.f, opt/geopackintf.C;
+  affects functions geopack_model, geopack_coordtrans, geopack_trace)
+
+INTERNAL CHANGES
+
+- two formal changes to allow compilation under g++-3.4.0 (I think it's g++ bug or strange feature at least,
+  but the fix is not harmful)
+
+BUG FIXES
+
+- functions fprintf/printf were not working at all (fileio.ct). Now fixed by rewriting fileio.ct
+  to use system snprintf. Gcc extensions are not needed using this method. Hope snprintf is
+  found on all systems...
+- format,sformat and fformat with array argument inserted erroneously null character after each
+  number written; especially seroius this effect was in sformat which broke the string after the first
+  outputted number. Fix was to remove line oss << ends; in object.C:OutputComplexNumber when
+  USE_STRINGSTREAM is defined as 1. The ends inserts the null character, in this way <string>
+  and the old <strstream.h> behaviour differs rather lot.
+- "make clean" deleted flex++-3.0.2/parse.c etc., which causes trouble if bison++ does not exist
+  in user's system and user types "make clean" in main tela directory; now "make clean" only
+  removes flex++-3.0.2/*.o and "make veryclean" removes also the other regeneratable files.
+
+--------------------------------------
+Version 2.01 (Released 23 August 2004)
+--------------------------------------
+
+USER-VISIBLE CHANGES
+
+- added function accum (numerics.ct). (Actually the function has been there for some time,
+  but the behavior was changed slightly, and it is now "official").
+- added function Lomb (numerics.ct)
+- renewed Tsyganenko model support and GEOPACK coordinate transform routines
+  (everything under opt/, new file geopack.t, autosources now defined in telainit.t)
+  More general and powerful functions geopack_coordtrans, geopack_model and geopack_trace
+  are now available, using the latest GEOPACK Fortran version (2003). The old functions
+  (e.g., geotogsmXYZ) are now defined in geopack.t and call the general functions.
+  Supported field models are T89C and T96.
+
+------------------------------------
+Version 2.0 (Released 9 August 2002)
+------------------------------------
+
+USER-VISIBLE CHANGES
+
+- it is now demanded that if a t-function is defined with obligatory output arguments
+  (you do this by placing the semicolon inside the output arg list and enclosing the list
+  in brackets, as in function [x;] = f() {x=1}), the function must be called with the 
+  bracketed notation, like [y] = f(), not simply f(). If you do, version 2.0 generates
+  a runtime warning message "Calling function with obligatory output arg(s) with non-
+  bracketed call form". Motivation: see the KNOWN BUGS section of Version 1.35 below.
+  This fixes the bug, if the programmer also obeys the rule that if an output arg is defined
+  as obligatory by using the semicolon as above, he avoids reading the variable in
+  the function body before assigning a value to it. To check this automatically would
+  be hard in the general case (would require data flow analysis). The current version (2.0)
+  does not attempt to do even simple checking of this.
+  Summary: Existing code should work as before, but may give the above warning messages.
+  To remove the warnings, change the call forms to use the bracketed output arg notation
+  for functions having obligatory (i.e., input/output) output args. After you have done this
+  it is in principle possible that the results of your program change, but towards being
+  more correct than in the past:-)
+- telainit.t now checks that envvar HOME is defined before attempting to source $HOME/.telainit.t
+  (thanks to Mikko Syrjäsuo for noticing this, mikko at phys.ucalgary.ca).
+
+KNOWN BUGS
+
+- at least with HDF4.1r3 library version, load()ing of new-style HDF file crashes
+  A fix will be provided soon...
+
+-----------------------------------
+Version 1.35 (Released 5 July 2002)
+-----------------------------------
+
+USER-VISIBLE CHANGES
+
+- added many special functions (specfun.C,specfun.H,ode.C,ode.H,specfun_ct.ct,specfun.t,telainit.t).
+  Functions implemented now include Euler gamma, incomplete gamma, incomplete beta, erf, erfc,
+  Gauss' and Kummer's hypergeometric functions, Chebyshev, Legendre, Laguerre, Bessel.
+  The functions work with arbitrary complex arguments and are also automatically threaded
+  over array arguments. Bugs probably remain, although systematic verification
+  with Mathematica was done.
+- aniopen/aniput/aniclose can now write also MNG animation in addition to MPEG
+  (ani.ct,png.C,png.H,image.C,image.H)
+- added function poissonrand (numerics.ct)
+- added function fwrite (files.ct)
+- added Emacs Tela mode to distribution (tela.el, contributed by Mikael Hedin, First.Last@irf.se)
+  (Also available under http://www.geo.fmi.fi/prog/tela.html/)
+- somewhat improved Matlab file importing (reads 32-bit reals also, contributed by Micce Hedin)
+  (Still, doesn't read Version5 matlab files, but this is in the plans...)
+- functions import_PBM and export_PBM renamed the more logical import_PNM and export_PNM.
+  Old names are still aliases to the new functions, but it is recommended that you
+  use the new names in new code from now on (files.ct,telainit.t).
+
+KNOWN BUGS
+
+- using the output argument also for input (i.e. an input/output argument) and binding
+  it to indexed expression in caller is legal, but may produce incorrect results. Example:
+    function [a;] = f() {a+=1}; x=ones(2); x[1] = f(); disp(x);
+  produces runtime error "Unary '++' applied on <Undefined>" rather than giving the
+  expected output #(2, 1).
+  To avoid problems, use the following rule: if function argument is both read and written,
+  always bind it to simple variable in caller. The above example rewritten using this rule
+  would be:
+    function [a;] = f() {a+=1}; x=ones(2); tmp=x[1]; [tmp] = f(); x[1]=tmp; disp(x);
+  I hope to somehow fix this in the future (for version 2.0).
+  Thanks to Neilen Marais for reporting the bug (nmarais at hertz.ee.sun.ac.za).
+
+BUG FIXES
+
+- 2^(-1:1) produced core dump (i.e. case when integer was raised to integer
+  vector power, when the integer vector contains negative elements) (objartihm.C)
+- min() and max() of an empty array produced a very large number,
+  nowadays they produce an empty vector (objarithm.C, Bugfix by Mikael Hedin)
+- function gsetogsmXYZ didn't work correctly (opt/geopack_ct.ct)
+
+INTERNAL CHANGES
+
+- now uses FFTW library (www.fftw.org), which increased FFT speed by factor of two.
+  Thus far the sine/cosine transforms still use the old FFTPACK routines, however (fftw.ct,fft.ct).
+- some changes, hopefully improvements, in configure script (HDF libraries and includes etc) (configure.in)
+- now uses most recent version of autoconf (2.53)
+- updated to using newest version of opt/geopack.f (dated 7 Aug 2001)
+
+-----------------------------------
+Version 1.34 (Released 17 Sep 2001)
+-----------------------------------
+
+BUG FIXES
+
+- The function whos() didn't work in the previous release,
+  for which reason there is this early bug fix release now.
+
+-----------------------------------
+Version 1.33 (Released 4 Sep 2001)
+-----------------------------------
+
+BUG FIXES
+
+- Since introduction of KShallowObjectArray in 1.32, I forgot to increase the constant
+  12 to 13 in #define pair(ka,kb) ... in objarithm.C. Result: E.g., 2/x where x is undefined
+  did not produce error message but silently evaluated to 0. There could be other much
+  more obscure errors also. Now the constant 12 is no longer hard-coded but is defined to be
+  int(Kundef)+1. This works as long as Kundef remains the last in enum Tkind (object.H).
+  There is comment telling it...
+- in tela.C:FindMachineNan(), using switch() statement can cause compile-time error due to
+  duplicate case labels, fixed now by rewriting switch() as nested if's (tela.C)
+  (This is in code segment that was put in tela only in the previous release.)
+- some changes to allow compilation with gcc-3.0 (contributed by Ch. Spiel)
+
+-----------------------------------
+Version 1.32 (Released 24 Apr 2001)
+-----------------------------------
+
+BUG FIXES
+
+- t-functions using ellipsis argument (...) crashed Tela (this was due to the 
+  "deep" copy object array feature introduced in previous version 1.31, cure
+  was to introduce another internal type KShallowObjectArray which is now used
+  in Tprg::execute() in prg.C)
+- memory leak in object arrays (object.C:Tobject::setsize, deep clear was missing)
+  (also this bug existed only in version 1.31, not before, because object array
+  semantics was changed from shallow copy to deep copy in 1.31).
+
+USER-VISIBLE CHANGES
+
+- new diag() function contributed by Ch.Spiel which allows a second input argument
+  specifying the super- or sub-diagonal (the default zero meaning the main diagonal),
+  this function is compatible with Matlab's and also compatible with the old diag()
+  function (std.ct)
+- added global symbol NaN if compiler supports NaN's (ieee754.h header is present and working) (tela.C)
+- some enhancements to telapath() (std.ct; contributed by Ch.Spiel)
+
+----------------------------------
+Version 1.31 (Released 8 Mar 2001)
+----------------------------------
+
+USER-VISIBLE CHANGES
+
+- copying an object array (see help voids) is now "deep" copy rather than "shallow" copy.
+  This means that when an object array is assigned to another variable, a completely new
+  copy is made (before, only the first array level was copied). Mostly this won't affect
+  you at all because (1) you are using object arrays only if you are using voids() in some
+  phase in your program, (2) if you are, then you are probably using only single-level
+  object array. The old behaviour was simply stupid. Object arrays are a crude but working
+  mechanism for using heterogeneous combined types in Tela; the only relevant function
+  (in the present Tela version) is voids(), which acts as a constructor for such things.
+  Thanks to Ch. Spiel for suggesting this change (object.C).
+- quit() and exit() now accept input argument (the exit value) (std.ct)
+- sort() function now accepts second input argument (user-defined comparison function) (std.ct)
+  (old function still available as sort_old in case of problems).
+- slight change in semantics of --shared option for telakka (telakka.in)
+The above were contributed by Christoph Spiel <cspiel at hammersmith-consulting.com>
+
+- added incomplete gamma and beta functions (specfun.t)
+  (specfun.t not autoloaded, but after source("specfun.t") functions are available).
+- added function polymul and added polyadd,polymul to autoload (poly.t,telainit.t)
+- added function applyfilter (numerics.ct)
+- added functionwise profiling option (tela -p) (tela.C,prg.C)
+
+BUG FIXES
+
+- doing dot product (**) of two zero-length integer vectors produced a LAPACK error message
+  and Tela quit (la.ct)
+- tree.C:DeleteObjects() accessed memory after it being freed, which however did not cause
+  any problems in practice (unless using malloc debug libraries), but is anyway now fixed
+
+INTERNAL CHANGES
+
+- Some modernizations in configure script (e.g., now tries to link with
+  libatlas by default instead of libblas if available) (configure.in)
+
+-----------------------------------
+Version 1.30 (Released 5 Dec 2000)
+-----------------------------------
+
+USER-VISIBLE CHANGES
+
+- wrote ani.ct for writing MPEG-1/MPEG-2 animations
+  in a memory-efficient way (aniopen,aniput,aniclose)
+- added function bsearch for binary search (std.ct)
+- added function interp (std.t)
+- Introduced some flatcode optimization, to use, invoke with tela -O1 ...
+  The optimization is loop tiling and it may speed up some codes that
+  uses long vectors with lots of intermediate results that are reused.
+  At least it speeds up third-order interp() by factor 1.5 .. 2.
+  (new source file: optimize.C)
+- added function read_CDF for reading variables from a CDF-file as
+  values, not into global variables as import_CDF does (CDF.ct)
+- export_CDF now creates 1- or 2-byte unsigned integer files if the int array
+  elements are in the range 0..255 or 0..65535, respectively (previously, only
+  signed types were specially handled)
+- export_PBM is now able to write 16-bit grayscale images (in ASCII mode) (files.ct)
+- publicly released SPPC-1.0 plot package (ftp://ftp.funet.fi/pub/sci/math/tela/needed/sppc-1.0.tar.gz).
+  The interface is in sppc.ct.
+
+BUG FIXES
+
+- fitlinear didn't work correctly when 4th arg (sigma) was given (fit.t)
+- import_CDF now correctly transposes arrays in Fortran-ordered CDF-files (CDF.ct)
+- import_CDF now correctly treats also strings and string matrices (CDF.ct)
+
+-----------------------------------
+Version 1.29 (Released Nov 2 1999)
+-----------------------------------
+
+USER-VISIBLE CHANGES
+
+- added C-tela file sppc.ct as an interface to Simple Panel Plot Composer
+  (a program just written and hopefully distributed soon separately)
+- added command line option --noreadline (-n), use it if reading
+  from a pipe or file, like tela -n <file, this bypasses the GNU-Readline
+  library (tela.C)
+- added function LinearProgramming (new t-file lpmin.t)
+- added function gaussrand (std.ct)
+- added function putenv (std.ct)
+- added function export_CDF (CDF.ct)
+- minor bug fix in import_CDF (CDF.ct)
+- made atan2 work for (real) array arguments (std.ct)
+- blasbench.t, bench.t modernized
+- HDFNewMode(1) is now the default (files.ct)
+  I.e., it no longer writes the HDF3.1r5-compatible files by default.
+
+BUG FIXES
+
+- import_PBM can now read also 1-bit images, binary of ASCII (files.ct)
+- pcoloring or contouring large matrices using xgrid,ygrid options
+  confused plotmtv, fixed this by writing them in binary (plotmtv.ct)
+- failed fopen calls consumed one file descriptor, yielding to running out of
+  them after 100 failed opens (fileio.ct).
+- import1 hung if called with empty filename (files.ct)
+- save("filename.hdf") produced incorrect HDF file if VOID variables were
+  in workspace (These files can now be nevertheless load()'ed, warnings
+  are given though).
+- new-style HDF: string matrices are now saved properly with the string flag set
+- made it to work with HDF4.1r3 (files.ct)
+
+KNOWN BUGS
+
+- increasing MAXRANK from 4 (def.H) leads to core dump in telainit.t
+
+-----------------------------------
+Version 1.28 (Released 11 Sep 1998)
+-----------------------------------
+
+USER-VISIBLE CHANGES
+
+- added function fread for fast binary reading of files (fileio.ct)
+  (Anyone needing fwrite out there..?)
+- added functions set_alt_display and reset_alt_display to temporarily direct graphics to another
+  X11 display (plotmtv.ct). Previously this was possible only for an entire Tela process by
+  setting DISPLAY environment variable, but now it can be done from within Tela also.
+- added -display option to plotmtv (works together with previous one)
+- import_PBM and export_PBM can now read/write pipes by using the notation "! ..."
+- exporting and importing of v4-Matlab MAT-files now works in little-endian 386-Linux also
+  (Internals: It should work on DEC-Alpha also but not tested. WE_ARE_LITTLE_ENDIAN should be
+   defined as 1 on little-endian machines in files.ct.)
+
+BUG FIXES
+
+- import_PBM could not read P2,3,5,6 files where maxcol was on the same
+  line as w,h (files.ct); we hear that these are produced by IDL for instance.
+- If Tela was exited using quit() or exit() (instead of typing Control-D),
+  open figure windows were not closed (std.ct)
+- inserted call to exitfunction() of std.ct at end of main() (tela.C) to prevent core dumps on pressing control-D to exit
+  (for now, this is done only for GNUC, since the problem has thus far arised only on Linux).
+
+INTERNAL CHANGES/"FEATURE" FIXES
+
+- Include -ldl now by default for Linux (dynamic linking library, configure.in)
+- For Linux, define MAIN__ in tela.C (required by some versions of libf2c.so)
+- Some syntactic changes to better compile withi newer Linux systems etc.
+- Incorporated flex++-3.0.2 under source tree to avoid name conflicts with other programs
+  also named flex++ but which are incompatible
+
+-----------------------------------
+Version 1.27 (Released 4 July 1997)
+-----------------------------------
+
+BUG FIXES
+
+- export_PBM made core dump if file was unwritable, now gives nonfatal error message (files.ct)
+
+USER-VISIBLE CHANGES
+
+- parser now complains if there is some garbage between last legal token and EOF (d.l,d.y,tela.C)
+  (This is done by effectively wrapping the input in {...}.) Thanks to Gary Holt <holt at monet.klab.caltech.edu>
+  and Olaf Amm <amm at geophys.nat.tu-bs.de>. For example, if there is a semicolon missing between
+  function definitions in a t-file, old Tela silently ignored the rest of the file; now it complains.
+- "calling" a numerical object previously printed its value, now it is forbidden. For example,
+  c = 3; c(1) before printed "3" and then "<Undefined>". Now it complains: "3 (integer) is not a function".
+  (The reason why it outputted <Undefined> before is a bit obscure, but who cares any more...)
+
+-----------------------------------
+Version 1.26 (Released 6 June 1997)
+-----------------------------------
+
+USER-VISIBLE CHANGES
+
+- whos() does not use $PAGER when in batch mode (std.ct)
+- whos() tells about string-flag also on rank>1 int arrays (std.ct)
+- whos() now explores environment variable TELA_SORTER (default "sort -b -f -k 1") to
+  find the Unix program to sort the variables. On some Unix systems these options might
+  not work in which case it is necessary to set up TELA_SORTER to fix the problem (std.ct)
+- added function import_CDF (new file CDF.ct)
+  This should work if you have CDF library and cdf.h.
+  Notice that CDF (Common Data Format) is different from netCDF and HDF,
+  which Tela has been able to do for rather long time. The CDF format is mainly used by NASA.
+- added function strstr (std.t)
+
+BUG FIXES
+
+- *** SERIOUS *** a^b where a,b were ints and b was negative produced incorrect zero result (objarithm.C)
+- Plotting data which has large offset was inaccurate because only 6 digits
+  were passed internally to PlotMTV [for example, plot(1e4+sin(0:0.1:4)) produced
+  "quantized" result] (plotmtv.ct)
+- Installation/configure: Configure script failed to detect -lreadline library
+  even if one was present. Now uses GNU autoconf-2.10
+- The help command did not work on all systems for t-files (For example, typing
+  "help stddev" resulting in message "No comment string"). Fix: Replaced "more" with "tail" (telahelp.sh).
+- The autoglobal function returned a <Undefined> value, although it should
+  return no value (std.ct)
+
+INTERNAL CHANGES
+
+- C++ ANSI standard says that in for (int i=0;i<10; i++) stmt; the scope of i is limited to stmt.
+  Almost all Tela source files contained at least one instance of this problem. These have been
+  fixed by taking the declarations out of for statements, thus it can be compiled on both
+  old and new c++ compilers.
+- function where() is now C-tela function in std.ct, not t-function in std.t
+  as it was previously (std.ct,std.t,telainit.t). This should not be a user-visible change,
+  except that the function is faster.
+- some formal changes for the new Cray C++ compiler (2.0). The new compiler is still buggy,
+  for it cannot compile objarithm.C without crashing (!).
+- global::nops is now double (previously was int), unless SLOW_FLOATING_POINT_MATH is defined as 1.
+  This makes it possible for Ct-modules to record FLOP counts exceeding 2 billion for one call (common.H, tela.C)
+- #define exit(x) _exit(x) (def.H). On some machines Tela sometimes makes a core dump when exiting.
+  This hack prevents global destructors from being called; _exit() is the low-level C-library function
+  whereas exit() knows tries to call C++ global destructors first.
+
+-----------------------------------
+Version 1.25 (Released 4 July 1996)
+-----------------------------------
+
+USER-VISIBLE CHANGES
+
+- added function meminuse (std.ct)
+- whos now gives sorted output with pager ($PAGER envvar, or more) (std.ct)
+- fopen now recognizes also "a" flag for appending (previously only read ("r") and write ("w")) (fileio.ct)
+- import1 can now read ASCII matrices which have '#' comment lines in between data lines
+  (previously only comment lines at the beginning of the file were accepted). However this feature
+  does not work for files containing only one number per line (vector files). (files.ct)
+
+BUG FIXES
+
+- Sometimes 'Runtime error at line ...' reported line number zero. No more. (prg.C)
+- import("file.hdf","app") did not append "app" to the names if "file.hdf" was
+  new-style HDF file (files.ct)
+- izeros, zeros, rzeros, czeros now complain if the dimension is
+  negative (previously crashed) (prg.C)
+- wrote a workaround for an operating system memory managament bug on Silicon Graphics machines.
+  This involved writing a completely new memory management package (newdel.C), which is used
+  instead of the standard new/delete operators on these machines.
+- fixed some bugs in importing new-style HDF SDS and netCDF files written by program other than Tela (files.ct)
+  But the netCDF stuff may still not work completely...
+- function minimization t-file: some bugs fixed (fmin.t)
+- further optimization (traverse only nonequal-sized blocks in Freelist) of the memory management patch (newdel.C)
+  (It is now fast enough so it may be worthwile to use it on other platforms too.
+   The algorithm is now the 'bestfit' method with sorted Freelist.)
+
+-------------------------------------
+Version 1.24 (Released 19 March 1996)
+-------------------------------------
+
+USER-VISIBLE CHANGES
+
+- import can now read Matlab integer matrices (previously only floating point)
+- closefig("all") now closes all figures
+- added function clear (std.ct)
+
+BUG FIXES
+
+- sum,prod,mapmin,mapmax produced garbage result if called
+  with vector first argument and present second argument
+  (equal to 1). For example:
+  >size(sum(0:5,1))
+  #()		// second argument present ==> wrong
+  >size(sum(0:5))
+  1			// sum called with only one argument ==> ok
+
+  However the printed value was correct:
+  >sum(0:5,1)
+  15
+
+  The object produced was damaged but indexing etc. nevertheless
+  produced the correct numerical value.
+  
+  If the second argument was not present the result was always
+  correct.
+
+  Now these all work correctly. The bug was in std.ct.
+
+- (PlotMTV) Fixed bug when saving GIF file from 24-bit visual
+  (previously worked only on some hardwares)
+
+KNOWN BUGS
+
+- "save" may not work if the saved variable is a degenerate array
+- there is disk space overhead with HDF files if large one-dimensional
+  arrays are saved, if HDF version > 3.1r5 is used. This is actually a
+  bug in HDF and there is not much Tela can do about it. The overhead
+  is four bytes per data element for one-dimensional arrays. For multidimensional
+  arrays it is four bytes times the sum of the sizes of the dimensions,
+  which is negligible if the arrays are roughly square.
+
+------------------------------------
+Version 1.23 (Released 20 Oct. 1995)
+------------------------------------
+
+USER-VISIBLE CHANGES
+
+- added function fparse (fileio.ct)
+- Made link function to work on Iris ELF dynamic shared objects.
+  Probably works also on other machines with elf. See FAQ list for more.
+- added --shared option to telakka to ease DSO creation (see above)
+- added function stencil2d_4 for 2D five-point molecule (numerics.ct)
+- added function axpy (BLAS-1 style function) (la.ct)
+- added functions NewHDFSupported, HDFNewMode (files.ct)
+- changed behavior of save: do not save variables hidden in packages
+  (previously these were saved with names starting with '$') (files.ct)
+- added function export_netCDF, which is operational only if Tela was
+  compiled using HDF4.0b1 or later (see also below; files.ct)
+- added function colormap (plotmtv.ct). You need the latest (1.4.2t) PlotMTV
+  version to use this feature.
+- added possibility to use nonuniform grid in contour/pcolor/mesh plots
+  by using the "xgrid", "ygrid" options with real vector.
+
+INTERNAL CHANGES
+
+- made SetJmp into a macro (error.H, error.C, tela.C)
+  On some non-GCC compilers the old version might have caused
+  some crashes after error.
+- made limit a builtin function (previously was in std.t) (std.ct)
+- Now uses HDF4.0b1 by default. It is possible to link with HDF3.1r5
+  by defining OLD_HDF_VERSION when compiling files.ct, however.
+  Versions 3.2 and 3.3 are known NOT to work.
+  Pros and cons of old and new versions:
+  3.1r5: + Tela executable size will be smaller
+         - Real number data lose precision since they are saved as 32-bit
+           numbers
+  4.0b1: - Executable will be larger (approx. 400 kB on Linux)
+         + Unidata netCDF files become possible to load, import and export
+         + No precision loss occurs if HDFNewMode(1) is called
+           before saving (the HDF files will also be about twice
+           as big).
+- obj.SetToVoid() now also deallocates previous object by calling clear().
+  This should be always safe and may remove some memory leaks, but is
+  probably insignificant (object.H)
+
+BUG FIXES
+
+- Assignment b[ind] = a (a,b,ind all vectors) where length(ind)!=length(a)
+  was silently accepted. No more!
+- Matrix product (inner product) of two integer vectors produced
+  garbage result (la.ct; added  && A.kind()!=KIntArray above "Faster branch")
+- More than one goto to the same label did not work (codegen.C)
+- It sometimes crashed when it tried to give a warning of undefined labels (codegen.C)
+- MAXFILES was 5 before, now increased to 100 (fileio.ct) (Was this a bug or not?)
+- Cray C++ compiler produced incorrect code for range operation (e.g.,
+  0:1.5 returned #(0,1) not #(0,1,2) as it should). This is now fixed
+  by small source code modification in gatscat.C. It is now also fixed in the
+  Cray C++ compiler (!)
+- Likewise, the same bug in round() function on Cray!!! (Also fixed in the compiler I guess).
+- A small bug in perf() self-overhead removal (std.ct)
+- mapmin,mapmax and sometimes map produced unpredictable results when the array
+  was degenerate (0-length), now they produce a zero-length int vector in such cases
+- In some rare situation save function crashed because DFSDsetdims was not
+  called. This should not be strictly necessary as the corresponding parameters
+  are passed in DFSDputdata but nevertheless it is now fixed (files.ct:HDFAdd)
+- The syntax error messages reported a wrong source line number if the file contained
+  lines that ended with '/' within multi-line /* ... */ comments (d.l)
+
+KNOWN BUGS
+
+- Xmosaic may not be able to follow all the cross-references in docview() command,
+  but Lynx and Netscape can.
+  
+---------------------------------
+Version 1.22 (Released 25.5.1995)
+---------------------------------
+
+This version was delayed by a self-caused bug in the FFT
+code of the development version. New features include simple
+functions for numerical integration, function minimization,
+root finding, linear and nonlinear fitting, goto statement,
+and support for image processing with XV.
+
+USER-VISIBLE CHANGES
+
+- added label and goto statements (d.l, d.y, tree.H, tree.C, codegen.C)
+- added function DebugQueryMode. When debug query mode is on, pressing
+  Control-C causes a question to be posed, enabling one to interrupt
+  in the usual way or enter debug level (std.ct, tela.C)
+- added functions export_PBM, import_PBM (files.ct)
+- import() can now read also a raster-8 dataset from HDF file,
+  if no SDSs are found (files.ct)
+- added function fmin to do function minimization (fmin.t)
+- added function fsolve for root finding (fsolve.t)
+- added function integrate to do one-dimensional numerical integrals
+  over finite intervals with no singularities (integrate.t)
+- added functions fitline and fitlinear for fitting data to straight
+  line and to linear combination of arbitrary basis functions (fit.t)
+- added function fitnl for Levenberg-Marquardt nonlinear fitting (fit.t)
+- added function diff (diff.t)
+- added function xv to display matrix in XV window (xv.t)
+- export_matlab() and save() do not save hidden variables
+  unless explicitly named (files.ct)
+- added command line options --execute and -e for executing
+  strings as Tela expressions on startup
+- added optional second argument for import (files.ct)
+- generalized map so that the mapped function may return also vectors
+  instead of scalars, this allows e.g. sort function to be used with
+  map (std.ct)
+- added function flip to reverse arrays (std.ct)
+- added optional argument (prompt) for input_string() (std.ct)
+- cd("") and cd("~/my/dir") now work (std.ct)
+- hold(-1) can be used to reset the internal counter (plotmtv.ct)
+- eval("!...") no longer works, use system("...") instead.
+  The !... notation still works on top level command line.
+  Special macro (?, help, !) processing is now done only top level
+  command lines.
+
+INTERNAL CHANGES
+
+- Cray C90 support, the macros VECTORIZED and NOVECTOR as well as 
+  #ifdef VECTOR_MACHINE ... #endif appear in several places
+- now uses MAXFILENAME which is always at least 1024 instead of FILENAME_MAX,
+  which was on some system as small as 14, which surely would have caused problems
+- some reorganization on def.H
+- Makefile no longer assumes the INSTALL works for more than one source argument
+- The BROKEN_UCHAR_OUTPUTTER recognition in configure was buggy before
+- The object copy operation is now inlined differently (object.H, object.C).
+  The new way should be faster (but is it?).
+
+BUG FIXES
+
+- import() from Matlab binary file now honors the string flag
+  for string matrices (files.ct)
+- save() marks string matrices as such (files.ct)
+- the Tsymbol::ishidden member was not initialized in symbol.H,
+  therefore the 'hidden' attribute was sometimes on initially (symbol.H)
+- the parser failed to count return characters inside strings, resulting
+  in slightly wrong line numbers being displayed in error messages 
+  if strings contained return characters (d.l)
+- Using #() in an expression sometimes resulted in internal error in
+  code generator (d.y)
+- fixed a small bug in Ct-file line number tracking (ctpp.C)
+
+EXPERIMENTAL FEATURE WORTH MENTIONING
+
+- If Tela receives USR1 signals it breaks execution and goes to debug level.
+  Anyone knows how to generate USR1 signals from e.g. Control-G keypresses?
+
+----------------------------------
+Version 1.21 (Released 24.2.1995)
+----------------------------------
+
+*** IMPORTANT: For the first time, two FATAL bugs were discovered.
+    See below.
+*** There is now User's Guide in doc/ and in WWW page.
+
+USER-VISIBLE CHANGES
+
+- A new PlotMTV version (1.4.1) is now shipped with Tela
+- Added function figure for realtime applications (plotmtv.ct, PlotMTV).
+- PlotMTV can now save the figure as a GIF file.
+- Added function pixmap (plotmtv.ct). This controls the -nopixmap option to
+  PlotMTV. The default is pixmap(on) as before. If your X server is configured
+  to use backing store, it may be advantageous to turn pixmap(off).
+- pause(n) sleeps n seconds. pause() waits for a key as before.
+- Indexing scalars is now permitted, when all indices are either 1,
+  VOID, or #(1) For example, if a = 3.14, a[1,#(1),:] is 3.14 but
+  a[#(1,1)] is not allowed (gatscat.C).
+- C-tela functions now output their names, for example if you type 'sin',
+  the system replies 'sin', not '<C-tela function>' as before (object.C).
+  If you do the assignment fn=sin, 'fn' will still output 'sin'.
+
+Minor points:
+- Some functions in std.ct expecting a string argument no longer work for a
+  character argument. Very unlikely that this causes problems to anyone.
+- Removed some obsolete functions in std.ct: echo, dump
+- Added rough MFLOPS counting in FFT routines.
+
+INTERNAL CHANGES
+
+- Upgraded to autoconf2.1. Numerous changes in configure script. Maybe some bugs?
+- Cleaned up std.ct somewhat.
+- SIGINT (Control-C) is now handled in a way which should not leave too much
+  garbage in memory (prg.C, tela.C). TODO: Rethink macro CATCH_INTERRUPTS.
+- Translated FFTPACK in C. Wrote a vectorized version also (vecfftpack.C).
+  These source files can also be used as standalone FFT packages for
+  C programmers. The functionality is the same as for FFTPACK and the performance
+  may even be slightly better.
+
+FATAL BUGS (incorrect results from correct programs)
+
+- Fatal and very nasty bugs in codegen.C were fixed. The variable unique_index
+  was not always zeroed where it should. Statements unique_index = 0; were added
+  in three places, these are marked with /* Added 30.1.1995 */.
+  In addition to fixing the bugs, this might also make the code more efficient
+  in some cases. This bug is the worst one I have ever fixed in Tela. Precise
+  conditions are difficult to give. To see the simplest example I found,
+  see the file "bug1.t" in the distribution; that file can also be used to
+  test the Tela version you are using against this bug.
+- #(x;y) worked incorrectly if any of the x,y,... was complex (gatscat.C).
+  Might also have affected #(x,y,...) notations.
+  (The reason was that variable cptr was not incremented in case KComplexArray
+  in function MakeArray in gatscat.C.)
+
+ORDINARY BUGS
+
+* "Ordinary" bugs produce core dumps on incorrect programs, incorrect
+  behavior in incorrect programs, or correct behavior on incorrect programs.
+
+- Inputting "a[]" for any a produced core dump, now produces syntax error (d.y).
+- Last instruction in a function contributed megaflops rates twice (prg.C).
+- Doing fn=sin; fn(3) resulted in core dump because the Cfunc.infoptr member
+  was not copied by Tobject::init() (object.C)
+- sum() and prod() on degenerate input arrays resulted in core dump (std.ct)
+
+----------------------------------
+Version 1.2 (Released 18.1.1995)
+----------------------------------
+
+USER-VISIBLE CHANGES
+
+- Improved helpgiving for t-functions. Added telahelp.sh shell script
+  to do the pattern matching. Now help for t-functions works almost
+  similarly as help for C-tela functions. (std.ct, telahelp.sh)
+- Modified function sort: return index vector if 2 output args,
+  sort complex vectors by real parts, disallow inplace sorting (std.ct).
+- Added small utility functions limit and nrange (std.t)
+- Added functions mapmin, mapmax (std.ct)
+- Added functions cumsum, cumprod (std.ct)
+- prod(<integer array>) now returns real result if overflow would
+  result in integer multiplication (std.ct)
+- Added optional second input arg to sum, prod, mapmin, mapmax;
+  like sum(A,1): sum only over first dimension (std.ct)
+- Added optional second output argument to return min/max position
+  to min, max, mapmin, mapmax (intrinsic.C, std.ct)
+- mean and stddev also support second argument (std.t)
+- zeros, izeros, czeros now support integer vector argument,
+  so you can use zeros(size(a)) etc. Also improved error checking
+  in these opcodes (prg.C)
+- Added function export_RIS8 (files.ct)
+- Added function remove (fileio.ct)
+- Function length now returns 0 for VOID object
+- Added a full set of FFT functions. There are now 12 functions:
+  FFT, realFFT, sinFFT, cosFFT, sinqFFT, cosqFFT, and the inverses.
+  A test module testfft.t was also added. These functions can take
+  the transform along any dimension in a multidimensional array.
+  (fft.ct, fftpack.H).
+
+BUG FIXES (-Read carefully. Why so many this time?)
+
+- Fixed bugs with arithmetic operations where output operand is the
+  same variable as one of the input operands and where the input operands
+  would be an illegal combination of noncompatible arrays. Previously Tela
+  failed to give an error message and the result was garbage (objarithm.C,
+  templ/*.C).
+- Fixed bugs with negative real or integer x in x^y, when y is real.
+  Previously e.g. (-1)^2.3 produced random garbage, now it produces
+  a complex number as it should. This required taking Pow() away from
+  template file tbinop.C and incorporating it explicitly in objarithm.C.
+- Fixed a major memory leak in the lexical analyzer -- the input buffer
+  was never deallocated! This is now fixed by defining an explicit
+  destructor in d.l, but this should really be handled by flex++ automatically.
+- Assignment x=x produced garbage because object assignment failed to
+  check for identical objects being assigned (prg.C)
+- As a general rule, operations are only permitted on equal-sized arrays.
+  An exeption is that one of the operands may be a vector, e.g.
+  rand(3) + rand(1,3) is allowed. Garbage resulted if both operands were
+  complex arrays, for example 1i*rand(3)+1i*rand(1,3) (try it!).
+  This was fixed at the end of templ/tbinop.C. But I'm not quite sure whether
+  a similar bug might still hang out somewhere. A final solution to this
+  problem would be to disallow the abovementioned extra liberty, but then
+  again I'm not quite sure if something else breaks. Be prepared that someday
+  rand(3) + rand(1,3) may be forbidden.
+- Made where() to work for scalar arguments also (std.t)
+- Mflops rates for complex operations are now somewhat closer to
+  reality (objarithm.C, templ/tbinop.C)
+- (Minor point) Removed self-overhead in perf() (std.ct)
+- prod(<real-or-complex-array>) returned always 0. Fixed (std.ct)
+
+INTERNAL CHANGES
+
+- Added new machine instruction MMPOS (return last MIN/MAX position)
+  (machine.H, machine.C, prg.C, Ctgen.C)
+
+OTHER
+
+- Started a special function package (not yet in public)
+
+----------------------------------
+Version 1.13 (Released 20.12.1994)
+----------------------------------
+
+USER-VISIBLE CHANGES
+
+- Added function chol for Cholesky decomposition (la.ct, lapack.H)
+- Added some color and line style definitions (telainit.t)
+- Added functions autoglobal and hidesym (std.ct)
+- Functions size, length and arg now cause error on undefined argument (std.ct)
+- Added function telapath (std.ct)
+- Enhanced function hist to handle two output arguments (plotmtv.ct)
+- Added function source_silent (std.ct)
+- Tries to source (silently) ~/.telainit.t on startup (telainit.t)
+
+BUG FIXES
+
+- export_matlab("f",[variable-list]) actually saved all variables.
+  Now it saves only specified ones, as it should (files.ct: missed
+  if (DoWrite)... in export_matlab). Thanks to Irix6.0 CC compiler
+  for detecting this!!
+- export_matlab now saves strings as row vectors, which is usually
+  what is wanted.
+- A'**B did not work. This was because matprod() did not accept
+  int valued third argument but only char-valued (la.ct).
+- function run left one file descriptor open if called without inputs (std.ct)
+- several m2t fixes
+
+INTERNAL CHANGES
+
+- HPUX support
+
+----------------------------------
+Version 1.12 (Released 8.11.1994)
+----------------------------------
+
+INTERNAL CHANGES
+
+- AIX support (configure.in; see also grep _AIX *.C *.H; see below)
+- changed int->Tint in TDimPack members (object.H, object.C).
+  Also in some places in gatscat.C. Should allow more flexibility with Tint.
+- configure now tries to detect if pointer size (sizeof(char*) etc.) is longer
+  than sizeof(int) and to define TPtrInt accordingly. This is needed in some
+  Alpha/OSF systems.
+
+KNOWN PROBLEMS
+
+- To compile under AIX, you have to manually edit file d.y.c.
+  Locate the lines
+
+#ifndef __GNUC__
+#include <alloca.h>
+#endif
+
+   Change these to
+
+#ifndef __GNUC__
+#ifdef _AIX
+#  include <malloc.h>
+#else
+#  include <alloca.h>
+#endif
+
+   and you are done.
+
+----------------------------------
+Version 1.11 (Released 25.10.1994)
+----------------------------------
+
+USER-VISIBLE CHANGES
+
+- Parser now recognizes the statements a+=b, a-=b, a*=b, a/=b (d.l, d.y)
+- MTV options can be given to any graphics command (plotmtv.ct)
+  (for example, plot(x,y,"-3d -landscape") works)
+- Started new t-file matmenu.t
+- Added functions matmenu, smatmenu (matmenu.t)
+- Fixed some HTML link problems in documentation and wrote
+  example file (telagraphs.html)
+
+BUG FIXES
+
+- Bugs associated with break and continue statements fixed. Previously worked
+  incorrectly if used outside loops (now are ignored with a warning).
+- Dividing integer array by integer scalar resulted in crash, for example:
+  v = 1:5; v/=5; (objarithm.C:Div(), branch KIntArray,Kint, moved copydimsRealArray
+  inside if statement).
+
+INTERNAL CHANGES
+
+- Tidy-up of codegen.C (classes TBreakPoint, TBreakPointList, Tcompilation),
+  also fixed the abovementioned break/continue bugs. Thought about syntax
+  break n; continue n (n positive integer), this should now be rather easy
+  to implement if wanted (just replace LoopLevel-1 by LoopLevel-n in 
+  FCONTINUE, FBREAK in codegen.C).
+
+----------------------------------
+PLANS FOR FUTURE VERSIONS (>=1.2):
+----------------------------------
+- Object arrays (lists), plus some new syntax for constructing them.
+- Record/struct notation built on object arrays and associated syntax extension.
+- Methods to write functions with arbitrary number of args may change.
+  If you use the intrinsics argin, argout, SetArgOut a lot, contact the author!
+- Current Tela does function definitions in code generation phase.
+  Therefore you can use functions in t-files even if they are defined later
+  in the file. But this also means that it is impossible to attach function
+  definitions to local variables. This practice may change, so it is best to
+  use functions only after they are defined in t-files. No severe problems should
+  ever result, however, you could always fix them by doing some reordering.
+  Ultimately functions should become Group A citizens, and there should
+  also be a mechanism for writing pure functions (a'la lambda in lisp).
+
+----------------------------------
+Version 1.1 (Released 4.10.1994)
+----------------------------------
+
+USER-VISIBLE CHANGES
+- Modifying function input arguments now causes a warning (prg.C, codegen.C)
+- Added function holdmode (plotmtv.ct)
+- Added function bar (plotmtv.ct) and a new demo that uses it
+- Added function hist (plotmtv.ct)
+- Added functions strmat, strmat2 (std.ct)
+- Added function where (std.t)
+- Modified tostring to stop on zero and to work for rank>1 also (std.ct)
+- Added functions hide, unhide (std.ct)
+- Added optional arg to whos to include hidden symbols (std.ct)
+- Started new C-tela module fileio.ct
+- Added functions fopen, fclose, fformat, printf, fprintf, sprintf (fileio.ct)
+  (thus far sprintf only works for two args and may overflow).
+  Fformat, sformat were already there.
+- Added function export_matlab2 for variable name control (files.ct)
+- Started new C-tela module numerics.ct
+- Added function intpol for linear interpolation of N-dimensional arrays
+  (numerics.ct).
+- Added function grid3 (plotmtv.ct)
+- Enhanced import1 to read "plain" ASCII files (files.ct)
+- Added functions perf, GetInstructionData for telametric measurements (std.ct)
+- Started new T-file perf.t
+- Added telametric functions Mflops and Mips (perf.t)
+- Started new T-file poly.t
+- Added functions polyval, roots (poly.t)
+
+BUG FIXES & alterations of weirdish featurings
+- f(,x) no longer core dumps but produces syntax error (d.y: arglist_nonempty)
+- A = A[i:j,k:l] now works correctly (gatscat.C:introduced Tobject a1
+  in Gather) Previously worked incorrectly for rank>1 arrays.
+- Made string matrices output as such (object.C). Tobedone: generalize to
+  rank>2. Useful?
+- Fixed bugs with SysVish CPUSeconds() (Solaris-2) (tela.C, common.H) that was
+  introduced in 1.04. Thanks to Antti.J.Tanskanen at helsinki.fi!!
+- Extracting part of a integer array carrying string flag now yields
+  string flagged array.
+- [a[1],b[3]] = f() has never worked correctly, but is now forbidden also (d.y)
+  (only identifiers are allowed, as in [a,b] = f()).
+
+INTERNAL CHANGES
+- Now uses PlotMTV1.4.0
+- 'Hidden' attribute for symbols (symbol.H); make attributes bitfields
+- Allows chaining of indexing: a[1][2] etc (d.y)
+- New flatcode instruction OZEROS
+- New intrinsic function voids() for constructing object arrays.
+  It is for now undocumented because object array support is still partial.
+- Various documentation and configuration enhancements
+
+----------------------------------
+Version 1.04 (Released 8.9.1994)
+----------------------------------
+
+USER-VISIBLE CHANGES
+
+- Added LUbacksubst function (la.ct)
+- [lu,p] = LU(A) now returns pivot vector in p (previously returned
+  the permutation matrix).
+- Added function version() (std.ct)
+- Added read pipe support (FindAndOpenFile() in tela.C).
+  Example: source("!rsh uranus 'cat fyle.t'");
+  (Tobedone: now fclose is used also for these -- any harm?)
+- Added t-file madala.t (general elliptic solver).
+- Added function run (std.ct)
+
+BUG FIXES
+
+- Fixed FindMachineEpsilon() to give correct result also in Linux (tela.C)
+- v = rand(10); v[2:5] = -2.3; is now legal. I.e. implicit promotion
+  of a scalar (-2.3) to a vector (#(-2.3,-2.3,-2.3,-2.3)) before
+  indexed assignment. Before this was only permissible if rank(v)
+  was greater than one, which was so bizarre feature that I consider
+  it a bug.
+- Removed redefinition of YY_READ_BUF_SIZE (d.l). 512bytes is too small.
+- Removed exiting after error in argument file (tela.C)
+- Removed TObjectStack destructor since it only causes core dumps (prg.C)
+
+INTERNAL CHANGES
+
+- Added SysVish /proc based CPUSeconds() support (for Solaris2)
+- Possibility to increase MAXRANK from 4 to 8 by just changing
+  a #define in def.H. To go beyond 8-dimensional arrays (!) you
+  would have to modify gatscat.C. The default MAXRANK will stay
+  at 4. Increasing it from four will increase the memory consumption
+  somewhat and may also slightly degrade performance.
+
+----------------------------------
+Version 1.03 (Released 23.8.1994):
+----------------------------------
+
+USER-VISIBLE CHANGES
+
+- Previously all arithmetic ops for two arrays were allowed, iff the
+  LENGTHs of the arrays were equal. This means eg. that A+A' was legal.
+  No more. Now the dimensions must agree, unless one of the operands
+  is a vector, in which case it is sufficient that the lengths agree.
+  For example if A=rand(2,3), B=rand(3,2), V=rand(6), then
+  A+V and B+V are legal but A+B is not. The type of the result is the
+  type of the first operand, ie. A+V is a matrix but V+A is a vector.
+  Internally, this change amounts to introducing TDimPack::iscompatible
+  and calling it in objarithm.C and templ/*.C with LengthError.
+- Comparison a==b or a!=b where a or b is undefined now leads to error
+  (templ/teqop.C, at end).
+- Assignment a=b where b is undefined now leads to error (prg.C).
+- Added function(al) map (std.ct)
+- Added support for TELAPATH_SYSTEM environment variable, which is
+  read before TELAPATH
+
+BUG FIXES
+
+- SGI: FFT did not work on Irix5.2 because wrong routines from
+  libcomplib_sgimath.a were linked in. The complib_sgimath preceded
+  libfftpack.a on link line, when the order was reversed, FFT
+  started working again
+
+INTERNAL CHANGES
+
+- Moved some doc files to doc, reorganized local/ directory and
+  made corresponding changes in Makefile, makeinc.in and local/makeinc.
+  Also needed to change mkdocfile.
+- Several ./configure enhancements
+
+-------------
+Version 1.02:
+-------------
+- numerous formal 'const' related changes in source code, to enable
+  compilation under g++-2.6.0
+- reintroduced ifdef BROKEN_UCHAR_OUTPUTTER in def.H.
+  You must define it if your compiler output a hex address in case of
+  cout << (const unsigned char*)ptr;
+
+-------------
+Version 1.01:
+-------------
+- enhanced Tobject assignment ops (object.H, object.C)
+- telakka.in: can mix options with cc opts; some internal beautification
+- other very minor changes
+
+-----------------------------
+3.8.94:		Tela-1.0 released
+-----------------------------
+
+
+
+
+

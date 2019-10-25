@@ -1,0 +1,63 @@
+CREDITS for Tela                         PJ, Version 1.22, 15.5.1995
+
+NOTE: It is very probable that this list contains omissions.
+Contact tela-bugs@fmi.fi if you find anything wrong with this list!
+
+- Pekka Janhunen (tela-suggestions@fmi.fi) wrote the kernel
+  and most ct- and t-files in the distribution, as well as
+  the documentation.
+
+- Kenny Toh (ktoh@td2cad.intel.com) wrote the PlotMTV program.
+  It was slightly modified by PJ (the 1.4.1t and later versions).
+  The code that writes GIF files has been borrowed from
+  John Bradley's popular XV program.
+
+- Matt Welsh (mdw@sunsite.unc.edu) gave us the Linuxdoc-SGML documentation
+  system, which is used extensively in all Tela documentation.
+  The system enables one to generate ASCII, HTML and LaTeX files from
+  SGML source files. The builtin function SGML documents are created
+  automatically from the comment strings of ct-files.
+
+- Alain Coetmeur's (coetmeur@icdc.fr) flex++ and bison++ packages
+  are used by Tela. These are C++ versions of the GNU flex and
+  bison programs. (Nowadays GNU bison & flex may already contain
+  enough C++ support that I could change, but why abandon a well
+  working system?)
+
+- National Center for Supercomputing Applications (NCSA) from
+  Illinois created the Hierarchival Data Format (HDF), which
+  is the primary data storage method used in Tela.
+
+- The FFTPACK Fortran library was a long term project; the latest
+  version was due to Paul N. Swarztrauber of NCAR (Boulder, Colorado)
+  in 1985. The code was translated to C++ and a vectorized version
+  was written by PJ in early 1995.
+
+- The LAPACK and BLAS libraries are necessary building blocks
+  of Tela. I do not have the information handy to find the persons
+  responsible for these, but I guess the list would be too long
+  anyway to be included here...
+
+- The GNU project of Free Software Foundation has produced some
+  of the tools utilized: The Autoconf program and the Readline library.
+  Some math functions also contain ideas that stem from the gcc/g++
+  standard libraries.
+
+- The MATLAB system by The Math Works Inc. was of course one
+  inspirator of Tela. Some of the functions have similar names
+  and in some cases they even function similarly enough so that
+  a Matlab-to-Tela (m2t) translator was written.
+
+- Ian Searle wrote RLaB, the source code of which was helpful
+  in the beginning phase of Tela construction. Tela does not borrow
+  any source code from RLaB, though. I think.
+
+- Ari Viljanen (Ari.Viljanen@fmi.fi) made numerous suggestions.
+
+- Antti Tanskanen (Antti.J.Tanskanen@helsinki.fi) helped create binaries
+  for some systems (Alpha, Sun).
+
+- Olaf Amm (Olaf.Amm@fmi.fi) also made valuable suggestions.
+
+- Therese Malliavin (terez@tome.cbs.univ-montp1.fr) was
+  helpful in producing the binaries for HPUX.

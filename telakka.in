@@ -1,0 +1,292 @@
+
+# --This is a Bourne shell script, but it is not complete yet.
+# --The Makefile inserts a few lines at the beginning, thus creating
+# --'telakka' from this 'telakka.in'.
+# --Specifically, the variables CPLUSPLUS, CC_OPTIONS, VERSION, WHEN_COMPILED,
+# --STD_CT_OBJECTS, BINDIR, INCLUDEDIR and LIBRARIES must be defined.
+
+nm_options=""
+
+CTPP="$BINDIR/ctpp"
+compileOnly=false
+shared=false
+outputFileSpecified=false
+outputFile=tela
+echo=":"
+VerboseMode=false
+ccargs=""
+tmpfiles=""
+for o in $STD_CT_OBJECTS
+do
+	case ".$o" in
+		./*) ccargs="$ccargs $o"
+			 ;;
+		.*) ccargs="$ccargs ${BINDIR}/$o"
+			;;
+	esac
+done
+
+cleanup() {	# remove temporary files
+	for i in $tmpfiles
+	do
+		if [ -f $i ]
+		then
+			/bin/rm $i
+		fi	
+	done
+	exit 1
+}
+
+trap 'cleanup' 1 2 3 9 15
+
+usage() {
+    echo 'Usage: telakka [-c] [-h] [-n] [-o file] [-v] [-V]'
+    echo '       [--compile-only] [--help] [--nostandard]'
+    echo '       [--output file] [--shared] [--verbose] [--version]'
+    echo '       [CFLAGS] [files]'
+    echo 'is the TeLa Kernel Konstruction Accessory.'
+    echo 'It compiles files and links them with appropriate libraries'
+    echo 'to produce a new Tela executable kernel.'
+    echo 'Options:'
+    echo '-h, --help          display this message'
+    echo '-c, --compile-only  compile only (mutually exclusive with --shared),'
+    echo '                    do not link (see cc (1))'
+    echo '-n, --nostandard    do not link "standard" libraries'
+    echo '-o, --output file   specify output file; default "tela"'
+    echo '    --shared        link given files only, produce dynamic shared object,'
+    echo '                    output is named <first_given_ct_file>.so by default'
+    echo '-v, --verbose       verbose mode'
+    echo '-V, --version       print version and exit'
+    echo 'CFLAGS              any additional options for the C++ compiler'
+    echo 'files               files ending with .ct, .o or .a.'
+	exit
+}
+
+
+#
+# Parse telakka's own options. Gather all other args in $scriptargs.
+# Put all other args that start with '-' to $ccoptions, unless it
+# starts with -l or -L (they are still put to $scriptargs also).
+# ------------------------------------------------------------------
+scriptargs=""
+ccoptions=""
+while [ $# -gt 0 ]
+do
+	i=$1
+	case ".$i" in
+		.-h|.-help|.--help)
+			usage
+			;;
+		.-c|.--compile-only)
+			compileOnly=true
+			if [ "$shared" = "true" ]; then
+				echo "telakka: compile-only and shared are mutually exclusive." 1>&2
+				exit 1
+			fi
+			;;
+		.--shared)
+			shared=true
+			if [ "$compileOnly" = "true" ]; then
+				echo "telakka: compile-only and shared are mutually exclusive." 1>&2
+				exit 1
+			fi
+			if [ "$outputFileSpecified" != "true" ]; then
+				outputFile="a.so"
+			fi
+			;;
+		.-n|.--nostandard)
+			ccargs=""
+			;;
+		.-v|.--verbose)
+			echo="echo"
+			VerboseMode=true
+			;;
+		.-V|.--version)
+			echo "telakka the TeLa Kernel Konstruction Accessory, Version $VERSION."
+			echo "For use with tela $VERSION compiled using $WHEN_COMPILED."
+			exit
+			;;
+		.-o|.--output)
+			if [ ".$2" = "." ] ; then
+				echo "telakka: -o or --output option requires a filename" 1>&2
+				exit 1
+			else
+				outputFile=$2;
+				outputFileSpecified=true
+				shift
+			fi
+			;;
+		# did not recognize option, append to $scriptargs
+		# also append to $ccoptions if appropriate
+		.-l*|.-L*)	# -l, -L opts are not ccoptions but are treated as filenames
+			scriptargs="$scriptargs $i"
+			;;
+		.-*)	# other thus far unrecognized opts are ccoptions
+			scriptargs="$scriptargs $i"
+			ccoptions="$ccoptions $i"
+			;;
+		.*)	# non-options are probably filenames
+			scriptargs="$scriptargs $i"
+			;;
+	esac
+	shift
+done
+
+#
+# Compile all .ct files
+# ---------------------
+
+# If we have (compile-only = true && output-file-specified = true),
+# we can only write out *one* file.  wrote_only_file is a boolean,
+# which indicates whether this one and only file has already been
+# written out, and therefore any further attept to write to the
+# same file (output-file) should fail.
+wrote_only_file="false"
+
+for f in $scriptargs
+do
+	case "$f"
+	in
+	*.ct)
+		if [ "$wrote_only_file" = "true" ]; then
+			echo "telakka: cannot combine compile-only, output-file, and multiple ct-files." 1>&2
+			exit 1
+		fi
+		base=`basename $f .ct`
+		dir=`dirname $f`
+		currdir=`pwd`;
+		cd $dir
+		$echo $CTPP ${base}.ct
+		tmpfiles="$tmpfiles ${base}-.c"
+		if $CTPP ${base}.ct; then :; else cleanup; fi
+		cfile=${base}$$.c
+		mv ${base}-.c $cfile
+		tmpfiles="$tmpfiles $cfile"
+		$echo $CPLUSPLUS -c -I${INCLUDEDIR} ${CC_OPTIONS} $ccoptions $cfile
+		if $CPLUSPLUS -c -I${INCLUDEDIR} ${CC_OPTIONS} $ccoptions $cfile; then :; else cleanup; fi
+		rm $cfile
+		if [ "$outputFileSpecified" = "true" -a "$compileOnly" = "true" ]; then
+			mv ${base}$$.o $currdir/$outputFile
+			wrote_only_file="true"
+		else
+			mv ${base}$$.o $currdir/${base}.o
+		fi
+		cd $currdir
+		;;
+	*)	;;
+	esac
+done
+
+if [ "$compileOnly" = "true" ]; then
+	exit
+fi
+
+#
+# Gather everything into $ccargs, except that .ct -> .o
+# Also compute $surely_ctobjects.
+# -----------------------------------------------------
+surely_ctobjects=""
+for f in $scriptargs
+do
+	case "$f"
+	in
+	*.ct)
+		basef=`basename $f .ct`
+		ccargs="$ccargs ${basef}.o"
+		surely_ctobjects="$surely_ctobjects $basef"
+		;;
+	*)
+		ccargs="$ccargs $f"
+		;;
+	esac
+done
+
+if [ "$shared" = "true" ]; then
+	#
+	# "Shared link" together
+	# ----------------------
+	if [ -n "$surely_ctobjects" ]; then
+		outputFile=`echo "$surely_ctobjects" | cut -d' ' -f2`.so
+	fi
+	delete_so_locations=false
+	if [ ! -f so_locations ]; then
+		delete_so_locations=true
+	fi
+	objs=`echo $scriptargs | sed -e 's/\.ct/.o/g'`
+	$echo ld -o $outputFile -shared $objs
+	ld -o $outputFile -shared $objs
+	for cto in $surely_ctobjects; do
+		$echo rm -f "${cto}.o"
+		rm -f "${cto}.o"
+	done
+	# ld may have produced file so_locations, delete it
+	# if it did not exist previously
+	if [ "$delete_so_locations" = "true" ]; then
+		rm -f so_locations
+	fi
+	exit
+fi
+
+#
+# Create and compile temporary static.C
+# -------------------------------------
+#   We must use nm to find out whether a given object file
+#   contains the symbol fninfo_objfilename or not.
+ctobjects=""
+staticC=${TMPDIR:=/tmp}/static$$.C
+tmpfiles="$tmpfiles $staticC"
+echo '#include "ctinfo.H"' >$staticC
+echo 'extern "C" {' >>$staticC
+for obj in $ccargs
+do
+	case "$obj"
+	in
+	*.o)
+		bareobj=`basename $obj .o`
+		# Determine if $bareobj.o has been compiled from a .ct file or not.
+		# Algorithm: 1) if it is in list $surely_ctobjects, it is.
+		# 2) otherwise use nm to find out.
+		# The nm test is slow, therefore we try to avoid it.
+		isctobject=false
+		for surely_ctobject in $surely_ctobjects
+		do
+			if [ "$bareobj" = "$surely_ctobject" ]; then
+				isctobject=true
+				break
+			fi
+		done
+		if [ "$isctobject" = "false" ]; then
+			if nm $nm_options $obj | grep fninfo_$bareobj >/dev/null; then
+				isctobject=true
+				if [ "$VerboseMode" = "true" ]; then echo "$obj is C-tela file"; fi
+			else
+				if [ "$VerboseMode" = "true" ]; then echo "$obj is not C-tela file"; fi
+			fi
+		fi
+		if [ "$isctobject" = "true" ]; then
+			echo "extern TCFunctionInfo fninfo_${bareobj}[];" >>$staticC;
+			ctobjects="$ctobjects $bareobj"
+		fi
+		;;
+	*) ;;
+	esac
+done
+echo "}" >>$staticC
+echo '#define INSTALL(name) Install(fninfo_##name,(const unsigned char*)#name)' >>$staticC
+echo 'void InstallStatic() {' >>$staticC
+for obj in $ctobjects
+do
+	echo "INSTALL(${obj});" >>$staticC
+done
+echo '}' >>$staticC
+tmpfiles="$tmpfiles $TMPDIR/static$$.o"
+(cd $TMPDIR; $CPLUSPLUS -c -I${INCLUDEDIR} ${CC_OPTIONS} $ccoptions static$$.C)
+rm $staticC
+
+#
+# Finally link everything together
+# --------------------------------
+$echo $CPLUSPLUS $LDFLAGS -o $outputFile $BINDIR/libtela.a $TMPDIR/static$$.o $ccargs $LIBRARIES
+$CPLUSPLUS $LDFLAGS -o $outputFile $BINDIR/libtela.a $TMPDIR/static$$.o $ccargs $LIBRARIES
+rm $TMPDIR/static$$.o
+

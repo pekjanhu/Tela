@@ -1,0 +1,280 @@
+Installing Tela                             Last modified 4.7.2002
+---------------                             For version >= 2.0
+
+Installing Tela may take a while since it needs several other components
+in order to be fully functional. However, nowadays most components are
+readily available or already existing on many systems. All components
+are public domain or under GNU General Public License. On new Linux systems,
+installing Tela from the sources is likely to be easy.
+
+The main packages needed before installing Tela proper:
+
+* HDF libraries (hdf.ncsa.uiuc.edu). I'm using HDF4.1r3.
+  Not very widespread, you may have to install from sources, which
+  is not difficult however. You get four libraries: libmfhdf.a, libdf.a,
+  libjpeg.a and libz.a. The last two are general-purpose libraries
+  that you already might have; if this is the case you can disregard them.
+
+* CDF library (nssdc.gsfc.nasa.gov/cdf/cdf_home.html). I'm using v2.7.
+  Not very widespread, you may have to install from sources, which
+  is easy, however. On Linux you just do make OS=linux ENV=gnu all
+  and move libcdf.a and cdf.h to /usr/local/lib and /usr/local/include.
+
+* LAPACK and BLAS libraries (www.netlib.org/lapack/). These are Fortran
+  libraries so you need F77-compatible compiler. Nowadays there is very
+  efficient ATLAS implementation (math-atlas.sourceforge.net).
+  There are RPM and .deb packages easily available so you probably
+  don't have to compile from the sources. You just need liblapack.a
+  and libblas.a (or equivalent, or *.so files) to access them, no
+  header files are required.
+
+* FFTW library (www.fftw.org). Compiling it from sources is easy,
+  but there are also RPM and .deb packages starting to appear.
+  The library files are librfftw.a and libfftw.a, and you need both.
+  You also need the rfftw.h and fftw.h include files.
+
+* GNU Readline library (www.gnu.org), version 2.0 or later.
+  Very widespread, available as RPM and .deb packages in many places.
+  The library is libreadline.a and the main include file readline/chardefs.h.
+
+In addition, Tela needs some other packages which are probably already
+installed in your system:
+
+* JPEG library (www.ijg.org). This is probably already installed, but if not,
+  a version comes with HDF library, or can be installed separately from RPM
+  or .deb package.
+
+* ZLIB library (www.zlib.org). Also probably installed already, but if not,
+  a version comes with HDF library, or can be installed separately.
+
+* The bison++ parser generator is not necessarily needed when compiling Tela,
+  although it is needed if some of the header files are changed. The flex++
+  generator is included with Tela.
+
+To use all of Tela's features, you also need to install some standalone programs:
+
+* PlotMTV. Please use the version that comes with Tela. You can recognize
+  them because the directory name ends with "t". I'm using Plotmtv1.4.4t.
+  Source: ftp.funet.fi:pub/sci/math/tela/needed/.
+
+* SPPC (Simple Panel Plot Composer). It comes with tela and is an alternative
+  way to generate graphics.
+  Source: ftp.funet.fi:pub/sci/math/tela/needed/.
+
+The programs plotmtv and sppc should simply be copied to /usr/local/bin/,
+for instance so Tela finds them when it needs.
+
+                   --------------------
+                    QUICK INSTRUCTIONS
+                   --------------------
+
+1. Determine what other package are needed and install them (see above).
+
+2. Unpack the sources from the tarball.
+
+3. Run "./configure".
+
+4. Possibly edit "makeinc". Check at least all "unknown".
+
+5. Run "make", "make install", and "make installdocs" (optional).
+
+6. The startup command is now /usr/local/lib/tela/tela.
+   Do e.g. "ln -s /usr/local/lib/tela/tela /usr/local/bin"
+   to make it publicly available.
+
+7. Install plotmtv and sppc binaries.
+
+8. Do "rehash" (if using tcsh) and type "tela" to test the program.
+
+
+                    -------------------
+                     LONG INSTRUCTIONS
+                    -------------------
+
+OK, after you have all the components, you are ready to make Tela.
+Do the following:
+
+   The Tela Makefile uses the make program's include mechanism to
+   include a preample file called makeinc. Makeinc contains some
+   system dependent definitions, and it is created automatically
+   by the "configure" script. The script has been generated with
+   the GNU autoconf.
+
+0) Decide whether you want to keep your object files in the main
+   source directory or not. In the former case just type ./configure
+   and make. In the latter case, do the following (example on
+   Linux architecture):
+
+        mkdir linux-bin
+        cd linux-bin
+        ln -s ../Makefile .
+
+   But doing this requires that your make program understands
+   the VPATH feature correctly. GNU gmake does.
+   Having a separate object code directory is useful if you want
+   to maintain several binary versions with e.g. different optimization
+   levels or architectures from the same source tree.
+
+   The SGI Irix v.5.0,1,2 make has severe bugs. Use gmake.
+
+1) Type ./configure to create makeinc, or ../configure if you
+   are running from arch-bin. If the ./configure script
+   finds both GCC and cc/CC on your system, it asks you which one
+   you want to use. It also asks for installation directory
+   (both architecture independent and dependent). These can be changed
+   after configure has completed by editing "makeinc".
+
+2) Edit "makeinc". At minimum you must edit the points where the
+   "unknown" string appears. Usually these are libraries that you
+   have not yet installed, or have installed in places where configure
+   could not find them.
+
+	- Set paths to LAPACK and FFTPACK libraries (you just compiled
+      these didn't you)
+	- Set path to your GNU readline library and the termcap library.
+      If these are in the standard directories, -lreadline -ltermcap
+      will do. The GNU readline include file is referenced as
+      #include "readline/chardefs.h". So you have to place them
+      in directory 'readline'. Set READLINEINCLUDE to point to the
+      parent dir of the 'readline' directory. If your 'readline' dir
+      is in your main Tela dir, READLINEINCLUDE may be empty.
+      To avoid problems, you might use the version of Readline that
+      is distributed with Tela (directory readline-related).
+	- Set CFLAGS to wanted C optimization/debug etc. flags
+	- Set UNROLL_FLAGS to additional optimization flags used when
+      compiling objarithm.C. This module contains the basic low level
+      loops that benefit from unrolling on most machines. If your
+      compiler can do unrolling reliably, you can set an unroll flag
+      in force here, if you don't mind that your Tela executable
+      may become slightly bigger. Also other loop-related flags,
+      such as forced vectorization or parallelization may be useful.
+      All loops in objarithm.C can be safely vectorized, so in UNICOS
+      you might set UNROLL_FLAGS = -hivdep.
+	- Set FLIBS to the relevant Fortran libraries. If you are using
+      f2c, FLIBS=-lf2c will do. Otherwise, (if you are using the
+      system supplied f77), you probably have to set FLIBS to contain
+      at least -lF77 -lI77 and -lisam on some systems.
+      These are the Fortran libraries referenced by the LAPACK and BLAS
+      libraries.
+	- Set HDFLIBS to point to your libmfhdf.a and libdf.a (both!).
+	- Set HDFINCLUDE to point to the directory where the HDF include
+      files (e.g. mfhdf.h) can be found. Also set a relevant -Darchitecture flag as
+      required by HDF. (This is probably not required nowadays.)
+	- Set BLASLIB to point to your BLAS library. If you compiled BLAS
+      yourself, then you already know where it is. Many systems have
+      BLAS as a system supplied library; for these BLASLIB=-lblas will
+      often do, but you have to check.
+
+3) Type make. This will make libtela.a and the executable 'tela'.
+   If you run into problems, go back to item (2) above and try again!
+   It will also produce the "telakka" script (TeLa Kernel Konstruction
+   Accessory), but this "telakka" is not the final version that users
+   can use.
+
+4) Type "make install". This will install all the necessary files
+   usually under /usr/local/lib/tela. This will also generate and
+   install the final version of "telakka".
+
+5) Create symlinks in /usr/local/bin or whatever your favorite for
+   local binaries is: ln -s /usr/local/lib/tela/ARCH/tela /usr/local/bin/tela,
+   ln -s /usr/local/lib/tela/ARCH/telakka /usr/local/bin/telakka,
+   where ARCH is the architecture-specific directory given to configure.
+   You need to do this only once, of course. Or just copy the executables,
+   but then you have to copy again if you upgrade Tela.
+
+7) Each user can set TELAPATH if needed. If TELAPATH starts with
+   a colon (:), its contents will be appended to the standard path.
+   For instance, if a user has her own Tela files in $HOME/tela,
+   she might say 'setenv TELAPATH :${HOME}/tela' in her .login.
+   The standard places are then searched before $HOME/tela.
+   The environment variable TELAPATH_SYSTEM is read before TELAPATH
+   and processed similarly. It provides for additional freedom in
+   configuring and placing Tela. The following practice is recommended
+   (for the system manager):
+
+   a) After first installation, let TELAPATH_SYSTEM be undefined.
+      Each user should set his own TELAPATH, if necessary, and start
+      it with a colon.
+   b) If you want to give all users access to a common directory
+      containing some additional Tela files, set TELAPATH_SYSTEM
+      globally. Again, it should start with a colon not to override
+      the compiled-in default.
+   c) If you want to move Tela to a different location, you must
+      set TELAPATH_SYSTEM globally. This time it should not start with
+      a colon, because you want to override the compiled-in default.
+
+8) Copy docs/tela.1 and docs/telakka.1 (the man pages) to the approriate
+   places, usually /usr/local/man/man1.
+
+IF YOUR make DOESN'T SUPPORT include:
+-------------------------------------
+Then use a make program that does, such as GNU make.
+Or, include makeinc manually after typing ./configure.
+Again, usually you have to do this only once.
+
+
+CHANGES THAT HAVE TO BE MADE ON SOME SPECIFIC SYSTEMS
+-----------------------------------------------------
+*** Notice. Partly the information here is rather old,
+*** but I don't dare to delete it permanently...
+
+Debian Linux (any version)
+--------------------------
+
+Debian systems sometimes lack the lib*.so file although they have the
+lib*.so.1.2.3.4 file. If this is the case, the configure script
+doesn't find them. Make the relevant symbolic links in /lib or /usr/lib
+to remedy the situation.
+
+SunOS 4.1.3 with g++-2.5.8.
+--------------------------
+
+The port was finally successful, but some quite bizarre
+things showed up. Fortunately these were not related to
+the Tela C++ code itself but to some auxiliary things
+such as plotmtv and readline library.
+
+The standard flexskel.cc includes osfnc.h without
+including sys/time.h. Insert #include <sys/time.h> there
+if the compiler complains.
+Be careful to specify the correct FLIBS (must be compatible
+with f77 version you are using).
+When including HDF headers, we had to give -DCONVEX in
+addition to -DSUN. This is a dirty workaround for a problem
+with char*malloc <--> void*malloc.
+When compiling plotmtv the linker complained about 'mcount'
+not defined. No idea where this comes from. A dirty hack:
+write a file dummy_mcount.c with the contents:
+#include <stdio.h>
+int mcount() { return 0;}
+compile it with cc -S to obtain dummy_mcount.s. Edit the
+assembly file and change _mcount to mcount. Compile with
+cc -c dummy_mcount.s to obtain dummy_mcount.o. Include this
+file in the link, eg. put it after '-lm'.
+
+Convex 10.2.188 using system's own cc and CC (AT&T 2.1 based)
+-------------------------------------------------------------
+- See grep CONVEX *.C *.H *.ct *.c *.h
+- Need to insert 'char*alloca(int)' in d.y.c by hand
+- Needed to use newest (3.70) version of GNU make in order
+  to get dependencies right at all! System's own make or
+  older gmake refused to work properly.
+- Had to remove definition of struct DFdi from HDF header
+  dfsd.h. (Version 3.2 of HDF), otherwise the compiler complained
+  about 'class declared twice'.
+
+AIX 2.3 31.10.1994 (rutja.oulu.fi), Tela-1.12
+---------------------------------------------
+
+- Had to edit d.y.c to change #include <alloca.h> to #include <malloc.h>
+- Had to modify the C++ sources in few places; see grep _AIX *.C *.H.
+  The xlC compiler's idea of CONSTness seems to differ from other civilized compilers.
+- Had to use version 2.0 of Readline library. Installing it was extremely straightforward.
+- BLAS routines are in libessl.a, but LAPACK must be compiled, which took some time (!)
+  Used command like xlf -c -O -qextname *.f in lapack-1.1-sel-src. On files dgesvd.f and zgesvd.f xlf
+  warned that the routine was not properly optimized ==> used xlf -c -O -qextname -qmaxmem=10000 {z,d}gesvd.f
+  for these two source files.
+- Also remember to use -qextname and -qautodbl=dbl when compiling libfftpack:
+  xlf -c -O -qextname -qautodbl=dbl *.f
+- To link statically under AIX: -bnso -bI:/lib/syscalls.exp -lCns
+- xlC failed to compile fftpack.C with -O3 (resulted internal compiler error). -O2 worked.

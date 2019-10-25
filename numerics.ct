@@ -1,0 +1,1425 @@
+/*
+ * This file is part of tela the Tensor Language.
+ * Copyright (c) 1994-2002 Pekka Janhunen
+ */
+
+/*
+	numerics.ct
+	Numerical analysis functions.
+	Preprocess with ctpp.
+	C-tela code is C++ equipped with []=f() style function definition.
+*/
+
+extern Treal MachineEpsilon;	// from tela.C
+
+#if 0
+static int intpol1D(Treal& u, const Treal A[], int N, Treal x)
+// 1D linear interpolation from a vector.
+// Allowed range: 0<=x<N-1.
+// Returns: 0 on success, nonzero on range overflow.
+{
+	int i = int((1-2*MachineEpsilon)*x);
+	if (i<0 || i>=N-1) return 1;
+	Treal t = x - i;
+	u = (1-t)*A[i] + t*A[i+1];
+	return 0;
+}
+
+static int intpol2D(Treal& u, const Treal A[], int Nx, int Ny, Treal x, Treal y)
+// 2D linear interpolation from a matrix.
+// Allowed range: 0<=x<Nx-1, 0<=y<Ny-1.
+// Returns: 0 on success, nonzero on range overflow.
+{
+	int i = int((1-2*MachineEpsilon)*x);
+	if (i<0 || i>=Nx-1) return 1;
+	int j = int((1-2*MachineEpsilon)*y);
+	if (j<0 || j>=Ny-1) return 1;
+	Treal t = x - i;
+	Treal s = y - j;
+	u = (1-t)*(1-s)*A[i*Ny+j] + t*(1-s)*A[(i+1)*Ny+j] + (1-t)*s*A[i*Ny+j+1] + t*s*A[(i+1)*Ny+j+1];
+	return 0;
+}
+
+static int intpolND(Treal& u, const Treal A[], const TDimPack N, const Treal x[], int r)
+{
+	Tint is[MAXRANK], mult[MAXRANK], isupper[MAXRANK];
+	Treal ts[MAXRANK];
+	for (int d=0; d<r; d++) {
+		is[d] = int((1-2*MachineEpsilon)*x[d]);
+		if (is[d] < 0 || is[d] >= N[d]-1) return 1;
+		ts[d] = x[d] - is[d];
+	}
+	mult[r-1] = 1;
+	for (d=r-1; d>=1; d--) mult[d-1] = N[d]*mult[d];
+	const int Nterms = (1 << r);
+	u = 0;
+	int baseindex = 0, index;
+	Treal coeff;
+	for (d=0; d<r; d++) baseindex+= is[d]*mult[d];
+	for (d=0; d<r; d++) isupper[d] = 0;
+	for (int a=0; a<Nterms; a++) {
+		for (d=0; d<r; d++)
+			isupper[d] = (a & (1 << d));
+		index = baseindex;
+		coeff = 1;
+		for (d=0; d<r; d++)
+			if (isupper[d]) {
+				index+= mult[d];
+				coeff*= ts[d];
+			} else
+				coeff*= 1 - ts[d];
+		u+= coeff*A[index];
+	}
+	return 0;
+}
+#endif
+
+static int intpolND(Treal u[], int M, const Treal A[], const TDimPack N, const Treal *x[MAXRANK], int r)
+// N-dimensional linear interpolation from array A to M-length array u
+// Arguments:
+//    u     - result array
+//    M     - length of result array
+//    A     - array from which to interpolate
+//    N     - dimensions of A
+//    x     - array of pointers to real index arrays
+//    r     - rank of A
+{
+	int a,d;
+	const int Nterms = (1 << r);	// 2^r terms affect each result
+	const Treal almostunity = 1 - 2*MachineEpsilon;
+	Tint ind, mult[MAXRANK], baseindex, isupper[MAXRANK][1 << MAXRANK], inds[1 << MAXRANK];
+	Treal interpolant, ts[MAXRANK], coeffs[1 << MAXRANK];
+	mult[r-1] = 1;
+	for (d=r-1; d>=1; d--) mult[d-1] = N[d]*mult[d];
+	// compute isupper table of 1's and 0's: isupper==1 if (index+1), 0 if (index)
+	for (d=0; d<r; d++) {
+		const int mask = (1 << d);
+		for (a=0; a<Nterms; a++)
+			isupper[d][a] = a & mask;
+	}
+	int i;
+	for (i=0; i<M; i++) {	// Loop over result values
+		baseindex = 0;			// index of lowest corner of interpolation hypercube
+		for (d=0; d<r; d++) {
+			ind = int(almostunity*x[d][i]);
+			if (ind < 0 || ind >= N[d]-1) return 1;
+			ts[d] = x[d][i] - ind;
+			baseindex+= ind*mult[d];
+		}
+		// now ts, baseindex are ready
+		// a numbers the 2^r terms in the sum that affects the result
+		for (a=0; a<Nterms; a++)
+			inds[a] = baseindex;
+		// loop for d==0:
+		for (a=0; a<Nterms; a++) {
+			if (isupper[0][a]) {
+				coeffs[a] = ts[0];
+				inds[a]+= mult[0];
+			} else
+				coeffs[a] = 1 - ts[0];
+		}
+		// loop for d>0:
+		for (d=1; d<r; d++)	{
+			const Treal t = ts[d], oneminust = 1-t; const Tint m = mult[d];
+			for (a=0; a<Nterms; a++) {
+				if (isupper[d][a]) {
+					coeffs[a]*= t;
+					inds[a]+= m;
+				} else
+					coeffs[a]*= oneminust;
+			}
+		}
+		interpolant = 0;		// gather result in this variable
+		for (a=0; a<Nterms; a++)
+			interpolant+= coeffs[a]*A[inds[a]];
+		u[i] = interpolant;		// one result ready
+	}
+	global::nops+= r*(2*M + 3*M*Nterms/2) + 2*Nterms*M;
+	return 0;
+}
+
+static int intpol(Tobject& y, const Tobject& A, const TConstObjectPtr indices[], int Nindices)
+// For error codes, see following C-tela function.
+// In this function, A is always real array.
+{
+	int errcode;
+	Treal result;
+	if (A.rank() != Nindices) return -2;
+	int ScalarIndices = 1;
+	TDimPack IndexDims;
+    int p;
+	for (p=0; p<Nindices; p++) {
+		const Tkind ik = indices[p]->kind();
+		if (ik!=Kint && ik!=Kreal && ik!=KIntArray && ik!=KRealArray) return -3;
+		if (p == 0) {
+			ScalarIndices = (ik==Kint || ik==Kreal);
+			if (!ScalarIndices) IndexDims = indices[p]->dims();
+		} else {
+			if (ScalarIndices) {
+				if (ik!=Kint && ik!=Kreal) return -4;
+			} else {
+				if (indices[p]->dims() != IndexDims) return -4;
+			}
+		}
+	}
+	if (ScalarIndices) {
+		Treal inds[MAXRANK];
+		for (p=0; p<Nindices; p++)
+			inds[p] = ((indices[p]->kind()==Kint) ? Treal(indices[p]->IntValue()) : indices[p]->RealValue()) - ArrayBase;
+		const Treal *indarray[MAXRANK];
+		for (p=0; p<Nindices; p++) indarray[p] = &inds[p];
+		errcode = intpolND(&result,1, A.RealPtr(), A.dims(), indarray, Nindices);
+#if 0
+		errcode = intpolND(result, A.RealPtr(), A.dims(), inds, Nindices);
+#endif
+		if (errcode) return -6;
+		y = result;
+#if 0
+		switch (A.rank()) {
+		case 1:
+			errcode = intpol1D(result, A.RealPtr(), A.length(), inds[0]);
+			if (errcode) return -6;
+			y = result;
+			break;
+		case 2:
+			errcode = intpol2D(result, A.RealPtr(), A.dims()[0], A.dims()[1], inds[0], inds[1]);
+			if (errcode) return -6;
+			y = result;
+			break;
+		default:
+			return -5;
+		}
+#endif
+	} else {	// Array indices
+		Tobject inds[MAXRANK];
+		const Tobject offset(Treal(-ArrayBase));
+		for (p=0; p<Nindices; p++)
+			Add(inds[p],*indices[p],offset);
+		y.rreserv(indices[0]->dims());
+		const Treal *indarray[MAXRANK];
+		for (p=0; p<Nindices; p++) indarray[p] = inds[p].RealPtr();
+		errcode = intpolND(y.RealPtr(),y.length(), A.RealPtr(), A.dims(), indarray, Nindices);
+		if (errcode) return -6;
+#if 0
+		Treal indarray[MAXRANK];
+		for (int i=0; i<y.length(); i++) {
+			for (p=0; p<Nindices; p++) indarray[p] = inds[p].RealPtr()[i] - ArrayBase;
+			errcode = intpolND(y.RealPtr()[i], A.RealPtr(), A.dims(), indarray, Nindices);
+			if (errcode) return -6;
+		}
+#endif
+#if 0
+			switch (A.rank()) {
+			case 1:
+				errcode = intpol1D(y.RealPtr()[i], A.RealPtr(), A.length(), inds[0].RealPtr()[i]-ArrayBase);
+				if (errcode) return -6;
+				break;
+			case 2:
+				errcode = intpol2D(y.RealPtr()[i], A.RealPtr(), A.dims()[0], A.dims()[1],
+								   inds[0].RealPtr()[i]-ArrayBase, inds[1].RealPtr()[i]-ArrayBase);
+				if (errcode) return -6;
+				break;
+			default:
+				return -5;
+			}
+#endif
+	}
+	return 0;
+}
+
+// Use C-tela functions 'Re'  and 'Im' from std.ct
+extern "C" int Refunction(const TConstObjectPtr[], const int, const TObjectPtr[], const int);
+extern "C" int Imfunction(const TConstObjectPtr[], const int, const TObjectPtr[], const int);
+
+[y] = intpol(A...)
+/* intpol(A,index1,index2...) is a general interpolation
+   function. A must be an array from which values are interpolated.
+   The rank of A must equal the number of index arguments.
+   Each index argument may be a real scalar or real array.
+   All index arguments must mutually agree in type and rank.
+   The array A may also be complex. The result y is of same
+   rank and size as each of the index arguments.
+
+   intpol(A,i,j,...) is a generalization of mapped indexing
+   A<[i,j,...]> for non-integral indices. The function benefits
+   from vectorization even more than most other Tela functions.
+
+   Currently intpol uses linear interpolation.
+   Error codes:
+   -1: First arg not a numerical array
+   -2: Rank of first arg does not match number of index args
+   -3: Non-real index arg
+   -4: Dissimilar index args
+   -6: Range overflow
+*/
+{
+	// The actual job is performed by intpol above.
+	// This function however treats the case of complex A.
+	int errcode;
+	if (A.kind()==KComplexArray) {
+		Tobject ReA, ImA, Rey, Imy;
+		TConstObjectPtr inputs[1]; TObjectPtr outputs[1];
+		inputs[0] = &A;
+		outputs[0] = &ReA;
+		Refunction(inputs,1,outputs,1);
+		inputs[0] = &A;
+		outputs[0] = &ImA;
+		Imfunction(inputs,1,outputs,1);
+		errcode = intpol(Rey,ReA,argin+1,Nargin-1);
+		if (errcode) return errcode;
+		errcode = intpol(Imy,ImA,argin+1,Nargin-1);
+		if (errcode) return errcode;
+		const Tobject i(Tcomplex(0,1));
+		Mul(Imy,i,Imy);
+		Add(y,Rey,Imy);
+	} else if (A.kind()==KRealArray) {
+		errcode = intpol(y,A,argin+1,Nargin-1);
+	} else if (A.kind()==KIntArray) {
+		Tobject A1;
+		const Tobject zero(0.0);
+		Add(A1,A,zero);		// now A1 is real array
+		errcode = intpol(y,A1,argin+1,Nargin-1);
+	} else
+		return -1;
+	return errcode;
+}
+
+[Lu] = stencil2d_4(u,ap0,am0,a0p,a0m)
+/* stencil2d_4(u,ap0,am0,a0p,a0m) computes the two-dimensional
+   five-point "molecule" where the coefficient of the central
+   term is unity:
+
+   Lu = u[i,j]
+      + ap0*u[i+1,j] + am0*u[i-1,j]
+	  + a0p*u[i,j+1] + a0m*u[i,j-1];
+
+   where the indices i and j run from 2..nx and 2..ny where
+   [nx,ny] = size(u). The size of ap0,am0,a0p,a0m must be two
+   less than the size of u in both directions.
+   Error codes:
+   -1: One of the arguments is not a real matrix
+   -2: One of the coefficient args has bad size
+*/
+{
+    int p;
+	for (p=0; p<5; p++) {
+		if (argin[p]->kind()!=KRealArray) return -1;
+		if (argin[p]->rank()!=2) return -1;
+	}
+	const Tint nx = u.dims()[0];
+	const Tint ny = u.dims()[1];
+	for (p=1; p<5; p++)
+		if (argin[p]->dims()[0]!=nx-2 || argin[p]->dims()[1]!=ny-2) return -2;
+	const Treal *U = u.RealPtr();
+	const Treal *AP0 = ap0.RealPtr();
+	const Treal *AM0 = am0.RealPtr();
+	const Treal *A0P = a0p.RealPtr();
+	const Treal *A0M = a0m.RealPtr();
+	const Tint nx2=nx-2, ny2=ny-2;
+	Lu.rreserv(TDimPack(nx2,ny2));
+	Treal *LU = Lu.RealPtr();
+	Tint i,j;
+	VECTORIZED for (i=1; i<nx-1; i++) {
+		VECTORIZED for (j=1; j<ny-1; j++) {
+			LU[(i-1)*ny2+j-1] =
+				U[i*ny+j]
+				+ AP0[(i-1)*ny2+j-1]*U[(i+1)*ny+j] + AM0[(i-1)*ny2+j-1]*U[(i-1)*ny+j]
+				+ A0P[(i-1)*ny2+j-1]*U[i*ny+j+1]   + A0M[(i-1)*ny2+j-1]*U[i*ny+j-1];
+		}
+	}
+	global::nops+= 8*nx2*ny2;
+	return 0;
+}
+
+static int locate(const Treal xx[], Tint n, Treal x)
+// Given array xx[1..n] and given value x, returns value j such that x is between
+// xx[j] and xx[j+1]. xx must be monotonic, either increasing or decreasing.
+// j=0 is returned to indicate that x is out of range.
+// (adapted from function locate of Numerical Recipes)
+{
+	Tint ju=n+1,jm,jl=0,result=0;
+	const bool sscnd = (xx[n] >= xx[1]);
+	while (ju-jl > 1) {
+		jm = (ju+jl) >> 1;		// compute a midpoint
+		if ((x >= xx[jm]) == sscnd)
+			jl = jm;		// replace either the lower limit
+		else
+			ju = jm;		// or the upper limit, as appropriate
+	}
+	if (x == xx[1])
+		result = 1;
+	else if (x == xx[n])
+		result = n-1;
+	else
+		result = jl;
+	if (result >= n) result = 0;	// always return 0 for out-of-range condition
+//	cout << "locate(,x=" << x << ") = " << result << "\n";
+	return result;
+}
+
+[i] = bsearch(x,X)
+/* i = bsearch(x,X)
+   binary-searches for value X in ordered vector x and returns index i
+   such that x[i] <= X <= x[i+1] if x is monotonically increasing,
+   or x[i] >= X >= x[i+1] if x is monotonically decreasing.
+   The first argument x must be monotonic int or real vector,
+   and second argument X can be either int or real scalar or array.
+   The result value i is integer-valued, and of the same size as X.
+   It satisfies 1<=i<=N-1 where N=length(x) in cases where X is
+   in the range min(x[1],x[N])..max(x[1],x[N]), and zero otherwise
+   (point out of range).
+   The execution time of bsearch is O(log(length(x))*length(X)).
+   See also: interp.
+   Error codes:
+   -1: First arg not int or real vector
+   -2: Second arg not int or real
+*/
+{
+	if (x.kind()!=KIntArray && x.kind()!=KRealArray || x.rank()!=1) return -1;
+	const Tkind Xkind = X.kind();
+	if (Xkind!=Kint && Xkind!=Kreal && Xkind!=KIntArray && Xkind!=KRealArray) return -2;
+	const Tint n = x.length();
+	Treal *xbuff;
+	bool delete_xbuff = false;
+	if (x.kind() == KIntArray) {
+		xbuff = new Treal [n];
+		Tint j;
+		for (j=0; j<n; j++) xbuff[j] = x.IntPtr()[j];
+		delete_xbuff = true;
+	} else {
+		xbuff = x.RealPtr();
+	}
+	if (Xkind == Kint) {
+		i = locate(&xbuff[-1],n,Treal(X.IntValue()));
+	} else if (Xkind == Kreal) {
+		i = locate(&xbuff[-1],n,X.RealValue());
+	} else if (Xkind == KIntArray) {
+		i.izeros(X.dims());
+		Tint j;
+		const Tint N = X.length();
+		for (j=0; j<N; j++) i.IntPtr()[j] = locate(&xbuff[-1],n,Treal(X.IntPtr()[j]));
+	} else if (Xkind == KRealArray) {
+		i.izeros(X.dims());
+		Tint j;
+		const Tint N = X.length();
+		for (j=0; j<N; j++) i.IntPtr()[j] = locate(&xbuff[-1],n,X.RealPtr()[j]);
+	}
+	if (delete_xbuff) delete [] xbuff;
+	return 0;
+}
+
+[U] = applyfilter(u,c,d)
+/* U = applyfilter(u,c,d)
+   applies a IIR (Infinite Impulse Response) digital filter
+   to time series real vector u, producing another vector U.
+   The filter coefficients c,d must be real vectors.
+   The filter formulas is
+     U[n] = c**u[n-k] + d**U[n-j]
+   where k=0:length(c)-1, j=1:length(d)
+   and starts effects are handled by repeating the first
+   component backwards.
+   Error codes:
+   -1: First input arg must be real vector
+   -2: Second input arg must be real vector
+   -3: Third input arg must be real vector
+*/
+{
+	if (u.kind() != KRealArray || u.rank() != 1) return -1;
+	if (c.kind() != KRealArray || c.rank() != 1) return -1;
+	if (d.kind() != KRealArray || d.rank() != 1) return -1;
+	const Tint L = u.length();
+	const Tint M = c.length()-1;
+	const Tint N = d.length();
+	U.rreserv(L);
+	const Tint MN = min(L,max(M,N));
+	Tint n,j,k;
+	const Treal *uu = u.RealPtr(), *cc = c.RealPtr(), *dd = d.RealPtr();
+	Treal *UU = U.RealPtr();
+	for (n=0; n<MN; n++) {
+		register Treal x = 0;
+		for (k=0; k<=M; k++) x+= cc[k]*uu[(n-k<0) ? 0 : n-k];
+		for (j=1; j<=N; j++) x+= dd[j-1]*(n-j<0 ? 0 : UU[n-j]);
+		UU[n] = x;
+	}
+	for (n=MN; n<L; n++) {
+		register Treal x = 0;
+		for (k=0; k<=M; k++) x+= cc[k]*uu[n-k];
+		for (j=1; j<=N; j++) x+= dd[j-1]*UU[n-j];
+		UU[n] = x;
+	}
+	global::nops+= L*(M+N+1)*2;
+	return 0;
+}
+
+const int MAX_STATIC_INDEX = 100;			// Avoid using operator new for small datasets.
+static Tint static_itmp[MAX_STATIC_INDEX];	// Use this static buffer instead for these.
+
+INLINE Tint checkrange(const Tint V[], Tint N, Tint a, Tint b) {
+#	ifdef VECTOR_MACHINE
+	int retval = -1;
+	VECTORIZED for (Tint i=0; i<N; i++) {
+		if (V[i]<a) {retval=i; break;}
+	}
+	if (retval >= 0) return retval;
+	VECTORIZED for (i=0; i<N; i++)
+		if (V[i]>b) {retval=i; break;}
+	return retval;
+#	else
+	for (Tint i=0; i<N; i++)
+		if (V[i]<a || V[i]>b) return i;
+	return -1;
+#	endif
+}
+
+static int Scatter1D_with_accumulate(const Tobject& a, Tobject& b, const Tobject& index)
+// Scatter_with_accumulate tailored for 1D case. No integer multiplication, no work arrays ==> fast
+// b[index]+= a
+// Similar to gatscat.C:Scatter1D(), except returns error code rather than calls error(),
+// and increments to b rather than assigns, and does not allow object arrays.
+{
+	Tkind k = index.kind();
+	global::nops+= index.length();
+	if (k == Kint) {
+		Tint i = index.IntValue() - ArrayBase;
+		if (i<0 || i>=b.length()) {
+			return 5;
+//			err << "Scalar index " << i+ArrayBase << " out of range for " << Tshort(b) << ".\n";
+		}
+		switch (b.kind()) {
+		case KIntArray:
+			if (a.kind()!=Kint) {
+				return 9;
+//				err << "Trying to assign non-integer " << Tshort(a) << " into integer array " << Tshort(b) << ".\n";
+			}
+			b.IntPtr()[i]+= a.IntValue();
+			break;
+		case KRealArray:
+			if (a.kind()==Kreal)
+				b.RealPtr()[i]+= a.RealValue();
+			else if (a.kind()==Kint)
+				b.RealPtr()[i]+= a.IntValue();
+			else {
+				return 10;
+//				err << "Trying to assign non-real " << Tshort(a) << " into real array " << Tshort(b) << ".\n";
+			}
+			break;
+		case KComplexArray:
+			if (a.kind()==Kcomplex)
+				b.ComplexPtr()[i]+= a.ComplexValue();
+			else if (a.kind()==Kreal)
+				b.ComplexPtr()[i]+= a.RealValue();
+			else if (a.kind()==Kint)
+				b.ComplexPtr()[i]+= a.IntValue();
+			else {
+				return 19;
+//				err << "Trying to assign non-scalar " << Tshort(a) << "into complex array " << Tshort(b) << ".\n";
+			}
+			break;
+		default:
+			err << "Internal (1) in Scatter1D_with_accumulate\n";
+			error();
+		}
+	} else if (k == KIntArray) {
+		Tint i;
+		Tint * const ip = index.IntPtr();
+		if (index.rank()!=1) {
+			return 8;
+//			err << "Invalid index " << Tshort(index) << " in b[..]=a.\n";
+		}
+		if (checkrange(ip,index.length(),ArrayBase,b.length()-1+ArrayBase) >= 0) {
+			return 7;
+//			err << "Index vector " << Tshort(index) << " out of range for " << Tshort(b) << ".\n";
+		}
+		// Check added 28.8.1995 PJ:
+		if (a.IsArray() && (index.length() != a.length())) {
+			return 22;
+//			err << "Index vector length " << index.length() << " disagrees with RHS length "
+//				<< a.length() << " in vector assignment.\n";
+		}
+		switch (b.kind()) {
+		case KIntArray:
+			if (a.kind() == KIntArray) {
+				VECTORIZED for (i=0; i<index.length(); i++) b.IntPtr()[ip[i]-ArrayBase]+= a.IntPtr()[i];
+			} else if (a.kind() == Kint) {
+				VECTORIZED for (i=0; i<index.length(); i++) b.IntPtr()[ip[i]-ArrayBase]+= a.IntValue();
+			} else {
+				return 9;
+//				err << "Trying to assign non-int-array " << Tshort(a) << " into integer array " << Tshort(b) << ".\n";
+			}
+			break;
+		case KRealArray:
+			if (a.kind()==KRealArray) {
+				VECTORIZED for (i=0; i<index.length(); i++) b.RealPtr()[ip[i]-ArrayBase]+= a.RealPtr()[i];
+			} else if (a.kind()==KIntArray) {
+				VECTORIZED for (i=0; i<index.length(); i++) b.RealPtr()[ip[i]-ArrayBase]+= a.IntPtr()[i];
+			} else if (a.kind() == Kreal) {
+				VECTORIZED for (i=0; i<index.length(); i++) b.RealPtr()[ip[i]-ArrayBase]+= a.RealValue();
+			} else if (a.kind() == Kint) {
+				VECTORIZED for (i=0; i<index.length(); i++) b.RealPtr()[ip[i]-ArrayBase]+= a.IntValue();
+			} else {
+				return 10;
+//				err << "Trying to assign non-real-array " << Tshort(a) << " into real array " << Tshort(b) << ".\n";
+			}
+			break;
+		case KComplexArray:
+			switch (a.kind()) {
+			case KComplexArray:
+				VECTORIZED for (i=0; i<index.length(); i++) b.ComplexPtr()[ip[i]-ArrayBase]+= a.ComplexPtr()[i];
+				break;
+			case KRealArray:
+				VECTORIZED for (i=0; i<index.length(); i++) b.ComplexPtr()[ip[i]-ArrayBase]+= a.RealPtr()[i];
+				break;
+			case KIntArray:
+				VECTORIZED for (i=0; i<index.length(); i++) b.ComplexPtr()[ip[i]-ArrayBase]+= a.IntPtr()[i];
+				break;
+			case Kcomplex:
+				VECTORIZED for (i=0; i<index.length(); i++) b.ComplexPtr()[ip[i]-ArrayBase]+= a.ComplexValue();
+				break;
+			case Kreal:
+				VECTORIZED for (i=0; i<index.length(); i++) b.ComplexPtr()[ip[i]-ArrayBase]+= a.RealValue();
+				break;
+			case Kint:
+				VECTORIZED for (i=0; i<index.length(); i++) b.ComplexPtr()[ip[i]-ArrayBase]+= a.IntValue();
+				break;
+			default:
+				return 11;
+//				err << "Trying to assign non-numeric-array " << Tshort(a) << " into complex array " << Tshort(b) << ".\n";
+			}
+			break;
+		default:
+			err << "Internal (2) in Scatter1D_with_accumulate\n";
+			error();
+		}
+	} else if (k == Kvoid) {	// Void index means ALLRANGE
+		Add(b,a);
+	} else {
+		return 8;
+//		err << "Invalid index " << Tshort(index) << " in b[..]=a.\n";
+	}
+	return 0;
+}	// Scatter1D_with_accumulate
+
+#if 0
+static int Scatter_with_accumulate(const Tobject& a, Tobject& b, const TConstObjectPtr indices[], int D)
+// Same as gatscat.C:Scatter(), but repeated indices are treated by accumulation (successive
+// incrementation). Change from Scatter() is that then we always increment
+// when assigning to b, i.e. when in Scatter() we have b[..]=a we now do b[..]+= a
+// The other change is that it returns error code rathern than calling error().
+// On success, Scatter_with_accumulate() returns 0.
+{
+	// b[indices]+= a
+	// Each *indices[i], 0<=i<D, must be either integer or 1D IntArray, or VOID (meaning whole range)
+	// Scalar b is allowed: a is then simply assigned to b.
+	// In scalar b case a must also we scalar, and indices must be either 1, VOID, or #(1).
+	if (!b.IsArray() || b.kind()==KObjectArray) {
+		if (!b.IsScalar()) {
+			return 1; // err << "In b[..]=a, b = " << Tshort(b) << " is non-numeric\n";
+		}
+		if (!a.IsScalar()) {
+			return 2; // err << "In b[..]=a, b = " << Tshort(b) << " is scalar but a = " << Tshort(a) << " is not.\n";
+		}
+		Add(b,a);		// result is always equal to a+b, below we just do consistency checks
+		for (int d=0; d<D; d++) {
+			const Tkind k = indices[d]->kind();
+			if (!(k==Kvoid ||
+				  k==Kint && indices[d]->IntValue()==1 ||
+				  k==KIntArray && indices[d]->rank()==1 && indices[d]->length()==1 && indices[d]->IntPtr()[0]==1)) {
+				return 3;
+//				err << "In b[..]=a b is scalar but " << d+ArrayBase << ". index is not 1, :, or #(1).\n";
+			}
+		}
+		return 0;
+	}
+	if (D == 1) return Scatter1D_with_accumulate(a,b,**indices);
+	//Tint scalarindices[MAXRANK];
+	Tint *vectorindices[MAXRANK];
+	int tobedeleted[MAXRANK];
+	Tint veclengths[MAXRANK];
+	Tint multipliers[MAXRANK];	// for vector indices only
+	Tint Nscalars=0,Nvectors=0,L=1;
+	if (D != b.rank()) {
+		return 4;
+//		err << "In b[..]=a, b is " << b.rank() << "-dimensional while the number of indices is " << D << ".\n";
+	}
+	const TDimPack& bdims = b.dims();
+	Tint scalaroffset = 0;
+	Tint mult;
+    int d;
+	for (d=0; d<D; d++) {
+		// Compute multiplier
+		mult = 1;
+		NOVECTOR for (int d1=d+1; d1<D; d1++) mult*= bdims[d1];
+		if (indices[d]->kind() == Kint) {
+			//scalarindices[Nscalars++] = indices[d]->IntValue();
+			if (indices[d]->IntValue() < ArrayBase || indices[d]->IntValue() >= bdims[d]+ArrayBase) {
+				return 5;
+//				err << "In b[..]=a, " << d+1 << ". index " << indices[d]->IntValue() << " is out of range "
+//					<< ArrayBase << " .. " << bdims[d]-1+ArrayBase << ".\n";
+			}
+			scalaroffset+= mult*(indices[d]->IntValue() - ArrayBase);
+		} else if (indices[d]->kind() == KIntArray) {
+			if (indices[d]->rank() != 1) {
+				return 6;
+//				err << "Invalid IntArray index " << Tshort(*indices[d]) << " in b[..]=a. Should be one-dimensional.\n";
+			}
+			vectorindices[Nvectors] = indices[d]->IntPtr();
+			tobedeleted[Nvectors] = 0;
+			veclengths[Nvectors] = indices[d]->length();
+			multipliers[Nvectors++] = mult;
+			L*= indices[d]->length();
+			Tint found;
+			if ((found=checkrange(indices[d]->IntPtr(),indices[d]->length(),ArrayBase,bdims[d]-1+ArrayBase)) >= 0) {
+				return 7;
+//				err << "In b[..]=a, " << found+1 << ". element of " << d+1 << ". vector index is "
+//					<< indices[d]->IntPtr()[found] << ",\n which is outside range "
+//					<< ArrayBase << " .. " << bdims[d]-1+ArrayBase << ".\n";
+			}
+		} else if (indices[d]->kind() == Kvoid) {
+			vectorindices[Nvectors] = new Tint [bdims[d]];
+			tobedeleted[Nvectors] = 1;
+			VECTORIZED for (Tint i=0; i<bdims[d]; i++) vectorindices[Nvectors][i] = i+ArrayBase;
+			veclengths[Nvectors] = bdims[d];
+			multipliers[Nvectors++] = mult;
+			L*= bdims[d];
+		} else {
+			return 8;
+//			err << "Invalid index " << Tshort(*indices[d]) << " in b[..]=a. Should be integer or IntArray.\n";
+		}
+	}
+	if (Nvectors == 0) {		// scalar indexing case
+		switch (b.kind()) {
+		case KIntArray:
+			if (a.kind() == Kint)
+				b.IntPtr()[scalaroffset] = a.IntValue();
+			else {
+				return 9;
+//				err << "Elementwise assigning non-integer " << Tshort(a) << " to integer array "
+//					<< Tshort(b) << ".\n";
+			}
+			break;
+		case KRealArray:
+			if (a.kind() == Kint)
+				b.RealPtr()[scalaroffset] = a.IntValue();
+			else if (a.kind() == Kreal)
+				b.RealPtr()[scalaroffset] = a.RealValue();
+			else {
+				return 10;
+//				err << "Elementwise assigning non-real " << Tshort(a) << " to real array "
+//					<< Tshort(b) << ".\n";
+			}
+			break;
+		case KComplexArray:
+			if (a.kind() == Kint)
+				b.ComplexPtr()[scalaroffset] = Tcomplex(a.IntValue(),0.0);
+			else if (a.kind() == Kreal)
+				b.ComplexPtr()[scalaroffset] = Tcomplex(a.RealValue(),0.0);
+			else if (a.kind() == Kcomplex)
+				b.ComplexPtr()[scalaroffset] = a.ComplexValue();
+			else {
+				return 11;
+//				err << "Elementwise assigning non-scalar " << Tshort(a) << " to complex array "
+//					<< Tshort(b) << ".\n";
+			}
+			break;
+		case KObjectArray:
+			*b.ObjectPtrPtr()[scalaroffset] = a;
+			break;
+		default:
+			err << "Internal (1) in Scatter_with_accumulate\n";
+			error();
+		}
+		return 0;		// return from scalar indexing case
+	}
+	/* Allocate temporary index vector itmp */
+	Tint *itmp;
+	if (L <= MAX_STATIC_INDEX)
+		itmp = &static_itmp[0];
+	else
+		itmp = new Tint [L];
+	global::nops+= L;
+	//TDimPack adims;
+	// Compute itmp and adims
+	Tint i0,i1,i2,i3,i4,i5,i6,i7,offset,ioffset;
+	Tint *vindex;
+	mult = multipliers[Nvectors-1];
+	vindex = vectorindices[Nvectors-1];
+	switch (Nvectors) {
+	case 1:
+		offset = scalaroffset - mult*ArrayBase;
+		VECTORIZED for (i0=0; i0<veclengths[0]; i0++)
+			itmp[i0] = offset + mult*vindex[i0];
+		break;
+	case 2:
+		for (i0=0; i0<veclengths[0]; i0++) {
+			offset = scalaroffset + (vectorindices[0][i0]-ArrayBase)*multipliers[0] - ArrayBase*mult;
+			ioffset = i0*veclengths[1];
+			VECTORIZED for (i1=0; i1<veclengths[1]; i1++)
+				itmp[ioffset+i1] = offset + mult*vindex[i1];
+		}
+		break;
+	case 3:
+		for (i0=0; i0<veclengths[0]; i0++) for (i1=0; i1<veclengths[1]; i1++) {
+			offset =
+				scalaroffset + (vectorindices[0][i0]-ArrayBase)*multipliers[0]
+				+ (vectorindices[1][i1]-ArrayBase)*multipliers[1] - ArrayBase*mult;
+			ioffset = (i0*veclengths[1]+i1)*veclengths[2];
+			VECTORIZED for (i2=0; i2<veclengths[2]; i2++)
+				itmp[ioffset+i2] = offset + mult*vindex[i2];
+		}
+		break;
+	case 4:
+		for (i0=0; i0<veclengths[0]; i0++) for (i1=0; i1<veclengths[1]; i1++) for (i2=0; i2<veclengths[2]; i2++) {
+			offset =
+				scalaroffset
+				+ (vectorindices[0][i0]-ArrayBase)*multipliers[0]
+				+ (vectorindices[1][i1]-ArrayBase)*multipliers[1]
+				+ (vectorindices[2][i2]-ArrayBase)*multipliers[2] - ArrayBase*mult;
+			ioffset = ((i0*veclengths[1]+i1)*veclengths[2]+i2)*veclengths[3];
+			VECTORIZED for (i3=0; i3<veclengths[3]; i3++)
+				itmp[ioffset+i3] = offset + mult*vindex[i3];
+		}
+		break;
+#	if MAXRANK > 4
+	case 5:
+		for (i0=0; i0<veclengths[0]; i0++) for (i1=0; i1<veclengths[1]; i1++)
+		for (i2=0; i2<veclengths[2]; i2++) for (i3=0; i3<veclengths[3]; i3++) {
+			offset =
+				scalaroffset
+				+ (vectorindices[0][i0]-ArrayBase)*multipliers[0]
+				+ (vectorindices[1][i1]-ArrayBase)*multipliers[1]
+				+ (vectorindices[2][i2]-ArrayBase)*multipliers[2]
+				+ (vectorindices[3][i3]-ArrayBase)*multipliers[3] - ArrayBase*mult;
+			ioffset = (((i0*veclengths[1]+i1)*veclengths[2]+i2)*veclengths[3]+i3)*veclengths[4];
+			VECTORIZED for (i4=0; i4<veclengths[4]; i4++)
+				itmp[ioffset+i4] = offset + mult*vindex[i4];
+		}
+		break;
+#	endif
+#	if MAXRANK > 5
+	case 6:
+		for (i0=0; i0<veclengths[0]; i0++) for (i1=0; i1<veclengths[1]; i1++)
+		for (i2=0; i2<veclengths[2]; i2++) for (i3=0; i3<veclengths[3]; i3++)
+		for (i4=0; i4<veclengths[4]; i4++) {
+			offset =
+				scalaroffset
+				+ (vectorindices[0][i0]-ArrayBase)*multipliers[0]
+				+ (vectorindices[1][i1]-ArrayBase)*multipliers[1]
+				+ (vectorindices[2][i2]-ArrayBase)*multipliers[2]
+				+ (vectorindices[3][i3]-ArrayBase)*multipliers[3]
+				+ (vectorindices[4][i4]-ArrayBase)*multipliers[4] - ArrayBase*mult;
+			ioffset = ((((i0*veclengths[1]+i1)*veclengths[2]+i2)*veclengths[3]+i3)*veclengths[4]+i4)*veclengths[5];
+			VECTORIZED for (i5=0; i5<veclengths[5]; i5++)
+				itmp[ioffset+i5] = offset + mult*vindex[i5];
+		}
+		break;
+#	endif
+#	if MAXRANK > 6
+	case 7:
+		for (i0=0; i0<veclengths[0]; i0++) for (i1=0; i1<veclengths[1]; i1++)
+		for (i2=0; i2<veclengths[2]; i2++) for (i3=0; i3<veclengths[3]; i3++)
+		for (i4=0; i4<veclengths[4]; i4++) for (i5=0; i5<veclengths[5]; i5++) {
+			offset =
+				scalaroffset
+				+ (vectorindices[0][i0]-ArrayBase)*multipliers[0]
+				+ (vectorindices[1][i1]-ArrayBase)*multipliers[1]
+				+ (vectorindices[2][i2]-ArrayBase)*multipliers[2]
+				+ (vectorindices[3][i3]-ArrayBase)*multipliers[3]
+				+ (vectorindices[4][i4]-ArrayBase)*multipliers[4]
+				+ (vectorindices[5][i5]-ArrayBase)*multipliers[5] - ArrayBase*mult;
+			ioffset = (((((i0*veclengths[1]+i1)*veclengths[2]+i2)*veclengths[3]+i3)*veclengths[4]+i4)*veclengths[5]+i5)*veclengths[6];
+			VECTORIZED for (i6=0; i6<veclengths[6]; i6++)
+				itmp[ioffset+i6] = offset + mult*vindex[i6];
+		}
+		break;
+#	endif
+#	if MAXRANK > 7
+	case 8:
+		for (i0=0; i0<veclengths[0]; i0++) for (i1=0; i1<veclengths[1]; i1++)
+		for (i2=0; i2<veclengths[2]; i2++) for (i3=0; i3<veclengths[3]; i3++)
+		for (i4=0; i4<veclengths[4]; i4++) for (i5=0; i5<veclengths[5]; i5++)
+		for (i6=0; i6<veclengths[6]; i6++) {
+			offset =
+				scalaroffset
+				+ (vectorindices[0][i0]-ArrayBase)*multipliers[0]
+				+ (vectorindices[1][i1]-ArrayBase)*multipliers[1]
+				+ (vectorindices[2][i2]-ArrayBase)*multipliers[2]
+				+ (vectorindices[3][i3]-ArrayBase)*multipliers[3]
+				+ (vectorindices[4][i4]-ArrayBase)*multipliers[4]
+				+ (vectorindices[5][i5]-ArrayBase)*multipliers[5]
+				+ (vectorindices[6][i6]-ArrayBase)*multipliers[6] - ArrayBase*mult;
+			ioffset = ((((((i0*veclengths[1]+i1)*veclengths[2]+i2)*veclengths[3]+i3)*veclengths[4]+i4)*veclengths[5]+i5)*veclengths[6]+i6)*veclengths[7];
+			VECTORIZED for (i7=0; i7<veclengths[7]; i7++)
+				itmp[ioffset+i7] = offset + mult*vindex[i7];
+		}
+		break;
+#	endif
+	default:
+		return 12;
+//		err << Nvectors << "-dimensional Scatter not yet implemented.\n";
+	}
+	// Delete possible automatically generated vectors (ALLRANGE case)
+	for (d=0; d<Nvectors; d++) if (tobedeleted[d]) delete [] vectorindices[d];
+	TDimPack adims(veclengths,Nvectors);
+	if (a.IsArray()) {
+		// Check that adims agrees with a's actual dims
+		if (adims != a.dims()) {
+			return 4;
+//			err << "In b[..]=a, the dimensionality of the index pack " << adims
+//				<< " does not agree with a=" << Tshort(a) << ".\n";
+		}
+	}
+	// Now actually move the data. Only from this point there are any changed w.r.t. Scatter() (except error handling).
+	Tint k1;
+	switch (b.kind()) {
+	case KIntArray:
+		if (a.kind() == KIntArray) {
+			VECTORIZED for (k1=0; k1<L; k1++) b.IntPtr()[itmp[k1]]+= a.IntPtr()[k1];
+		} else if (a.kind() == Kint) {
+			VECTORIZED for (k1=0; k1<L; k1++) b.IntPtr()[itmp[k1]]+= a.IntValue();
+		} else {
+			return 14;
+//			err << "In b[..]=a, b is " << Tshort(b) << " while a is " << Tshort(a) << ".\n";
+		}
+		break;
+	case KRealArray:
+		if (a.kind() == KRealArray) {
+			VECTORIZED for (k1=0; k1<L; k1++) b.RealPtr()[itmp[k1]]+= a.RealPtr()[k1];
+		} else if (a.kind() == Kreal) {
+			VECTORIZED for (k1=0; k1<L; k1++) b.RealPtr()[itmp[k1]]+= a.RealValue();
+		} else if (a.kind() == Kint) {
+			VECTORIZED for (k1=0; k1<L; k1++) b.RealPtr()[itmp[k1]]+= a.IntValue();
+		} else if (a.kind() == KIntArray) {
+			VECTORIZED for (k1=0; k1<L; k1++) b.RealPtr()[itmp[k1]]+= a.IntPtr()[k1];
+		} else {
+			return 14;
+//			err << "In b[..]=a, b is " << Tshort(b) << " while a is " << Tshort(a) << ".\n";
+		}
+		break;
+	case KComplexArray:
+		switch (a.kind()) {
+		case KComplexArray:
+			VECTORIZED for (k1=0; k1<L; k1++) b.ComplexPtr()[itmp[k1]]+= a.ComplexPtr()[k1];
+			break;
+		case Kcomplex:
+			VECTORIZED for (k1=0; k1<L; k1++) b.ComplexPtr()[itmp[k1]]+= a.ComplexValue();
+			break;
+		case Kreal:
+			VECTORIZED for (k1=0; k1<L; k1++) b.ComplexPtr()[itmp[k1]]+= a.RealValue();
+			break;
+		case Kint:
+			VECTORIZED for (k1=0; k1<L; k1++) b.ComplexPtr()[itmp[k1]]+= a.IntValue();
+			break;
+		case KRealArray:
+			VECTORIZED for (k1=0; k1<L; k1++) b.ComplexPtr()[itmp[k1]]+= a.RealPtr()[k1];
+			break;
+		case KIntArray:
+			VECTORIZED for (k1=0; k1<L; k1++) b.ComplexPtr()[itmp[k1]]+= a.IntPtr()[k1];
+			break;
+		default:
+			return 14;
+//			err << "In b[..]=a, b is " << Tshort(b) << " while a is " << Tshort(a) << ".\n";
+		}
+		break;
+	default:
+		err << "Internal (2) in Scatter_with_accumulate\n";
+		error();
+	}
+	if (L > MAX_STATIC_INDEX) delete [] itmp;
+	return 0;
+} // Scatter_with_accumulate
+#endif /* 0 */
+		
+int MScat_with_accumulate(const Tobject& a, Tobject& b, const TConstObjectPtr indices[], int D) {
+	// Mscatter: b[indices]+= a
+	// indices must be array of object pointers of size D, D=dimensionality (rank) of b
+	// all index objects must be IntArray's of the same size
+	// Various checks
+	int r = b.rank();
+	if (D != r) {
+		return 4; //err << "MGatScat: index length " << D << " not equal to rank = " << r << '\n'; error();
+	}
+	Tkind k = indices[0]->kind();
+	if (k!=KIntArray) {
+		return 8; //err << "MGatScat: indices[0] not IntArray\n"; error();
+	}
+	TDimPack dims = indices[0]->dims();
+    int i;
+	for (i=1; i<r; i++) {
+		if (indices[i]->kind()!=k) {
+			return 8; //err << "MGatScat: indices of differing kinds\n"; error();
+		}
+		if (indices[i]->dims()!=dims) {
+			return 8; //err << "MGatScat: indices of different dims\n"; error();
+		}
+	}
+	// Check that a and indices[0] dimensions agree
+	if (dims!=a.dims()) {
+		return 22; //err << "MGatScat/SCAT: a and indices[0] dimensions do not agree\n"; error();
+	}
+	if (D == 1) return Scatter1D_with_accumulate(a,b,**indices);
+	// Allocate temporary index vector itmp
+	int L = indices[0]->length();
+	Tint *itmp;
+	if (L <= MAX_STATIC_INDEX)
+		itmp = &static_itmp[0];
+	else
+		itmp = new Tint [L];
+	// Compute itmp
+	VECTORIZED for (i=0; i<L; i++) itmp[i] = 0;
+	TDimPack dp = b.dims();
+	for (int d=0; d<r; d++) {
+		int m = 1;
+		NOVECTOR for (int d1=d+1; d1<r; d1++) m*= dp[d1];
+		VECTORIZED for (int kk=0; kk<L; kk++) itmp[kk]+= (indices[d]->IntPtr()[kk]-ArrayBase)*m;
+	}
+	// Check dimension overflows
+	int Nerrors = 0;
+	VECTORIZED for (i=0; i<L; i++) if (itmp[i]<0 || itmp[i]>=b.length()) Nerrors++;
+	if (Nerrors) {
+		return 7;
+//		for (i=0; i<L; i++) if (itmp[i]<0 || itmp[i]>=b.length()) {
+//			err << "Indexing overflow in accum: "
+//				<< itmp[i] << " exceeds " << Tshort(b) << '\n';
+//			error();
+//		}
+	}
+	// The dirty work: a[k1] = b[itmp[k1]]
+	int k1;
+	switch (b.kind()) {
+	case KIntArray:
+		if (a.kind()!=KIntArray) {
+			return 22; //err << "Mscat: Since " << Tshort(b) << " is IntArray, " << Tshort(a) << " must be, too\n"; error();
+		}
+		VECTORIZED for (k1=0; k1<L; k1++) b.IntPtr()[itmp[k1]] += a.IntPtr()[k1];
+		break;
+	case KRealArray:
+		if (a.kind() == KRealArray) {
+			VECTORIZED for (k1=0; k1<L; k1++) b.RealPtr()[itmp[k1]] += a.RealPtr()[k1];
+		} else if (a.kind() == KIntArray) {
+			VECTORIZED for (k1=0; k1<L; k1++) b.RealPtr()[itmp[k1]] += a.IntPtr()[k1];
+		} else {
+			return 22;
+//			err << "Mscat: Since " << Tshort(b) << " is RealArray, " << Tshort(a) << " must be real array, too\n";
+//			error();
+		}
+		break;
+	case KComplexArray:
+		if (a.kind() == KComplexArray) {
+			VECTORIZED for (k1=0; k1<L; k1++) b.ComplexPtr()[itmp[k1]] += a.ComplexPtr()[k1];
+		} else if (a.kind() == KRealArray) {
+			VECTORIZED for (k1=0; k1<L; k1++) b.ComplexPtr()[itmp[k1]] += Tcomplex(a.RealPtr()[k1],0.0);
+		} else if (a.kind() == KIntArray) {
+			VECTORIZED for (k1=0; k1<L; k1++) b.ComplexPtr()[itmp[k1]] += Tcomplex(a.IntPtr()[k1],0.0);
+		} else {
+			return 22;
+//			err << "Mscat: Since " << Tshort(b) << " is numeric array, " << Tshort(a) << " must be, too\n";
+//			error();
+		}
+		break;
+	default:
+		err << "Internal: in MScat_with_accumulate (2)";
+		error();
+		break;
+	}
+	if (L > MAX_STATIC_INDEX) delete [] itmp;
+	return 0;
+} /* MScat_with_accumulate */
+
+
+[u] = accum(...)
+/* [u] = accum(i,j,...,v)
+   is the same as u<[i,j,...]>+= v
+   except that repeated indices are handled by sequential
+   increments rather than the last assignment only being effective
+   as in u<[i,j,...]>+= v. Notice that the v argument must be
+   an array of same size as i,j,..., a scalar v is not accepted.
+   (Hint: to promote scalar into array, add zeros array to it.)
+   Error codes:
+   -30: Too few input args to accum (min is 2)
+   -1: I/O arg u (left-hand-side) is non-numeric
+   -2: I/O arg u is scalar but last input arg is not
+   -3: I/O arg u is scalar but one of the indices is not 1, : or #(1)
+   -4: Mismatch between rank of I/O arg u and number of indices
+   -5: Scalar index out of range
+   -6: Invalid IntArray used as index, should be one-dimensional
+   -7: Vector index out of range
+   -8: Invalid index, should be integer or IntArray
+   -9: Accumulating non-integer into integer array
+   -10: Accumulating non-real into real array
+   -11: Accumulating non-scalar into complex array
+   -12: Too large dimensional accum, not yet implemented (internal error)
+   -14: Type mismatch
+   -22: Index vector length disagrees with 'RHS' length
+*/
+{
+	const Tint D = Nargin - 1;
+	if (D < 1) return -30;
+	const Tobject& a = *argin[D];
+	return -MScat_with_accumulate(a,u,argin,D);
+}
+
+static Treal logGamma(Treal xx)
+{
+	double x,tmp,ser;
+	static double cof[6]={76.18009173,-86.50532033,24.01409822,
+		-1.231739516,0.120858003e-2,-0.536382e-5};
+	int j;
+	x = xx-1.0;
+	tmp = x+5.5;
+	tmp-= (x+0.5)*log(tmp);
+	ser = 1.0;
+	for (j=0; j<=5; j++) {
+		x+= 1.0;
+		ser+= cof[j]/x;
+	}
+	global::nops+= 27;
+	return -tmp + log(2.50662827465*ser);
+}
+
+#include "randef.H"
+
+static Tint PoissonDeviate(Treal xm)
+{
+	static Treal sq,alxm,g,oldm=(-1.0);
+	Treal t,y;
+	if (xm < 0) return 0;
+	if (xm < 12.0) {
+		if (xm != oldm) {
+			oldm = xm;
+			g = exp(-xm);
+			global::nops++;
+		}
+		Tint em = -1;
+		t = 1.0;
+		do {
+			em++;
+			t*= Random();
+		} while (t > g);
+		global::nops+= em+1;
+		return em;
+	} else {
+		Treal em;
+		if (xm != oldm) {
+			oldm = xm;
+			sq = sqrt(2.0*xm);
+			alxm = log(xm);
+			g = xm*alxm - logGamma(xm+1.0);
+			global::nops+= 6;
+		}
+		do {
+			int cnt = 0;
+			do {
+				y = tan(M_PI*Random());
+				em = sq*y + xm;
+				cnt++;
+			} while (em < 0.0);
+			em = floor(em);
+			t = 0.9*(1.0+y*y)*exp(em*alxm-logGamma(em+1.0)-g);
+			global::nops+= 10 + 4*cnt;
+		} while (Random() > t);
+		return Tint(em);
+	}
+}
+
+[y] = poissonrand(x)
+/* poissonrand(x) returns a Poisson-distributed random integer
+   whose expectation value is x (x >= 0). The probability that
+   the result is n (n>=0) is x^n*exp(-x)/n!.
+   If (x < 0) the result is always 0.
+   If x is an array, the result is the same shape as x.
+   The result is always integer-valued.
+   See also: rand, srand, gaussrand.
+   Error codes:
+   -1: Argument not real scalar or array
+*/
+{
+	const Tkind k = x.kind();
+	if (k == Kint) {
+		y = PoissonDeviate(x.IntValue());
+	} else if (k == Kreal) {
+		y = PoissonDeviate(x.RealValue());
+	} else if (k == KIntArray) {
+		Tint j;
+		y.copydimsIntArray(x);
+		const Tint N = x.length();
+		for (j=0; j<N; j++) y.IntPtr()[j] = PoissonDeviate(x.IntPtr()[j]);
+	} else if (k == KRealArray) {
+		Tint j;
+		y.copydimsIntArray(x);
+		const Tint N = x.length();
+		for (j=0; j<N; j++) y.IntPtr()[j] = PoissonDeviate(x.RealPtr()[j]);
+	} else {
+		return -1;
+	}
+	return 0;
+};
+
+// Lomb periodogram computation
+// Numerical Recipes, 2nd edition, Chapter 13
+
+#define MOD(a,b) while (a >= b) a-= b;		/* positive numbers only */
+
+inline void spread(Treal y, Treal yy[], Tint n, Treal x, Tint m)
+/* Given an array yy[0..n-1], extirpolate (spread) a value y into m actual array elements that best
+   approximate the "fictional" (i.e., possibly noninteger) array element number x. The weights
+   used are coefficients of the Lagrange interpolating polynomial.
+   The array yy and the value x are zero-based.
+*/
+{
+	Tint ihi,ilo,ix,j,nden;
+	static Tint nfac[13] = {0,1,1,2,6,24,120,720,5040,40320,362880,39916800,479001600};
+//	if (m > 12) {
+//		cerr << "numerics.ct:spread: factorial table too small\n";
+//		return;
+//	}
+	ix = int(x);
+	if (x == Treal(ix))
+		yy[ix]+= y;
+	else {
+		ilo = min(max(Tint(x-0.5*m+1.0),0),n-m);
+		ihi = ilo + m - 1;
+		nden = nfac[m];
+		Treal fac = x - ilo;
+		for (j=ilo+1; j<=ihi; j++) fac*= (x-j);
+		yy[ihi]+= y*fac/(nden*(x-ihi));
+		for (j=ihi-1; j>=ilo; j--) {
+			nden = (nden/(j+1-ilo))*(j-ihi);
+			yy[j]+= y*fac/(nden*(x-j));
+		}
+	}
+}
+
+inline void avevar(const Treal data[], Tint n, Treal& ave, Treal& var)
+// Given array data[0..n-1], returns its mean as ave and its variance as var
+{
+	Tint j;
+	Treal s,sp;
+	for (ave=0,j=0; j<n; j++) ave+= data[j];
+	ave/= n;
+	var = sp = 0;
+	for (j=0; j<n; j++) {
+		s = data[j] - ave;
+		sp+= s;
+		var+= s*s;
+	}
+	var = (var - sp*sp)/(n-1);
+}
+
+#include <fftw.h>
+#include <rfftw.h>
+
+static void realft(Treal data[], Tint n)
+/* Calculates the Fourier transform of a set of n real-valued datapoints. Replaces this data (which
+   is stored in array data[0..n-1]) by the positive frequency half of its complex Fourier transform.
+   The real-valued first and last components of the complex transform are returned as elements
+   data[0] and data[1], respectively. n must be a power of two.
+   The Numerical Recipes convention is in use, there is -1 in the exponent for forward transform.
+   Notice that FFTW has the opposite convention. Thus we must change the sign of the imaginary part.
+   This routine does NOT calculate the inverse transform. The array data is zero-based.
+*/
+{
+	rfftw_plan plan = rfftw_create_plan(n,FFTW_REAL_TO_COMPLEX,FFTW_ESTIMATE);
+	Treal *out = new Treal [n];
+	rfftw_one(plan,data,out);
+	// out array is r[0],r[1],r[2],...,r[n/2], i[(n+1)/2-1],...,i2,i1
+	Tint i;
+	for (i=1; i<n/2; i++) {
+		// first iteration sets data[2] and data[3], last sets data[n-2] and data[n-1]
+		data[2*i]   = out[i];
+		data[2*i+1] = -out[n-i];		// change sign of imaginary part
+	}
+	data[0] = out[0];
+	data[1] = out[n/2];
+	delete [] out;
+	rfftw_destroy_plan(plan);
+	// Approximate operation count of a single real FFT is (5/2)*log2(N)*N
+	global::nops+= iround(3.607*log(double(n))*n);
+}
+
+static void fastlomb(const Treal x[], const Treal y[], Tint n, Treal ofac, Treal hifac,
+					 Treal*& wk1, Treal*& wk2, Treal*& wk3, Tint& nout, Treal& norm)
+/* Given n data points with abscissas x[0..n-1] (which need not be equally spaced) and ordinates
+   y[0..n-1], and given a desired oversampling factor ofac (a typical value being 4 or larger), the
+   function fills array wk1[0..nwk-1] with a sequence of nout increasing frequencies (not angular
+   frequencies) up to hifac times the "average" Nyquist frequency, and fills array wk2[0..nwk-1]
+   with the values of the Lomb periodogram at those frequencies. The arrays x and
+   y are not altered.
+   The function returns jmax such that wk2[jmax] is the maximum element in wk2, and prob,
+   and estimate of the significance of that maximum against the hypothesis of random noise.
+   A small value of prob indicates that a significant periodic signal is present.
+   This function returns the unnormalized Lomb periodogram (i.e. in physical units, (V/m)^2/Hz
+   if signal y is the electric field (dimensionality V/m) and x is in seconds).
+   To get the Numerical Recipes normalized one (dimensionless), multiply wk2 by norm.
+*/
+{
+	const Tint MACC = 4;		// number of interpolation points per 1/4 cycle of highest frequency
+	Tint j,k,ndim,nfreq,nfreqt;
+	Treal ave,ck,ckk,cterm,cwt,den,df,fac,fndim,hc2wt;
+	Treal hs2wt,sterm,swt,var,xdif,xmax,xmin;
+	nout = Tint(0.5*ofac*hifac*n);
+	nfreqt = Tint(ofac*hifac*n*MACC);			// size the FFT as next power of 2 above
+	nfreq = 64;
+	while (nfreq < nfreqt) nfreq<<= 1;
+	ndim = nfreq << 1;
+	const Tint nwk = max(ndim,nout);
+	wk1 = new Treal [nwk+1];
+	wk2 = new Treal [nwk+1];
+	wk3 = new Treal [nwk+1];
+	avevar(y,n,ave,var);				// compute the mean, variance and range of the data, [var] = (V/m)^2
+	xmin = x[0];
+	xmax = xmin;
+	for (j=1; j<n; j++) {
+		if (x[j] < xmin) xmin = x[j];
+		if (x[j] > xmax) xmax = x[j];
+	}
+	xdif = xmax - xmin;
+	for (j=0; j<ndim+1; j++) wk1[j] = wk2[j] = 0.0;		// zero the workspaces
+	fac = ndim/(xdif*ofac);
+	fndim = ndim;
+	for (j=0; j<n; j++) {			// extirpolate the data into the workspace
+		ck = (x[j] - xmin)*fac;
+		MOD(ck,fndim);
+		ckk = 2.0*(ck++);
+		MOD(ckk,fndim);
+		ckk++;
+		spread(y[j]-ave,wk1+1,ndim,ck-1,MACC);
+		spread(1.0,wk2+1,ndim,ckk-1,MACC);
+	}
+	realft(wk1+1,ndim);				// take the FFT
+	realft(wk2+1,ndim);
+	df = 1.0/(xdif*ofac);
+	const Treal C = xdif/(hifac*(n-1));		// [C] = s
+	for (k=3,j=1; j<=nout; j++,k+=2) {				// compute the Lomb value for each frequency
+		const Treal halfinvhypo = 0.5/sqrt(wk2[k]*wk2[k] + wk2[k+1]*wk2[k+1]);
+		hc2wt = wk2[k]*halfinvhypo;
+		hs2wt = wk2[k+1]*halfinvhypo;
+		cwt = sqrt(0.5+hc2wt);
+		swt = sqrt(0.5-hc2wt)*(hs2wt >= 0 ? 1.0 : -1.0);
+		den = 0.5*n + hc2wt*wk2[k] + hs2wt*wk2[k+1];
+		const Treal tmp1 = cwt*wk1[k] + swt*wk1[k+1];
+		cterm = tmp1*tmp1/den;
+		const Treal tmp2 = cwt*wk1[k+1] - swt*wk1[k];
+		sterm = tmp2*tmp2/(n-den);
+		wk1[j] = j*df;
+//		wk2[j] = (cterm+sterm)/(2.0*var);		// this is Numerical Recipes normalization, wk2 dimensionless
+		wk2[j] = C*(cterm+sterm);				// this is ours, dimensionality is (V/m)^2/Hz
+		// 30 operations
+	}
+	wk2[0] = ave*ave/df;
+	norm = 0.5/(var*C);		// if one multiplies wk2 by norm, one gets Numerical Recipes normalization
+	// dimensionality of norm is Hz/(V/m)^2
+	const Treal effm = 2.0*nout/ofac;
+	const Treal expylim = 1 - exp(-13.8155/effm);	// the constant is log(1e-6)
+	const Treal wk2lim1 = log(100.0*effm)/norm;
+	const Treal wk2lim2 = -log(1.0 - exp(-13.8155/effm))/norm;
+	for (j=0; j<=nout; j++) {
+		Treal prob;
+		if (wk2[j] < wk2lim1) {
+			prob = 1.0;
+			if (wk2[j] >= wk2lim2) prob-= pow(1.0-exp(-wk2[j]*norm),effm);
+		} else
+			prob = effm*exp(-wk2[j]*norm);
+		wk3[j] = prob;
+		// 6 operations
+	}
+	nout++;
+	global::nops+= 36*nout;
+}
+
+[freq,ampl;normalization,prob] = Lomb(x,y; dx,oversampling)
+/*   [freq,ampl] = Lomb(t,u)
+   The Lomb periodogram is power spectrum analysis of unevenly sampled data.
+   The argument t must be monotonically increasing "time" axis and u the
+   corresponding real data vector. The output freq is the frequency axis and
+   ampl the normalized Lomb power spectrum. The result is normalized so that
+   sum(ampl)*(freq[2]-freq[1]) approximates the mean squared signal mean(u^2)
+   and in case of evently spaced t, ampl is close to the FFT power spectrum P:
+   P=2*(t[2]-t[1])*abs2(realFFT(u))/length(u); P[length(P)]*= 0.5; P[1]*= 0.5.
+
+     [freq,ampl] = Lomb(t,u,dt,oversampling)
+   sets the finest wanted t resolution dt (default is min(diff(dt))) and the
+   oversampling factor (default 4.0).
+
+     [freq,ampl,normalization,prob] = Lomb(...)
+   returns also normalized and prob, where normalization is a scalar which is
+   such that normalization*ampl gives the dimensionless Lomb spectrogram
+   conforming to Numerical Recipes convention. The fourth output arg 'prob' is
+   the probability that the spectral power would occur by chance under the
+   assumption of Gaussian noise; if 'prob' is small at obtained peak, the peak
+   is statistically significant. Lomb uses a fast n*log(n) algorithm due to
+   Press and Rybicki. The implementation is loosely based on the Numerical
+   Recipes book. Lomb returns also zero frequency and the corresponding
+   amplitude which is related to mean(u) while the N.R. routine does not return
+   the zero frequency part.
+   Example:
+      n = 100; t = sort(n*rand(n)); u = 2*sin(128*pi*t/n);
+      [f,a,norm,prob] = Lomb(t,u,0.25); plot(f,a);
+   The spectral peak is clear, although not easily seen plot(t,u). The
+   probability that the peak occurs by chance is seen from plot(f,prob); it is
+   about 1e-18 in this case.
+   See also: FFT, realFFT.
+   Error codes:
+   -1: First input arg t is not real vector of length at least 2
+   -2: Second input arg u is not real vector
+   -3: Lengths of input vectors are different
+   -4: Third input arg 'dt' is not positive real scalar
+   -5: Fourth input arg 'oversampling' is not positive real scalar
+*/
+{
+	if (x.kind()!=KRealArray || x.rank()!=1) return -1;
+	if (y.kind()!=KRealArray || y.rank()!=1) return -2;
+	if (x.length() < 2) return -1;
+	Tint i;
+	const Tint n = x.length();
+	if (y.length() != n) return -3;
+	Treal ofac = 4.0;
+	Treal deltax;
+	if (Nargin >= 3) {
+		if (dx.kind()!=Kreal && dx.kind()!=Kint) return -4;
+		if (dx.kind() == Kreal) {
+			if (dx.RealValue() <= 0) return -4;
+			deltax = dx.RealValue();
+		} else {
+			if (dx.IntValue() <= 0) return -4;
+			deltax = dx.IntValue();
+		}
+		if (Nargin >= 4) {
+			if (oversampling.kind()!=Kreal && oversampling.kind()!=Kint) return -5;
+			if (oversampling.kind() == Kreal) {
+				if (oversampling.RealValue() <= 0) return -5;
+				ofac = oversampling.RealValue();
+			} else {
+				if (oversampling.IntValue() <= 0) return -5;
+				ofac = oversampling.IntValue();
+			}
+		}
+	} else {
+		// compute deltax = min(diff(x))
+		deltax = x.RealPtr()[1] - x.RealPtr()[0];
+		for (i=1; i<n-1; i++) {
+			const Treal dif = x.RealPtr()[i+1] - x.RealPtr()[i];
+			if (dif < deltax) deltax = dif;
+		}
+	}
+	Treal *wk1,*wk2,*wk3;
+	Tint nout,jmax;
+	const Treal avedx = (x.RealPtr()[n-1] - x.RealPtr()[0])/n;
+	const Treal hifac = avedx/deltax;
+	Treal norm;
+	fastlomb(x.RealPtr(),y.RealPtr(),x.length(),ofac,hifac,wk1,wk2,wk3,nout,norm);
+	freq.rzeros(nout);
+	ampl.rzeros(nout);
+	for (i=0; i<nout; i++) {
+		freq.RealPtr()[i] = wk1[i];
+		ampl.RealPtr()[i] = wk2[i];
+	}
+	if (Nargout >= 3) normalization = norm;
+	if (Nargout >= 4) {
+		prob.rzeros(nout);
+		for (i=0; i<nout; i++) prob.RealPtr()[i] = wk3[i];
+	}
+	delete [] wk1;
+	delete [] wk2;
+	delete [] wk3;
+	return 0;
+};

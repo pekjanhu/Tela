@@ -1,0 +1,124 @@
+/*
+ * This file is part of tela the Tensor Language.
+ * Copyright (c) 1994-1999 Pekka Janhunen
+ */
+
+/*
+    tests.ct
+	C-tela code for Standard library, Preprocess with ctpp.
+	C-tela code is C++ equipped with []=f() style function definition.
+*/
+
+[f] = cfibint(n)
+/* cfibint(n) returns the nth Fibonacci number. The argument must be an integer. */
+{
+	Tobject n1,n2,f1,f2;
+	TConstObjectPtr np;
+	TObjectPtr fp;
+	int ni;
+	if (n.kind()!=Kint) {f.SetToVoid(); return 1;}
+	ni = n.IntValue();
+	if (ni < 2) {
+		f = ni;
+	} else {
+		n1 = ni-1;
+		n2 = ni-2;
+		np = &n1;
+		fp = &f1;
+		cfibintfunction(&np,1,&fp,1);
+		np=&n2;
+		fp=&f2;
+		cfibintfunction(&np,1,&fp,1);
+		f = f1.IntValue() + f2.IntValue();
+	}
+	return 0;
+}
+
+[f] = cfib(n)
+/* cfib(n) returns the nth Fibonacci number. */
+{
+	static const Tobject two = 2;
+	Tobject cmpresult,n1,n2,f1,f2;
+	TConstObjectPtr np;
+	TObjectPtr fp;
+	Lt(cmpresult,n,two);		// n < 2 ?
+	if (cmpresult.IsNonzero()) {	// Yes
+		f = n;
+	} else {					// No
+		n1 = n;
+		Dec(n1);			// n1=n-1
+		n2 = n1;
+		Dec(n2);			// n2=n-2
+		np = &n1;
+		fp = &f1;
+		cfibfunction(&np,1,&fp,1);
+		np=&n2;
+		fp=&f2;
+		cfibfunction(&np,1,&fp,1);
+		Add(f,f1,f2);
+	}
+	return 0;
+}
+
+[t] = new100000()
+{
+	Treal t1 = CPUSeconds();
+	for (int i=0; i<100000; i++) {
+		Tobject *p = new Tobject();
+		delete p;
+	}
+	t = CPUSeconds()-t1;
+	return 0;
+}
+
+[t] = newdata100000()
+{
+	Treal t1 = CPUSeconds();
+	for (int i=0; i<100000; i++) {
+		char *p = new char [sizeof(Tobject)];
+		delete [] p;
+	}
+	t = CPUSeconds()-t1;
+	return 0;
+}
+
+[] = CallMe1() {
+	clog << "Calling CallMe()\n";
+	return 0;
+}
+
+[] = OneArg(x) {
+	clog << "OneArg: " << x << "\n";
+	return 0;
+}
+
+[] = OneOptionalArg(;x) {
+	if (Nargin == 1)
+		clog << "OneOptionalArg: " << x << "\n";
+	else if (Nargin == 0)
+		clog << "OneOptionalArg:  no args\n";
+	else
+		clog << "*** OneOptionalArg: " << Nargin << " args.\n";
+	return 0;
+}
+
+[y] = OneToOne(x) {
+	clog << "OneToOne: squaring argument x=" << x << ".";
+	Mul(y,x,x);
+	clog << " Result: y=" << y << "\n";
+	return 0;
+}
+
+[y] = EllipsisIn(...) {
+	clog << "EllipsisIn: " << Nargin << " arguments.\n";
+	y = Tcomplex(2,3);
+	return 0;
+}
+
+[...] = EllipsisOut() {
+	clog << "EllipsisOut: " << Nargout << " output arguments.\n";
+	for (int i=0; i<Nargout; i++) *argout[i] = i;
+	return 0;
+}
+
+

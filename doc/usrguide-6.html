@@ -1,0 +1,289 @@
+<title>Writing C-tela files</title>
+<h1>6 <a name="s6"> Writing C-tela files </h1>
+<p> <a href="usrguide.html#toc6"> Contents of this section</a></p>
+
+<p>C-tela files are C++ code equipped with Tela's function header
+syntax.  There is a preprocessor, ctpp, that translates C-tela in
+ordinary C++.  Calling ctpp is the responsibility of the tool program
+<b>telakka</b> (
+telakka </a>
+).</p>
+<p>Let us begin with an example of a C-tela source file (let it be
+mine.ct):</p>
+<p>
+<blockquote><code>
+<hr>
+<pre>
+// Our first C-tela example
+
+[] = myfn(x)
+/* myfn(x) checks that x is a positive scalar and outputs it.
+   Error codes:
+   1: x is not a positive scalar */
+{
+    if (!x.IsScalar()) return 1;
+    switch (x.kind()) {
+        case Kint:
+            if (x.IntValue() &lt;= 0) return 1;
+            break;
+        case Kreal:
+            if (x.RealValue() &lt;= 0) return 1;
+            break;
+        case Kcomplex:
+            return 1;
+        default:
+            return 1;
+    }
+    cout &lt;&lt; "myfn: x = " &lt;&lt; x &lt;&lt; '\n';
+    return 0;
+}
+</pre>
+<hr>
+</code></blockquote>
+</p>
+<p>You can compile it using <b>telakka</b> (
+telakka </a>telakka </a>
+):</p>
+<p>
+<blockquote><code>
+<pre>
+unix&gt; telakka -c mine.ct
+</pre>
+</code></blockquote>
+</p>
+<p>Then from Tela you can link the object file and test myfn as follows.</p>
+<p>
+<blockquote><code>
+<pre>
+&gt;link("mine.o")
+&gt;help myfn
+myfn(x) checks that x is a positive scalar and outputs it.
+&gt;myfn(2)
+myfn: x = 2
+&gt;myfn(-2)
+Warning from C-function 'myfn':
+  x is not a positive scalar.
+&gt;myfn(2+3.4i)
+Warning from C-function 'myfn':
+  x is not a positive scalar.
+&gt;myfn(#(1.2,3,4))
+Warning from C-function 'myfn':
+  x is not a positive scalar.
+</pre>
+</code></blockquote>
+</p>
+<p>There are several points to be noticed with this simple example:</p>
+<p>
+<pre>
+- The function is declare using the [...] = f(...) type syntax.
+- The /* ... */ comment immediately following the header is "hot".
+  The Tela help command finds and displays the comment, up to line
+  "Error codes:".
+- The function should return zero on success, positive integer on
+  nonfatal error and negative integer on fatal error. The error codes
+  should be listed in the comment, following, one per line, the
+  "Error codes:" line.
+- All C++ constructs are available, in addition several classes and
+  their associated members from Tela headers. The function arguments
+  ("x" in our case) are of type Tobject and they can be e.g. outputted
+  using cout &lt;&lt; x.
+</pre>
+</p>
+<p>Rules for argument syntax are very similar to those found in Tela.
+Output arguments are enclosed in square brackets and input arguments
+in parentheses. Optional arguments are separated from obligatory
+arguments with a semicolon, parameters to the right of the semicolon
+are optional and parameters on the left hand side of the semicolon are
+obligatory. If there is no semicolon in the output argument list, then
+all output arguments are optional. If there is no semicolon in the
+input argument list, then all input arguments are obligatory. In
+addition, it is possible to use the ellipsis (...) notation to denote
+an arbitrary number of optional arguments. The ellipsis is only
+allowed as the last thing in a parameter (either input or output)
+list. The following function has two obligatory output arguments, one
+optional output argument, two obligatory input arguments, and any
+number of optional input arguments, the first of which is named c:</p>
+<p>
+<blockquote><code>
+<pre>
+[x,y; z] = f(a,b; c...)
+</pre>
+</code></blockquote>
+</p>
+<p>The function body can refer to the arguments simply by name, and they
+are of class Tobject. Actually the argument lists are implemented
+using four C++ function parameters: the input argument list (argin),
+the length of the input argument list (Nargin), the output argument
+list (argout), and the length of the output argument list (Nargout).
+Nargin and Nargout are of type int. argin and argout are arrays of
+pointers to Tobject. The named arguments are just C preprocessor
+macros. For example, if x is the first input argument, its definition
+is</p>
+<p>
+<blockquote><code>
+<pre>
+#define x (*(argin[0]))
+</pre>
+</code></blockquote>
+</p>
+<p>The pointers contained in the argument arrays are protected against
+modification by the C++ keyword const. In addition the input array
+individual objects are also const. The C++ compiler will therefore
+give an error message if you try to assign or otherwise modify an
+input argument. Also Nargin and Nargout carry the const attribute,
+because changing them is unnecessary.</p>
+<p>Ellipsis arguments have no names and therefore must be referenced
+using the argin and argout arrays explicitly. This is easy, for
+example to process all input arguments starting from the second one
+(which is *argin<F>1</F>, remember that in C arrays start with subscript
+0), you could use a code like this:</p>
+<p>
+<blockquote><code>
+<pre>
+static void Process(const Tobject& obj) { /* ... */ }
+
+[] = myfunc(x...)
+/* Help message ... */
+{
+    /* ... */
+    for (int i=1; i&lt;Nargin; i++)
+        Process(*argin[i]);
+    /* ... */
+}
+</pre>
+</code></blockquote>
+</p>
+<p>As mentioned earlier, C-tela code is C++ code equipped with the
+Tela-like function header syntax. In addition to this, there are also
+some small restrictions on C-tela source files:</p>
+<p>
+<blockquote><code>
+<pre>
+1. The function header must be on one line, and the first character
+(the left square bracket) must be on first column.
+
+2. The right brace which ends the C-tela function body must be in the
+first column. No other right brace inside the function body may be in
+first column.
+
+3. You cannot temporarily remove C-tela functions from your source
+file using preprocessor directies, e.g. by enclosing the lines in
+#if 0 ... #endif. If you want to do this, you must also enclose the
+function headers in a comment.
+</pre>
+</code></blockquote>
+</p>
+<p>These rules should not limit your programming capabilities in any
+serious way, and most of the time you do not have to even think about
+them.</p>
+<p>Then what can you do with the Tela objects, that are of type Tobject
+in C++? Firstly, every Tobject has a tag containing that object's
+kind. The possible kinds are (from header file object.H):</p>
+<p>
+<blockquote><code>
+<pre>
+
+enum Tkind {                // Object kinds (types)
+    Kint,                   // Integer scalar
+    Kreal,                  // Real scalar
+    Kcomplex,               // Complex scalar
+    KIntArray,              // Integer array (n-dimensional)
+    KRealArray,             // Real array
+    KComplexArray,          // Complex array
+    KObjectArray,           // Object (pointer) array, currently not used
+    Kfunction,              // User-defined function, written in Tela
+    KCfunction,             // Compiled and linked C-Tela function
+    KIntrinsicFunction,     // Special "functions" generating inline code: abs, min, max ..
+    Kvoid,                  // Empty value, when printed prints nothing
+    Kundef                  // Undefined value, the default for new symbols
+};
+</pre>
+</code></blockquote>
+</p>
+<p>Let us then list the most useful Tobject public members:</p>
+<p>
+<blockquote><code>
+<pre>
+
+class Tobject {
+  /* ... */
+    // --- constructors
+    Tobject();                          // default constructor: it will have Undefined value
+    Tobject(Tint a);                    // construct integer scalar object
+    Tobject(Tchar ch);                  // construct character object
+    Tobject(Treal a);                   // construct real scalar object
+    Tobject(Tcomplex a);                // construct complex scalar object
+    Tobject(Treal x, Treal y);          // construct complex scalar object
+    Tobject(const Tint itab[], int N, int stringflag=0);    // construct integer vector or string
+    Tobject(const Treal xtab[], int N); // construct real vector
+    Tobject(const Tcomplex ztab[], int N);  // construct complex vector
+    Tobject(const Tint itab[], const TDimPack& dp); // construct integer array
+    Tobject(const Treal xtab[], const TDimPack& dp);    // construct real array
+    Tobject(const Tcomplex ztab[], const TDimPack& dp); // construct complex array
+    Tobject(const Tchar *str);          // construct string
+    Tobject(const Tobject& obj);        // copy constructor: use other object's value
+
+    // --- assignments
+    Tobject& operator=(Tint a);         // assign integer scalar
+    Tobject& operator=(Treal a);        // assign real scalar
+    Tobject& operator=(const Tcomplex& a);  // assign complex scalar
+    Tobject& operator=(Tchar ch);       // assign character
+    Tobject& operator=(const Tchar *str);   // assign string
+    Tobject& operator=(const Tobject& obj); // copy assignment: assign other object's value
+    void izeros(const TDimPack& dp);    // set to zeroed int array of given dims
+    void rzeros(const TDimPack& dp);    // set to zeroed real array of given dims
+    void czeros(const TDimPack& dp);    // set to zeroed complex array of given dims
+    void ireserv(const TDimPack& dp);   // set to uninitialized int array of given dims
+    void rreserv(const TDimPack& dp);   // set to uninitialized real array of given dims
+    void creserv(const TDimPack& dp);   // set to uninitialized complex array of given dims
+    void SetToVoid();                   // set to void (empty) value
+    void SetToUndefined();              // set to undefined value
+    void SetStringFlag();               // set string flag (assuming it is IntArray already)
+    void SetCharFlag();                 // (assume it is Kint already)
+    void ClearStringFlag();             // unset string flag (assuming it is IntArray already)
+    void ClearCharFlag();               // (assume it is Kint already)
+
+    // --- comparison
+    int operator==(const Tobject& obj) const;
+    int operator!=(const Tobject& obj) const;
+
+    // --- inquiry functions
+    Tkind kind() const;                 // inquire object kind
+    int length() const;                 // number of elements of array object
+    Tint rank() const;                  // rank of array object
+    Tint IntValue() const;              // value of integer scalar object
+    Treal RealValue() const;            // value of real scalar object
+    const Tcomplex& ComplexValue() const;   // value of complex scalar object
+    Tint& IntRef();                     // modifiable lvalue of integer scalar object
+    Treal& RealRef();                   // modifiable lvalue of real scalar object
+    Tcomplex& ComplexRef();             // modifiable lvalue of complex scalar object
+    Tint *IntPtr() const;               // start address of elements of integer array
+    Treal *RealPtr() const;             // start address of elements of real array
+    Tcomplex *ComplexPtr() const;       // start address of elements of complex array
+    int IsNumerical() const;            // nonzero if object is numerical (scalar or array)
+    int IsArray() const;                // nonzero if object is array
+    int IsNumericalArray() const;       // nonzero if it is numerical array
+    int IsScalar() const;               // nonzero if object is (numerical) scalar
+    int IsFunction() const;             // nonzero if object is Tela-function
+    int IsCfunction() const;            // nonzero if object is C-tela function
+    int IsString() const;               // nonzero if object is string
+    int IsChar() const;                 // nonzero if object is character
+    int IsNonzero() const;              // tests whether object is not zero
+    const TDimPack& dims() const;       // return array object's dimensions
+
+    // --- other operations
+    friend ostream& operator&lt;&lt;(ostream& o, const Tobject& obj);     // outputter
+
+    // --- destructor
+    ~Tobject();
+};
+</pre>
+</code></blockquote>
+</p>
+<p>Using all these members seems to be overwhelming task at first. But
+there is certain logic behind this design. Basically, you can </p>
+<p></p>
+<p><a href="usrguide-7.html"> Next </a> Chapter, <a href="usrguide-5.html"> Previous </a> Chapter</p><p>Table of contents of <a href="usrguide.html#toc6">this chapter</a>,
+ General <a href="usrguide.html#toc">table of contents</a></p>
+<p><a href="usrguide.html"> Top </a> of the document,
+ <a href="#0"> Beginning of this Chapter</a></p>

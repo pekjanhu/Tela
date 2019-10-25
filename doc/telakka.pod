@@ -1,0 +1,114 @@
+=head1 NAME
+
+telakka - TeLa Kernel Konstruction Accessory
+
+=head1 SYNOPSIS
+
+B<telakka> S<[ B<-v> | B<--verbose> ]> S<[ B<-o> I<file> | B<--output> I<file> ]>
+        S<[ I<CFLAGS> ]> S<[ I<files> ]>
+
+B<telakka> S<[ B<-v> | B<--verbose> ]> S<[ B<-o> I<file> | B<--output> I<file> ]>
+        S<[ B<-c> | B<--compile-only> ]> S<[ I<CFLAGS> ]> S<[ I<files> ]>
+
+B<telakka> S<[ B<-v> | B<--verbose> ]> S<[ B<-o> I<file> | B<--output> I<file> ]>
+        S<[ B<--shared> ]> S<[ I<CFLAGS> ]> S<[ I<files> ]>
+
+B<telakka> S<B<-V> | B<--version>>
+
+B<telakka> S<B<-h> | B<--help>>
+
+=head1 DESCRIPTION
+
+B<telakka> compiles I<files> or links them with appropriate libraries
+to produce a new B<tela> executable S<(form 1)>, object files S<(form
+2)>, or a dynamic library S<(form 3)>.
+
+I<CFLAGS> are any additional flags for the C++ compiler.
+
+I<files> are ".ct", ".o", or ".a" files to be compiled or linked.
+
+=over 8
+
+=item .ct -> B<tela>    (form 1)
+
+If neither B<-c>, nor B<--shared> is given, B<telakka> builds a new
+Tela-kernel, extended by the functions in I<files>.
+
+=item .ct -> .o      (form 2)
+
+To compile one or more I<files> to object files, use B<-c>, or
+B<--compile-only>.  If no output filename is given with S<B<-o>
+I<file>> or S<B<--output> I<file>>, each of the specified I<files> are
+compiled to object files.  If an output filename is specified, only
+one ct-file can be compiled at a time.
+
+=item .ct -> .so     (form 3)
+
+To compile one or more I<files> to a shared object, use B<--shared>.
+(The operating system must support dynamic objects for this option to
+work.)  The resulting shared object file is linked with B<tela> at
+runtime, see link().  B<telakka> derives the name of the shared object
+from the name of the B<first> input file unless an explicit output
+filename is given with S<B<-o> I<file>> or S<B<--output> I<file>>.
+
+=back
+
+B<telakka> displays its own version number and the version of the
+associated B<tela> binary when called with the B<-V> or B<--version>
+options S<(form 4)>.
+
+Use B<-h> or B<--help> to show a brief summary of B<telakka>'s command
+line options S<(form 5)>.
+
+=head1 OPTIONS
+
+B<telakka> understands the following options:
+
+=over 8
+
+=item B<-h>, B<--help>
+
+Display help message and exit.
+
+=item B<-c>, B<--compile-only>
+
+Compile only, do not link (see gcc(1)).  This option is mutually
+exclusive with B<--shared>.
+
+=item B<-n>, B<--nostandard>
+
+This option has no effect and is only included for backward
+compatability.
+
+=item B<-o> I<file>, B<--output> I<file>
+
+Specify the name of output file. The default value is "tela", or in
+compile-only mode the base-name of the ct-file with ".o" appended, or
+in shared mode the base-name of the first ct-file with ".so" appended.
+
+=item B<--shared>
+
+Compile and link given files to produce a shared object.  The output
+filename is the first ct-file's basename with ".so" appended.
+
+=item B<-v>, B<--verbose>
+
+Switch on verbose mode.
+
+=item B<-V>, B<--version>
+
+Print version of B<telakka> and B<tela>, then exit.
+
+=back
+
+=head1 SEE ALSO
+
+    tela	Tela interpreter
+    ctpp	Tela preprocessor
+    plotmtv	Standard associated graphics package
+    sppc	Alternative graphics package
+    m2t		Matlab to Tela translator
+
+=head1 HISTORY
+
+telakka by S<Pekka Janhunen>; man page by S<Ch. L. Spiel>, 2000-11-7.

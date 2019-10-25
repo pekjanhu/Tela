@@ -1,0 +1,278 @@
+/*
+ * This file is part of tela the Tensor Language.
+ * Copyright (c) 1994-2000 Pekka Janhunen
+ */
+
+/*
+	ani.ct
+	Writing of MPEG-2 animations.
+	Preprocess with ctpp.
+	C-tela code is C++ equipped with []=f() style function definition.
+*/
+
+#include "mpeg2encode/mpegintf.H"
+#include "png.H"
+
+const int magic_first_id = 4607;		// first animation opened has this identifier, just to mix things up...
+
+enum TAnimationType {MPEG_ANIMATION, MNG_ANIMATION};
+
+struct Tanimation {
+	int id;
+	char *filename;
+	TAnimationType type;
+	MPEG *mpegptr;
+	ofstream *mngstreamptr;
+	int Width, Height;
+	int PadWidth, PadHeight;		// usually 0 but set to 1 if dimension is odd (MPEG accepts only even dimensions)
+	Tanimation *next;
+	double fps;			// frames per second
+	double bpf;			// bytes per frame
+	bool verbose;
+	bool mpeg1flag;
+	bool I_frames_only;
+	~Tanimation();
+	bool ParseOptions(const TConstObjectPtr objptrs[], int n);
+};
+
+Tanimation::~Tanimation()
+{
+	free(filename);
+	if (type == MPEG_ANIMATION)
+		delete mpegptr;
+	else {
+		mngwriteendmark(*mngstreamptr);
+		delete mngstreamptr;
+	}
+}
+
+bool Tanimation::ParseOptions(const TConstObjectPtr objptrs[], int n)
+{
+	if (n%2 != 0) return false;
+	int a;
+	for (a=0; a<n; a+=2) {
+		if (!objptrs[a]->IsString()) return false;
+		const Tstring OPT = *objptrs[a];
+		if (!strcmp((char*)OPT,"animtype")) {
+			if (!objptrs[a+1]->IsString()) return false;
+			const Tstring VAL = *objptrs[a+1];
+			if (!strcasecmp((char*)VAL,"MPEG1") || !strcasecmp((char*)VAL,"MPEG-1")) {
+				mpeg1flag = true;
+				type = MPEG_ANIMATION;
+			} else if (!strcasecmp((char*)VAL,"MPEG2") || !strcasecmp((char*)VAL,"MPEG-2")) {
+				mpeg1flag = false;
+				type = MPEG_ANIMATION;
+			} else if (!strcasecmp((char*)VAL,"MNG")) {
+				type = MNG_ANIMATION;
+			} else
+				return false;
+			continue;
+		}
+		if (objptrs[a+1]->kind()!=Kint && objptrs[a+1]->kind()!=Kreal) return false;
+		if (!strcmp((char*)OPT,"bytes_per_frame")) {
+			if (objptrs[a+1]->kind()==Kint)
+				bpf = objptrs[a+1]->IntValue();
+			else
+				bpf = objptrs[a+1]->RealValue();
+			if (bpf <= 0) return false;
+		} else if (!strcmp((char*)OPT,"framerate")) {
+			if (objptrs[a+1]->kind()==Kint)
+				fps = objptrs[a+1]->IntValue();
+			else
+				fps = objptrs[a+1]->RealValue();
+			if (fps <= 0) return false;
+		} else if (!strcmp((char*)OPT,"verbose")) {
+			if (objptrs[a+1]->kind()!=Kint) return false;
+			verbose = (objptrs[a+1]->IntValue() != 0);
+		} else if (!strcmp((char*)OPT,"I_frames_only")) {
+			if (objptrs[a+1]->kind()!=Kint) return false;
+			I_frames_only = (objptrs[a+1]->IntValue() != 0);
+		} else
+			return false;
+		
+	}
+	return true;
+}
+
+static Tanimation *anims = 0;
+
+[ap] = aniopen(fn,rw...)
+/* aniopen("outfile","w") opens an MPEG or MNG animation file for writing.
+   It returns an animation handle that can be passed to aniput
+   for writing the frames.
+
+   You can also give option-value pairs as additional arguments,
+   the following are recognized (Example values are the defaults):
+
+   aniopen("outfile","w",
+     "animtype","mpeg-1",    // "MPEG-1", "MPEG-2" or "MNG" (case insensitive)
+     "bytes_per_frame",12e3, // bytes per frame to write, approximately
+     "framerate",7,          // frames per second to show when showing
+     "I_frames_only",0,      // if flag is 1, write I-frames only
+     "verbose",0)            // give some progress report to stderr
+
+   The rates must be positive reals or ints. The flags must be passed as
+   0 or 1. Set "I_frames_only" to 1 if you want to view all frames with
+   Xanim. Most widely available tools currently show only MPEG-1 animations,
+   not MPEG-2 so that default type is still set to "MPEG-1".
+
+   If animtype is "MNG", all other options are ignored (except being
+   syntactically checked). MNG animation always uses lossless compression.
+   This version writes a VLC (Very Low Complexity) MNG animation, which
+   uses adaptive filtering and the default ZLIB compression level.
+   Future Tela versions may offer additional options for controlling
+   the type of the MNG output (e.g., Delta-PNG animations).
+
+   Error codes:
+   -1: First argument not a string
+   -2: Second argument not a string
+   -3: Cannot open animation file
+   -4: Second argument not equal to "w" or "r"
+   5: Error with animation options
+   See also: aniput, aniclose */
+{
+	if (!fn.IsString()) return -1;
+	const Tstring FN = fn;
+	if (!rw.IsString()) return -2;
+	if (rw.length()!=1 || rw.IntPtr()[0]!='w') return -4;
+	static int anim_id = magic_first_id;
+	Tanimation *aniptr = new Tanimation;
+	aniptr->next = anims;
+	aniptr->id = anim_id++;
+	aniptr->filename = strdup((char *)FN);
+	aniptr->mpegptr = 0;
+	aniptr->Width = aniptr->Height = 0;
+	aniptr->fps = 7.0;
+	aniptr->bpf = 12e3;
+	aniptr->verbose = false;
+	aniptr->mpeg1flag = true;
+	aniptr->type = MPEG_ANIMATION;
+	aniptr->I_frames_only = false;
+	if (!aniptr->ParseOptions(argin+2,Nargin-2)) return 5;
+	anims = aniptr;
+	ap = aniptr->id;
+	return 0;
+}
+
+[] = aniput(ap,r,g,b)
+/* aniput(ap,r,g,b) writes a new frame to a previously
+   opened animation (ap=handle returned by aniopen).
+   The first frame defines the image size of the animation.
+   Error codes:
+   -1: First argument not a valid open animation handle
+   -2: Second argument not an int matrix
+   -3: Third argument not an int matrix
+   -4: Fourth argument not an int matrix
+   -5: r,g,b arguments not of the same size with each other
+   -6: Image size does not match with first frame
+   See also: aniopen, aniclose
+*/
+{
+	if (ap.kind()!=Kint) return -1;
+	Tanimation *p;
+	bool found = false;
+	for (p=anims; p; p=p->next) if (p->id == ap.IntValue()) {found = true; break;}
+	if (!found) return -1;
+	if (r.kind()!=KIntArray || r.rank()!=2) return -2;
+	if (g.kind()!=KIntArray || g.rank()!=2) return -3;
+	if (b.kind()!=KIntArray || b.rank()!=2) return -4;
+	if (!(r.dims()==g.dims() && g.dims()==b.dims())) return -5;
+	bool firstframe = false;
+	if (p->Width==0 && p->Height==0) {
+		// This is the first aniput call
+		firstframe = true;
+		p->Height = r.dims()[0];
+		p->Width = r.dims()[1];
+		if (p->type == MPEG_ANIMATION) {
+			if (p->Width % 2 != 0) p->PadWidth = 1; else p->PadWidth = 0;
+			if (p->Height % 2 != 0) p->PadHeight = 1; else p->PadHeight = 0;
+			p->mpegptr = new MPEG(p->filename,p->Width+p->PadWidth,p->Height+p->PadHeight);
+			p->mpegptr->frames_per_second(p->fps);
+			p->mpegptr->bytes_per_frame(p->bpf);
+			p->mpegptr->set_mpeg1(p->mpeg1flag);
+			p->mpegptr->set_verbose(p->verbose);
+			p->mpegptr->Iframes_only(p->I_frames_only);
+		} else {
+			p->PadWidth = 0;
+			p->PadHeight = 0;
+			p->mngstreamptr = new ofstream(p->filename);
+//			cout << "Calling mngwriteheader\n";
+			mngwriteheader(*p->mngstreamptr);
+//			cout << "Call of mngwriteheader ready\n";
+		}
+	}
+//	cout << "moi 1\n" << flush;
+	if (p->Height != r.dims()[0] || p->Width != r.dims()[1]) return -6;
+	const int nn = (p->Width+p->PadWidth)*(p->Height+p->PadHeight);
+//	cout << "nn = " << nn << "\n" << flush;
+	unsigned char *red = new unsigned char [3*nn];
+	unsigned char *green = red + nn;
+	unsigned char *blue = red + 2*nn;
+	Tint i,j;
+	for (i=0; i<p->Height; i++) for (j=0; j<p->Width; j++) {
+		const Tint ii = i*(p->Width+p->PadWidth) + j;
+		red[ii] = r.IntPtr()[ii];
+		green[ii] = g.IntPtr()[ii];
+		blue[ii] = b.IntPtr()[ii];
+	}
+//	cout << "moi 2\n" << flush;
+	for (i=0; i<p->PadHeight; i++) {
+		for (j=0; j<p->Width; j++) {
+			red[(p->Height+i)*(p->Width+p->PadWidth)+j] = red[(p->Height+i)*(p->Width-1)+j];
+			green[(p->Height+i)*(p->Width+p->PadWidth)+j] = green[(p->Height+i)*(p->Width-1)+j];
+			blue[(p->Height+i)*(p->Width+p->PadWidth)+j] = blue[(p->Height+i)*(p->Width-1)+j];
+		}
+	}
+	for (j=0; j<p->PadWidth; j++) {
+		for (i=0; i<p->Height+p->PadHeight; i++) {
+			red[i*(p->Width+p->PadWidth)+p->Width+j] = red[i*(p->Width+p->PadWidth)+p->Width-1];
+			green[i*(p->Width+p->PadWidth)+p->Width+j] = green[i*(p->Width+p->PadWidth)+p->Width-1];
+			blue[i*(p->Width+p->PadWidth)+p->Width+j] = blue[i*(p->Width+p->PadWidth)+p->Width-1];
+		}
+	}
+//	cout << "moi 3\n" << flush;
+	if (p->type == MPEG_ANIMATION) {
+		p->mpegptr->addframe(red,green,blue);
+	} else if (p->type == MNG_ANIMATION) {
+//		cout << "Constructing Timage(" << p->Width << "," << p->Height << ")\n" << flush;
+		Timage image(p->Width,p->Height);
+		for (i=0; i<p->Height; i++) for (j=0; j<p->Width; j++) {
+			const Tint ii = i*(p->Width+p->PadWidth) + j;
+			image.set_red(i,j,red[ii]);
+			image.set_green(i,j,green[ii]);
+			image.set_blue(i,j,blue[ii]);
+		}
+		if (firstframe) {
+//			cout << "calling mngwritefirst\n" << flush;
+			mngwritefirst(*p->mngstreamptr,image);
+		} else {
+//			cout << "calling mngwritenext\n" << flush;
+			mngwritenext(*p->mngstreamptr,image);
+		}
+	}
+	delete [] red;
+	return 0;
+}
+
+[] = aniclose(ap)
+/* aniclose(ap) closes a previously opened animation file.
+   Error codes:
+   1: Argument not a valid open animation handle
+*/
+{
+	if (ap.kind()!=Kint) return 1;
+	Tanimation *p;
+	bool found = false;
+	for (p=anims; p; p=p->next) if (p->id == ap.IntValue()) {found = true; break;}
+	if (!found) return 1;
+	if (p == anims) {
+		anims = p->next;
+	} else {
+		Tanimation *prev;
+		for (prev=anims; prev->next!=p; prev=prev->next);
+		// now prev->next == p
+		prev->next = p->next;
+	}
+	delete p;
+	return 0;
+}

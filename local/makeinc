@@ -1,0 +1,19 @@
+# Included by the main Makefile, therefore every file has $(srcdir)/local
+# List in LOCAL_CTELA_MODULES all additional C-tela object files that you want in
+# your compilation.
+# List in NEEDED_BY_LOCAL_CTELA_MODULES all non-C-tela object files that are
+# needed by the additional C-tela object files.
+# All rules to build these objects must be given in this file also.
+
+locdir = $(srcdir)/local
+
+#MATLABDIR = /usr/local/matlab4.2a
+#MATLABLIB = $(MATLABDIR)/extern/lib/sgi/libmat.a
+
+matlabeng.o : $(locdir)/matlabeng.ct $(CTDEPS)
+	./telakka $(TELAKKA_OPTS) -c -I$(MATLABINCLUDE) $(locdir)/matlabeng.ct
+
+#LOCAL_CTELA_MODULES = matlabeng.o
+#NEEDED_BY_LOCAL_CTELA_MODULES = $(MATLABLIB)
+
+#include $(locdir)/makeinc.geo

@@ -1,0 +1,722 @@
+/*
+ * This file is part of tela the Tensor Language.
+ * Copyright (c) 1994 Pekka Janhunen
+ */
+
+/*
+	geopack_ct.ct
+	Updated Tsyganenko-89 geomagnetic field model functions.
+	Preprocess with ctpp.
+	C-tela code is C++ equipped with []=f() style function definition.
+*/
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+extern "C" {
+#include "tsyg.h"
+}
+
+#define pi 3.14159265358979323846264338328
+#define sqr(x) ((x)*(x))
+
+#ifdef UNICOS
+#  define dip_ DIP
+//#  define ex89kp_ EX89KP
+//#  define ext87l_ EXT87L
+#  define geomag_ GEOMAG
+#  define gsmgse_ GSMGSE
+#  define geogsm_ GEOGSM
+#  define recalc_ RECALC
+#  define t89c_ T89C
+#endif
+
+/*
+  Notice that subroutine DIP has implicit double but ex89kp does not
+*/
+
+extern "C" void dip_(float& TiltAngle,
+					 float& x, float& y, float& z,
+					 float& Bx,float& By,float& Bz);
+
+extern "C" void t89c_(int& iopt, float parmod[10] /* dummy parameter */,
+					  float& TiltAngle,
+					  float& x, float& y, float& z,
+					  float& Bx, float& By, float& Bz);
+
+/*
+extern "C" void ex89kp_(int& iopt, float& TiltAngle,
+						float& x, float& y, float& z,
+						float& Bx,float& By,float& Bz);
+
+extern "C" void ext87t_(int& iopt, float& TiltAngle,
+						float& x, float& y, float& z,
+						float& Bx,float& By,float& Bz);
+
+extern "C" void ext87l_(int& iopt, float& TiltAngle,
+						float& x, float& y, float& z,
+						float& Bx,float& By,float& Bz);
+*/
+
+extern "C" void geomag_(float*xgeo, float*ygeo, float*zgeo,
+						float*xmag, float*ymag, float*zmag,
+						const int*j, const int*iyear);
+
+extern "C" void gsmgse_(float*xgsm, float*ygsm, float*zgsm,
+						float*xgse, float*ygse, float*zgse,
+						const int*j);
+
+extern "C" void geogsm_(float*xgeo, float*ygeo, float*zgeo,
+						float*xgsm, float*ygsm, float*zgsm,
+						const int*j);
+
+extern "C" void recalc_(int*year, int*day, int*hour, int*min, int*sec);
+
+extern "C" void igrf_(const int& year, const int& maxorder,
+					  const float& r, const float& theta, const float& phi,
+					  float& Br, float& Btheta, float& Bphi);
+
+static int DoubleObject(const Tobject& obj, float& result) {
+	int ret=1;
+	if (obj.kind() == Kint)
+		result = float(obj.IntValue());
+	else if (obj.kind() == Kreal)
+		result = float(obj.RealValue());
+	else {
+		result = 0;
+		ret = 0;
+	}
+	return ret;
+}
+				
+static int KpToIopt(double KP) {
+	if (KP < 0) KP = 0;
+	if (KP > 5) KP = 5;
+	return 1+(int)(KP+0.5);
+}
+
+static int KpToIopt_87t(double KP) {
+	// The ext87t routine has different meaning of the parameter IOPT
+	/*
+	  iopt=   1       2       3       4        5        6        7      8
+	  correspond to:
+	  kp=   0,0+    1-,1    1+,2-   2,2+   3-,3,3+   4-,4,4+   >=5-   >=5+
+    */
+	int iopt = 1;
+	if (KP <= 0.5)
+		iopt = 1;
+	else if (KP <= 1.16666666666666666)
+		iopt = 2;
+	else if (KP <= 1.83333333333333333)
+		iopt = 3;
+	else if (KP <= 2.5)
+		iopt = 4;
+	else if (KP <= 3.5)
+		iopt = 5;
+	else if (KP <= 4.5)
+		iopt = 6;
+	else if (KP < 5.33333333333333333)
+		iopt = 7;
+	else
+		iopt = 8;
+	return iopt;
+}
+
+[Br,Btheta,Bphi] = IGRF(year,r,theta,phi)
+/* [Br,Btheta,Bphi] = IGRF(year,r,theta,phi)
+   computes the IGRF model magnetic field using 10 coefficients.
+   Inputs:
+     year   Integer Year number, from 1965 to 1990
+     r      Radial coordinate of the point, in Earth radii
+     theta  Geographic colatitude of the point, in degrees
+     phi    Geographic longitude of the point, in degrees
+   Outputs:
+     Br,Btheta,Bphi: Magnetic field in geographic spherical coordinates
+     in nanotesla.
+   Error codes:
+   -1: First arg (year) not int scalar
+   -2: Second arg (r) not real scalar
+   -3: Third arg (theta) not real scalar
+   -4: Fourth arg (phi) not real scalar
+*/
+{
+	float R,THETA,PHI, BR,BTHETA,BPHI;
+	if (year.kind()!=Kint) return -1;
+	const int YEAR = year.IntValue();
+	if (!DoubleObject(r,R)) return -2;
+	if (!DoubleObject(theta,THETA)) return -3;
+	if (!DoubleObject(phi,PHI)) return -4;
+	THETA*= (pi/180.0);
+	PHI*= (pi/180.0);
+	igrf_(YEAR,10,R,THETA,PHI, BR,BTHETA,BPHI);
+	Br = BR;
+	Btheta = BTHETA;
+	Bphi = BPHI;
+	return 0;
+}
+
+#if 0
+//[Bx,By,Bz] = T89(Kp,x,y,z;psi)
+/* [Bx,By,Bz] = T89(Kp,x,y,z) computes the Tsyganenko-89 model
+   magnetic field. Inputs: Kp, the Kp index; x,y,z, GSM coordinates
+   in Earth radii. Outputs: total magnetic field in nanotesla in
+   GSM coordinates.
+
+   [Bx,By,Bz] = T89(Kp,x,y,z,psi) defines the dipole tilt angle psi
+   in degrees, default 0 (no tilt). Positive tilt corresponds to a situation
+   where the magnetic north pole is closer to the Sun than the south pole.
+
+   See also: T89c, T87, m2i, geotomag.
+   Error codes:
+   -1: Bad type of input arg
+   -2: The dipole tilt argument (psi) is not int or real scalar
+*/
+{
+	double psi1 = 0.0;
+	if (Nargin == 5) {
+		if (psi.kind() == Kint)
+			psi1 = psi.IntValue()*(pi/180.0);
+		else if (psi.kind() == Kreal)
+			psi1 = psi.RealValue()*(pi/180.0);
+		else
+			return -2;
+	}
+	// Check parameter types and copy them to KP,X,Y,Z
+	double KP,X,Y,Z;
+	if (!DoubleObject(Kp,KP)) return -1;
+	if (!DoubleObject(x,X)) return -1;
+	if (!DoubleObject(y,Y)) return -1;
+	if (!DoubleObject(z,Z)) return -1;
+	float XF=X, YF=Y, ZF=Z, psiF=psi1;
+	int iopt = KpToIopt(KP);
+
+	float bx1,by1,bz1;
+	double bx,by,bz;	// the result variables
+	dip_(psi1,X,Y,Z,bx,by,bz);
+	ex89kp_(iopt,psiF,XF,YF,ZF,bx1,by1,bz1);
+	Bx = bx + bx1;
+	By = by + by1;
+	Bz = bz + bz1;
+	return 0;
+}
+#endif
+
+[Bx,By,Bz] = T89c(Kp,x,y,z;psi)
+/* [Bx,By,Bz] = T89c(Kp,x,y,z) computes the corrected/updated
+   Tsyganenko-89 model magnetic field.
+   Inputs: Kp, the Kp index; x,y,z, GSM coordinates in Earth radii.
+   Outputs: total magnetic field in nanotesla in GSM coordinates.
+
+   [Bx,By,Bz] = T89c(Kp,x,y,z,psi) defines the dipole tilt angle psi
+   in degrees, default 0 (no tilt). Positive tilt corresponds to a situation
+   where the magnetic north pole is closer to the Sun than the south pole.
+
+   See also: m2i, geotomag, geotogsmXYZ.
+   Error codes:
+   -1: Bad type of input arg
+   -2: The dipole tilt argument (psi) is not int or real scalar
+*/
+{
+	float psi1 = 0.0;
+	if (Nargin == 5) {
+		if (psi.kind() == Kint)
+			psi1 = psi.IntValue()*(pi/180.0);
+		else if (psi.kind() == Kreal)
+			psi1 = psi.RealValue()*(pi/180.0);
+		else
+			return -2;
+	}
+	// Check parameter types and copy them to KP,X,Y,Z
+	float KP,X,Y,Z;
+	if (!DoubleObject(Kp,KP)) return -1;
+	if (!DoubleObject(x,X)) return -1;
+	if (!DoubleObject(y,Y)) return -1;
+	if (!DoubleObject(z,Z)) return -1;
+	float XF=X, YF=Y, ZF=Z, psiF=psi1;
+	int iopt = KpToIopt(KP);
+
+	float bx1,by1,bz1;
+	float bx,by,bz;	// the result variables
+	dip_(psi1,X,Y,Z,bx,by,bz);
+//	cout << "dip_: bx=" << bx << ", by=" << by << ", bz=" << bz << "\n";
+	float parmod[10];
+	t89c_(iopt,parmod,psiF,XF,YF,ZF,bx1,by1,bz1);
+//	cout << "t89c_: bx1=" << bx1 << ", by1=" << by1 << ", bz1=" << bz1 << "\n";
+	Bx = bx + bx1;
+	By = by + by1;
+	Bz = bz + bz1;
+	return 0;
+}
+
+[Bx,By,Bz] = T89(Kp,x,y,z;psi)
+/* T89 is obsolete. Use T89c instead.
+   It will work and call T89c automatically, but will give one warning.
+
+   See also: T89c.
+   Error codes:
+   -1: Bad type of input arg
+   -2: The dipole tilt argument (psi) is not int or real scalar
+*/
+{
+	static int FirstTime = 1;
+	if (FirstTime) {
+		cout << "Call for T89 will call T89c (corrected version)\n";
+		cout << "  This warning will appear only once.\n" << flush;
+		FirstTime = 0;
+	}
+	float psi1 = 0.0;
+	if (Nargin == 5) {
+		if (psi.kind() == Kint)
+			psi1 = psi.IntValue()*(pi/180.0);
+		else if (psi.kind() == Kreal)
+			psi1 = psi.RealValue()*(pi/180.0);
+		else
+			return -2;
+	}
+	// Check parameter types and copy them to KP,X,Y,Z
+	float KP,X,Y,Z;
+	if (!DoubleObject(Kp,KP)) return -1;
+	if (!DoubleObject(x,X)) return -1;
+	if (!DoubleObject(y,Y)) return -1;
+	if (!DoubleObject(z,Z)) return -1;
+	float XF=X, YF=Y, ZF=Z, psiF=psi1;
+	int iopt = KpToIopt(KP);
+
+	float bx1,by1,bz1;
+	float bx,by,bz;	// the result variables
+	dip_(psi1,X,Y,Z,bx,by,bz);
+	float parmod[10];
+	t89c_(iopt,parmod,psiF,XF,YF,ZF,bx1,by1,bz1);
+	Bx = bx + bx1;
+	By = by + by1;
+	Bz = bz + bz1;
+	return 0;
+}
+
+#if 0
+//[Bx,By,Bz] = T87(Kp,x,y,z)
+/* [Bx,By,Bz] = T87(Kp,x,y,z) computes the Tsyganenko-87 model
+   magnetic field. The non-truncated version of the model is used.
+   Inputs: Kp, the Kp index; x,y,z, GSM coordinates
+   in Earth radii. Outputs: total magnetic field in nanotesla in
+   GSM coordinates.
+   See also: T89, m2i, geotomag.
+   Error codes:
+   -1: Bad type of input arg */
+{
+	double psi = 0;	// tilt angle
+	// Check parameter types and copy them to KP,X,Y,Z
+	double KP,X,Y,Z;
+	if (!DoubleObject(Kp,KP)) return -1;
+	if (!DoubleObject(x,X)) return -1;
+	if (!DoubleObject(y,Y)) return -1;
+	if (!DoubleObject(z,Z)) return -1;
+	float XF=X, YF=Y, ZF=Z, psiF=psi;
+	int iopt = KpToIopt(KP);
+
+	float bx1,by1,bz1;
+	double bx,by,bz;	// the result variables
+	dip_(psi,X,Y,Z,bx,by,bz);
+	ext87l_(iopt,psiF,XF,YF,ZF,bx1,by1,bz1);
+	Bx = bx + bx1;
+	By = by + by1;
+	Bz = bz + bz1;
+	return 0;
+}
+#endif
+
+[theta,phi] = m2i(Kp,x,y)
+/* [theta,phi] = m2i(Kp,x,y) maps the equatorial plane point (x,y,z=0)
+   to the northern ionosphere. Inputs: Kp, the Kp index; x,y,z, GSM
+   coordinates in Earth radii. Outputs: colatitude and longitude in
+   magnetic coordinates in degrees.
+   See also: T89, geotomag.
+   Error codes:
+   -1: Bad type of input arg */
+{
+	float KP,X,Y; double THETA,PHI;
+	if (!DoubleObject(Kp,KP)) return -1;
+	if (!DoubleObject(x,X)) return -1;
+	if (!DoubleObject(y,Y)) return -1;
+
+	int iopt = KpToIopt(KP);
+	setIOPT(iopt);
+	m2i(X,Y, &THETA,&PHI);
+	theta = THETA;
+	phi = PHI;
+	return 0;
+}
+
+static void geotomag(float lat, float longit, float& newlat, float& newlongit)
+/* Transform geographic lat & longit to geomagnetic lat & longit */
+{
+	const int iyear = 1990;
+	const int plusone = 1;
+	double result[2];
+	float xgeo,ygeo,zgeo, xmag,ymag,zmag, theta,phi, R,Rho,Th,Ph;
+	theta = (90.0 - lat)*pi/180.0;
+	phi = longit*pi/180.0;
+	xgeo = sin(theta)*cos(phi);
+	ygeo = sin(theta)*sin(phi);
+	zgeo = cos(theta);
+	geomag_(&xgeo,&ygeo,&zgeo,&xmag,&ymag,&zmag,&plusone,&iyear);
+	R = sqrt(sqr(xmag) + sqr(ymag) + sqr(zmag));
+	Rho = sqrt(sqr(xmag) + sqr(ymag));
+	Th = asin(Rho/R);
+	Ph = atan2(ymag,xmag);
+	result[0] = 90.0 - Th*180.0/pi;
+	result[1] = Ph*180.0/pi;
+	newlat = result[0];
+	newlongit = result[1];
+} /* geotomag */
+
+[latmag,longmag] = geotomag(lat,longit)
+/* [latmag,longmag] = geotomag(lat,long) transforms geographic
+   latitude and longitude to geomagnetic dipole latitude and longitude.
+   All angles in degrees.
+   See also: geotomagXYZ, magtogeo, geotogsmXYZ, gsmtogeoXYZ.
+   Error codes:
+   -1: Bad first arg
+   -2: Bad second arg
+   */
+{
+	float LAT,LONGIT, NEWLAT,NEWLONGIT;
+	if (!DoubleObject(lat,LAT)) return -1;
+	if (!DoubleObject(longit,LONGIT)) return -2;
+	geotomag(LAT,LONGIT, NEWLAT,NEWLONGIT);
+	latmag = NEWLAT;
+	longmag = NEWLONGIT;
+	return 0;
+}
+
+[x1,y1,z1] = geotomagXYZ(x,y,z)
+/* [x1,y1,z1] = geotomagXYZ(x,y,z) transforms geographic
+   point (x,y,z) to geomagnetic dipole coordinates (x1,y1,z1).
+   See also: geotomag, magtogeoXYZ.
+   Error codes:
+   -1: Bad first arg
+   -2: Bad second arg
+   -3: Bad third arg
+   */
+{
+	const int iyear = 1990;
+	const int plusone = 1;
+	float X,Y,Z, NEWX,NEWY,NEWZ;
+	if (!DoubleObject(x,X)) return -1;
+	if (!DoubleObject(y,Y)) return -2;
+	if (!DoubleObject(z,Z)) return -3;
+	geomag_(&X,&Y,&Z,&NEWX,&NEWY,&NEWZ,&plusone,&iyear);
+	x1 = NEWX;
+	y1 = NEWY;
+	z1 = NEWZ;
+	return 0;
+}
+	
+[x1,y1,z1] = magtogeoXYZ(x,y,z)
+/* [x1,y1,z1] = magtogeoXYZ(x,y,z) transforms geomagnetic dipole
+   point (x,y,z) to geographic coordinates (x1,y1,z1).
+   See also: magtogeo, geotomagXYZ.
+   Error codes:
+   -1: Bad first arg
+   -2: Bad second arg
+   -3: Bad third arg
+   */
+{
+	const int iyear = 1990;
+	const int minusone = -1;
+	float X,Y,Z, NEWX,NEWY,NEWZ;
+	if (!DoubleObject(x,X)) return -1;
+	if (!DoubleObject(y,Y)) return -2;
+	if (!DoubleObject(z,Z)) return -3;
+	geomag_(&NEWX,&NEWY,&NEWZ,&X,&Y,&Z,&minusone,&iyear);
+	x1 = NEWX;
+	y1 = NEWY;
+	z1 = NEWZ;
+	return 0;
+}
+	
+static void magtogeo(float lat, float longit, float& newlat, float& newlongit)
+{
+	const int iyear = 1990;
+	const int minusone = -1;
+	double result[2];
+	float xgeo,ygeo,zgeo, xmag,ymag,zmag, theta,phi, R,Rho,Th,Ph;
+	theta = (90.0 - lat)*pi/180.0;
+	phi = longit*pi/180.0;
+	xmag = sin(theta)*cos(phi);
+	ymag = sin(theta)*sin(phi);
+	zmag = cos(theta);
+	geomag_(&xgeo,&ygeo,&zgeo,&xmag,&ymag,&zmag,&minusone,&iyear);
+	R = sqrt(sqr(xgeo) + sqr(ygeo) + sqr(zgeo));
+	Rho = sqrt(sqr(xgeo) + sqr(ygeo));
+	Th = asin(Rho/R);
+	Ph = atan2(ygeo,xgeo);
+	result[0] = 90.0 - Th*180.0/pi;
+	result[1] = Ph*180.0/pi;
+	newlat = result[0];
+	newlongit = result[1];
+} /* magtogeo */
+
+[lat,longit] = magtogeo(latmag,longmag)
+/* [lat,long] = magtogeo(latmag,longmag) transforms geomagnetic
+   latitude and longitude to geographic latitude and longitude.
+   All angles in degrees.
+   See also: geotomag, magtogeoXYZ, geotogsmXYZ, gsmtogeoXYZ.
+   Error codes:
+   -1: Bad first arg
+   -2: Bad second arg
+   */
+{
+	float LAT,LONGIT, NEWLAT,NEWLONGIT;
+	if (!DoubleObject(latmag,LAT)) return -1;
+	if (!DoubleObject(longmag,LONGIT)) return -2;
+	magtogeo(LAT,LONGIT, NEWLAT,NEWLONGIT);
+	lat = NEWLAT;
+	longit = NEWLONGIT;
+	return 0;
+}
+
+static int IsLeapYear(int year)
+{
+	return (year % 4 == 0 && !(year % 100 == 0 && year % 400 != 0));
+}
+
+// A utility function to compute day number based on month number and dayofmonth
+static int DayNumber(int year, int month, int dayofmonth)
+// all numbers start from one, thus (1,1)->1 (first of January)
+{
+	const int feb = IsLeapYear(year) ? 29 : 28;
+	int ret;
+	switch (month)
+	{
+	case 1:
+		ret = dayofmonth;
+		break;
+	case 2:
+		ret = 31 + dayofmonth;
+		break;
+	case 3:
+		ret = 31 + feb + dayofmonth;
+		break;
+	case 4:
+		ret = 31 + feb + 31 + dayofmonth;
+		break;
+	case 5:
+		ret = 31 + feb + 31 + 30 + dayofmonth;
+		break;
+	case 6:
+		ret = 31 + feb + 31 + 30 + 31 + dayofmonth;
+		break;
+	case 7:
+		ret = 31 + feb + 31 + 30 + 31 + 30 + dayofmonth;
+		break;
+	case 8:
+		ret = 31 + feb + 31 + 30 + 31 + 30 + 31 + dayofmonth;
+		break;
+	case 9:
+		ret = 31 + feb + 31 + 30 + 31 + 30 + 31 + 31 + dayofmonth;
+		break;
+	case 10:
+		ret = 31 + feb + 31 + 30 + 31 + 30 + 31 + 31 + 30 + dayofmonth;
+		break;
+	case 11:
+		ret = 31 + feb + 31 + 30 + 31 + 30 + 31 + 31 + 30 + 31 + dayofmonth;
+		break;
+	case 12:
+		ret = 31 + feb + 31 + 30 + 31 + 30 + 31 + 31 + 30 + 31 + 30 + dayofmonth;
+		break;
+	default:
+		cerr << "*** DayNumber: bad month " << month << ", not in 1..12\n";
+		ret = 1;
+		break;
+	}
+	return ret;
+}
+
+[x1,y1,z1] = gsmtogseXYZ(x,y,z,year,month,day,hour,min,sec)
+/* [x1,y1,z1] = gsmtogse(x,y,z, year,month,day,hour,min,sec)
+   transform given point (x,y,z) in GSM coordinates into
+   the corresponding point (x1,y1,z1) in GSE coordinates.
+   The year,month,day,hour,min,sec must be given as integers.
+   Year must contain four digits; month,day start from 1.
+   See also: gsetogsmXYZ.
+   Error codes:
+   -1: Input argument x is not real or int scalar
+   -2: Input argument y is not real or int scalar
+   -3: Input argument z is not real or int scalar
+   -4: Input argument year is not int scalar
+   -5: Input argument day is not int scalar
+   -6: Input argument hour is not int scalar
+   -7: Input argument min is not int scalar
+   -8: Input argument sec is not int scalar
+   -9: Input argument month is not int scalar
+*/
+{
+	int iyear, iday, ihour, imin, isec;
+	float X,Y,Z;
+	if (!DoubleObject(x,X)) return -1;
+	if (!DoubleObject(y,Y)) return -2;
+	if (!DoubleObject(z,Z)) return -3;
+	if (year.kind()!=Kint) return -4;
+	if (month.kind()!=Kint) return -9;
+	if (day.kind()!=Kint) return -5;
+	if (hour.kind()!=Kint) return -6;
+	if (min.kind()!=Kint) return -7;
+	if (sec.kind()!=Kint) return -8;
+	iyear = year.IntValue();
+	iday = DayNumber(iyear,month.IntValue(),day.IntValue());
+	ihour = hour.IntValue();
+	imin = min.IntValue();
+	isec = sec.IntValue();
+	recalc_(&iyear,&iday,&ihour,&imin,&isec);
+	int positive = +1;
+	float X1,Y1,Z1;
+	gsmgse_(&X,&Y,&Z,&X1,&Y1,&Z1,&positive);
+	x1 = X1;
+	y1 = Y1;
+	z1 = Z1;
+	return 0;
+}
+
+[x1,y1,z1] = gsetogsmXYZ(x,y,z,year,month,day,hour,min,sec)
+/* [x1,y1,z1] = gsetogsmXYZ(x,y,z, year,month,day,hour,min,sec)
+   transform given point (x,y,z) in GSE coordinates into
+   the corresponding point (x1,y1,z1) in GSM coordinates.
+   The year,month,day,hour,min,sec must be given as integers.
+   Year must contain four digits; month,day start from 1.
+   See also: gsmtogseXYZ.
+   Error codes:
+   -1: Input argument x is not real or int scalar
+   -2: Input argument y is not real or int scalar
+   -3: Input argument z is not real or int scalar
+   -4: Input argument year is not int scalar
+   -5: Input argument day is not int scalar
+   -6: Input argument hour is not int scalar
+   -7: Input argument min is not int scalar
+   -8: Input argument sec is not int scalar
+   -9: Input argument month is not int scalar
+*/
+{
+	int iyear, iday, ihour, imin, isec;
+	float X,Y,Z;
+	if (!DoubleObject(x,X)) return -1;
+	if (!DoubleObject(y,Y)) return -2;
+	if (!DoubleObject(z,Z)) return -3;
+	if (year.kind()!=Kint) return -4;
+	if (month.kind()!=Kint) return -9;
+	if (day.kind()!=Kint) return -5;
+	if (hour.kind()!=Kint) return -6;
+	if (min.kind()!=Kint) return -7;
+	if (sec.kind()!=Kint) return -8;
+	iyear = year.IntValue();
+//	iday = day.IntValue();
+	iday = DayNumber(iyear,month.IntValue(),day.IntValue());
+	ihour = hour.IntValue();
+	imin = min.IntValue();
+	isec = sec.IntValue();
+	recalc_(&iyear,&iday,&ihour,&imin,&isec);
+	int negative = -1;
+	float X1,Y1,Z1;
+	gsmgse_(&X1,&Y1,&Z1,&X,&Y,&Z,&negative);
+	x1 = X1;
+	y1 = Y1;
+	z1 = Z1;
+	return 0;
+}
+
+#define disp(x) cout << #x " = " << x << "\n"
+
+[x1,y1,z1] = geotogsmXYZ(x,y,z,year,month,day,hour,min,sec)
+/* [x1,y1,z1] = geotogsmXYZ(x,y,z, year,month,day,hour,min,sec)
+   transform given point (x,y,z) in Cartesian GEOgraphic coordinates into
+   the corresponding point (x1,y1,z1) in GSM coordinates.
+   The year,month,day,hour,min,sec must be given as integers.
+   Year must contain four digits; month,day start from 1.
+   See also: gsmtogeoXYZ.
+   Error codes:
+   -1: Input argument x is not real or int scalar
+   -2: Input argument y is not real or int scalar
+   -3: Input argument z is not real or int scalar
+   -4: Input argument year is not int scalar
+   -5: Input argument day is not int scalar
+   -6: Input argument hour is not int scalar
+   -7: Input argument min is not int scalar
+   -8: Input argument sec is not int scalar
+   -9: Input argument month is not int scalar
+*/
+{
+	int iyear, iday, ihour, imin, isec;
+	float X,Y,Z;
+	if (!DoubleObject(x,X)) return -1;
+	if (!DoubleObject(y,Y)) return -2;
+	if (!DoubleObject(z,Z)) return -3;
+	if (year.kind()!=Kint) return -4;
+	if (month.kind()!=Kint) return -9;
+	if (day.kind()!=Kint) return -5;
+	if (hour.kind()!=Kint) return -6;
+	if (min.kind()!=Kint) return -7;
+	if (sec.kind()!=Kint) return -8;
+	iyear = year.IntValue();
+//	iday = day.IntValue();
+	iday = DayNumber(iyear,month.IntValue(),day.IntValue());
+	ihour = hour.IntValue();
+	imin = min.IntValue();
+	isec = sec.IntValue();
+//	disp(iyear); disp(iday); disp(ihour); disp(imin); disp(isec);
+	recalc_(&iyear,&iday,&ihour,&imin,&isec);
+	int positive = +1;
+	float X1,Y1,Z1;
+	geogsm_(&X,&Y,&Z,&X1,&Y1,&Z1,&positive);
+	x1 = X1;
+	y1 = Y1;
+	z1 = Z1;
+	return 0;
+}
+
+[x1,y1,z1] = gsmtogeoXYZ(x,y,z,year,month,day,hour,min,sec)
+/* [x1,y1,z1] = gsmtogeoXYZ(x,y,z, year,month,day,hour,min,sec)
+   transform given point (x,y,z) in Cartesian GSM coordinates into
+   the corresponding point (x1,y1,z1) in Cartesian GEOgraphic coordinates.
+   The year,day,hour,min,sec must be given as integers.
+   Year must contain four digits; month,day start from 1.
+   See also: geotogsmXYZ.
+   Error codes:
+   -1: Input argument x is not real or int scalar
+   -2: Input argument y is not real or int scalar
+   -3: Input argument z is not real or int scalar
+   -4: Input argument year is not int scalar
+   -5: Input argument day is not int scalar
+   -6: Input argument hour is not int scalar
+   -7: Input argument min is not int scalar
+   -8: Input argument sec is not int scalar
+   -9: Input argument month is not int scalar
+*/
+{
+	int iyear, iday, ihour, imin, isec;
+	float X,Y,Z;
+	if (!DoubleObject(x,X)) return -1;
+	if (!DoubleObject(y,Y)) return -2;
+	if (!DoubleObject(z,Z)) return -3;
+	if (year.kind()!=Kint) return -4;
+	if (month.kind()!=Kint) return -9;
+	if (day.kind()!=Kint) return -5;
+	if (hour.kind()!=Kint) return -6;
+	if (min.kind()!=Kint) return -7;
+	if (sec.kind()!=Kint) return -8;
+	iyear = year.IntValue();
+//	iday = day.IntValue();
+	iday = DayNumber(iyear,month.IntValue(),day.IntValue());
+	ihour = hour.IntValue();
+	imin = min.IntValue();
+	isec = sec.IntValue();
+//	disp(iyear); disp(iday); disp(ihour); disp(imin); disp(isec);
+	recalc_(&iyear,&iday,&ihour,&imin,&isec);
+	int negative = -1;
+	float X1,Y1,Z1;
+	geogsm_(&X1,&Y1,&Z1,&X,&Y,&Z,&negative);
+	x1 = X1;
+	y1 = Y1;
+	z1 = Z1;
+	return 0;
+}
+

@@ -1,0 +1,571 @@
+/*
+ * This file is part of tela the Tensor Language.
+ * Copyright (c) 1994-2002 Pekka Janhunen
+ */
+
+/*
+	specfun_ct.ct
+	Interface to special functions of mathematical physics.
+	Preprocess with ctpp.
+	C-tela code is C++ equipped with []=f() style function definition.
+*/
+
+#include "specfun.H"
+
+/*
+  This file provides:
+  - logfact(z), logarithm of the factorial, log(z!)
+      [Verified with Mma: OK except 2*pi differences in imag part in some regions of complex plane]
+	  [The differences occur when comparing both with Log[Gamma[z+1]] and LogGamma[z+1], but in different places.]
+  - IncompleteGammaP(a,x), IncompleteGammaQ(a,x), incomplete Gamma functions
+      [Verified with Mma for Re(a) > 0.]
+  - ChebyshevT(n,x), Chebyshev polynomials
+      [Verified with Mma]
+  - LegendreP(n,x) and LegendreP(n,m,x), Legendre polynomials and associated Legendre functions of the first kind
+      [2-argument version verified with Mma]
+	  [3-argument version has some discrepancies in regions where function oscillates wildly and is difficult to evaluate;
+	   it also takes Mma very long time to evaluate them accurately in these places.]
+  - Kummer1F1(a,c,z), Kummer's confluent hypergeometric function of the first kind
+      [Verified with Mma. Some discrepancies for large argument values. More discrepancies in
+	   Kummer1F1_asymptotic branch; the branch was now removed.]
+  - Kummer1F1Regularized(a,c,z)/Gamma(c).
+  - Gauss2F1(a,b,c,z), Gauss' hypergeometric function of the first kind
+      [Verified with Mma.]
+*/
+
+[y] = logfact(x)
+/* logfact(x) returns log(x!) for any numerical x, including complex.
+   The result for real or int x is usually real, but may be complex
+   if x is negative. For arrays, the function is applied componentwise.
+   In the array case, the result is complex if any of the imaginary
+   parts becomes nonzero, otherwise real.
+   See also: fact, Gamma, logGamma.
+   Error codes:
+   -1: Argument not numerical
+ */
+{
+	int i;
+	const Tkind k = x.kind();
+	Tcomplex w;
+	bool imag_zero;
+	switch (k) {
+	case Kint:
+		w = logfact(Treal(x.IntValue()));
+		if (w.imag() == 0) y = w.real(); else y = w;
+		break;
+	case Kreal:
+		w = logfact(x.RealValue());
+		if (w.imag() == 0) y = w.real(); else y = w;
+		break;
+	case Kcomplex:
+		y = logfact(x.ComplexValue());
+		break;
+	case KIntArray:
+		y.creserv(x.dims());
+		imag_zero = true;
+		for (i=0; i<x.length(); i++) {
+			y.ComplexPtr()[i] = logfact(Treal(x.IntPtr()[i]));
+			if (y.ComplexPtr()[i].imag() != 0) imag_zero = false;
+		}
+		if (imag_zero) {
+			Tobject y2;
+			y2.rreserv(x.dims());
+			for (i=0; i<x.length(); i++) y2.RealPtr()[i] = y.ComplexPtr()[i].real();
+			y.bitwiseMoveFrom(y2);
+		}
+		break;
+	case KRealArray:
+		y.creserv(x.dims());
+		imag_zero = true;
+		for (i=0; i<x.length(); i++) {
+			y.ComplexPtr()[i] = logfact(x.RealPtr()[i]);
+			if (y.ComplexPtr()[i].imag() != 0) imag_zero = false;
+		}
+		if (imag_zero) {
+			Tobject y2;
+			y2.rreserv(x.dims());
+			for (i=0; i<x.length(); i++) y2.RealPtr()[i] = y.ComplexPtr()[i].real();
+			y.bitwiseMoveFrom(y2);
+		}
+		break;
+	case KComplexArray:
+		y.creserv(x.dims());
+		for (i=0; i<x.length(); i++) y.ComplexPtr()[i] = logfact(x.ComplexPtr()[i]);
+		break;
+	default:
+		return -1;
+	}
+	return 0;
+}
+
+enum TTwoArgSpecFun {FN_INCOMPLETE_GAMMA_P, FN_INCOMPLETE_GAMMA_Q, FN_CHEBYSHEV_T, FN_LEGENDRE_P2};
+
+static int GenericTwoArgumentSpecialFunction(Tobject& w, const Tobject& a, const Tobject& x, TTwoArgSpecFun func)
+{
+	int i;
+	if (!a.IsNumerical()) return -1;
+	if (!x.IsNumerical()) return -2;
+	const Tkind ak = a.kind(), xk = x.kind();
+	bool imag_zero;
+	if (a.IsNumericalArray() || x.IsNumericalArray()) {
+		// One of the args is array ==> the result must be also
+		if (a.IsNumericalArray()) {
+			if (x.IsNumericalArray()) {
+				if (a.dims() != x.dims()) return -3;
+			} else {
+				w.copydimsComplexArray(a);
+			}
+		} else {
+			// a is scalar, x must be array
+			w.copydimsComplexArray(x);
+		}
+		Tobject aa,xx,tmp;
+		Mul(tmp,Tobject(0.0),x);
+		Add(aa,a,tmp);		// aa = a + 0.0*x
+		Mul(tmp,Tobject(0.0),a);
+		Add(xx,x,tmp);		// xx = x + 0.0*a
+		// now aa and xx are arrays of the same size and same type (either both real, or both complex)
+		const int N = w.length();
+		imag_zero = true;
+		for (i=0; i<N; i++) {
+			if (aa.kind() == KRealArray) {
+				// both arguments are real
+				switch (func) {
+				case FN_INCOMPLETE_GAMMA_P:
+					w.ComplexPtr()[i] = IncompleteGammaP(aa.RealPtr()[i],xx.RealPtr()[i]);
+					break;
+				case FN_INCOMPLETE_GAMMA_Q:
+					w.ComplexPtr()[i] = IncompleteGammaQ(aa.RealPtr()[i],xx.RealPtr()[i]);
+					break;
+				case FN_CHEBYSHEV_T:
+					w.ComplexPtr()[i] = ChebyshevT(aa.RealPtr()[i],xx.RealPtr()[i]);
+					break;
+				case FN_LEGENDRE_P2:
+					w.ComplexPtr()[i] = LegendreP(aa.RealPtr()[i],xx.RealPtr()[i]);
+					break;
+				}
+			} else {
+				// both arguments are complex
+				switch (func) {
+				case FN_INCOMPLETE_GAMMA_P:
+					w.ComplexPtr()[i] = IncompleteGammaP(aa.ComplexPtr()[i],xx.ComplexPtr()[i]);
+					break;
+				case FN_INCOMPLETE_GAMMA_Q:
+					w.ComplexPtr()[i] = IncompleteGammaQ(aa.ComplexPtr()[i],xx.ComplexPtr()[i]);
+					break;
+				case FN_CHEBYSHEV_T:
+					w.ComplexPtr()[i] = ChebyshevT(aa.ComplexPtr()[i],xx.ComplexPtr()[i]);
+					break;
+				case FN_LEGENDRE_P2:
+					w.ComplexPtr()[i] = LegendreP(aa.ComplexPtr()[i],xx.ComplexPtr()[i]);
+					break;
+				}
+			}
+			if (w.ComplexPtr()[i].imag() != 0) imag_zero = false;
+		}
+		if (imag_zero) {
+			Tobject w2;
+			w2.rreserv(w.dims());
+			for (i=0; i<N; i++) w2.RealPtr()[i] = w.ComplexPtr()[i].real();
+			w.bitwiseMoveFrom(w2);
+		}
+	} else {
+		// both a and x are scalar
+		Tcomplex aa,xx;
+		if (ak == Kint) {
+			aa = a.IntValue();
+		} else if (ak == Kreal) {
+			aa = a.RealValue();
+		} else {
+			aa = a.ComplexValue();
+		}
+		if (xk == Kint) {
+			xx = x.IntValue();
+		} else if (xk == Kreal) {
+			xx = x.RealValue();
+		} else {
+			xx = x.ComplexValue();
+		}
+		Tcomplex w2;
+		switch (func) {
+		case FN_INCOMPLETE_GAMMA_P:
+			w2 = IncompleteGammaP(aa,xx);
+			break;
+		case FN_INCOMPLETE_GAMMA_Q:
+			w2 = IncompleteGammaQ(aa,xx);
+			break;
+		case FN_CHEBYSHEV_T:
+			w2 = ChebyshevT(aa,xx);
+			break;
+		case FN_LEGENDRE_P2:
+			w2 = LegendreP(aa,xx);
+			break;
+		}
+		if (w2.imag() == 0) w = w2.real(); else w = w2;
+	}
+	return 0;
+}
+
+enum TThreeArgSpecFun {FN_LEGENDRE_P3, FN_KUMMER_1F1, FN_KUMMER_1F1_REGULARIZED};
+
+static int GenericThreeArgumentSpecialFunction(Tobject& w, const Tobject& a, const Tobject& b, const Tobject& x,
+											   TThreeArgSpecFun func)
+{
+	int i;
+	if (!a.IsNumerical()) return -1;
+	if (!b.IsNumerical()) return -2;
+	if (!x.IsNumerical()) return -3;
+	const Tkind ak = a.kind(), bk = b.kind(), xk = x.kind();
+	bool imag_zero;
+	if (a.IsNumericalArray() || b.IsNumericalArray() || x.IsNumericalArray()) {
+		// One of the args is array ==> the result must be also
+		if (a.IsNumericalArray()) {
+			if (x.IsNumericalArray()) {
+				if (a.dims() != x.dims()) return -5;
+			} else {
+				w.copydimsComplexArray(a);
+			}
+			if (b.IsNumericalArray() && b.dims() != a.dims()) return -5;
+		} else if (b.IsNumericalArray()) {
+			w.copydimsComplexArray(b);
+			if (x.IsNumericalArray() && x.dims() != b.dims()) return -5;
+		} else {
+			// a and b are not arrays, x must be
+			w.copydimsComplexArray(x);
+		}
+		Tobject aa,bb,xx,tmp1,tmp2,tmp3;
+		Mul(tmp1,Tobject(0.0),a);	// tmp1 = 0.0*a
+		Mul(tmp2,Tobject(0.0),b);	// tmp2 = 0.0*b
+		Mul(tmp3,Tobject(0.0),x);	// tmp3 = 0.0*x
+		Add(aa,a,tmp2);
+		Add(aa,aa,tmp3);			// aa = a + 0.0*b + 0.0*x
+		Add(bb,b,tmp1);
+		Add(bb,bb,tmp3);			// bb = 0.0*a + b + 0.0*x
+		Add(xx,x,tmp1);
+		Add(xx,xx,tmp2);			// xx = 0.0*a + 0.0*b + x
+		// now aa, bb and xx are arrays of the same size and same type (either all real, or all complex)
+		const int N = w.length();
+		imag_zero = true;
+		for (i=0; i<N; i++) {
+			if (aa.kind() == KRealArray) {
+				// all arguments are real
+				switch (func) {
+				case FN_LEGENDRE_P3:
+					w.ComplexPtr()[i] = LegendreP(aa.RealPtr()[i],bb.RealPtr()[i],xx.RealPtr()[i]);
+					break;
+				case FN_KUMMER_1F1:
+					w.ComplexPtr()[i] = Kummer1F1(aa.RealPtr()[i],bb.RealPtr()[i],xx.RealPtr()[i]);
+					break;
+				case FN_KUMMER_1F1_REGULARIZED:
+					w.ComplexPtr()[i] = Kummer1F1Regularized(aa.RealPtr()[i],bb.RealPtr()[i],xx.RealPtr()[i]);
+					break;
+				}
+			} else {
+				// all arguments are complex
+				switch (func) {
+				case FN_LEGENDRE_P3:
+					w.ComplexPtr()[i] = LegendreP(aa.ComplexPtr()[i],bb.ComplexPtr()[i],xx.ComplexPtr()[i]);
+					break;
+				case FN_KUMMER_1F1:
+					w.ComplexPtr()[i] = Kummer1F1(aa.ComplexPtr()[i],bb.ComplexPtr()[i],xx.ComplexPtr()[i]);
+					break;
+				case FN_KUMMER_1F1_REGULARIZED:
+					w.ComplexPtr()[i] = Kummer1F1Regularized(aa.ComplexPtr()[i],bb.ComplexPtr()[i],xx.ComplexPtr()[i]);
+					break;
+				}
+			}
+			if (w.ComplexPtr()[i].imag() != 0) imag_zero = false;
+		}
+		if (imag_zero) {
+			Tobject w2;
+			w2.rreserv(w.dims());
+			for (i=0; i<N; i++) w2.RealPtr()[i] = w.ComplexPtr()[i].real();
+			w.bitwiseMoveFrom(w2);
+		}
+	} else {
+		// all a, b and x are scalar
+		Tcomplex aa,bb,xx;
+		if (ak == Kint) {
+			aa = a.IntValue();
+		} else if (ak == Kreal) {
+			aa = a.RealValue();
+		} else {
+			aa = a.ComplexValue();
+		}
+		if (bk == Kint) {
+			bb = b.IntValue();
+		} else if (bk == Kreal) {
+			bb = b.RealValue();
+		} else {
+			bb = b.ComplexValue();
+		}
+		if (xk == Kint) {
+			xx = x.IntValue();
+		} else if (xk == Kreal) {
+			xx = x.RealValue();
+		} else {
+			xx = x.ComplexValue();
+		}
+		Tcomplex w2;
+		switch (func) {
+		case FN_LEGENDRE_P3:
+			w2 = LegendreP(aa,bb,xx);
+			break;
+		case FN_KUMMER_1F1:
+			w2 = Kummer1F1(aa,bb,xx);
+			break;
+		case FN_KUMMER_1F1_REGULARIZED:
+			w2 = Kummer1F1Regularized(aa,bb,xx);
+			break;
+		}
+		if (w2.imag() == 0) w = w2.real(); else w = w2;
+	}
+	return 0;
+}
+
+enum TFourArgSpecFun {FN_GAUSS_2F1};
+
+static int GenericFourArgumentSpecialFunction(Tobject& w, const Tobject& a, const Tobject& b, const Tobject& c,
+											  const Tobject& x,
+											  TFourArgSpecFun func)
+{
+	int i;
+	if (!a.IsNumerical()) return -1;
+	if (!b.IsNumerical()) return -2;
+	if (!c.IsNumerical()) return -3;
+	if (!x.IsNumerical()) return -4;
+	const Tkind ak = a.kind(), bk = b.kind(), ck = c.kind(), xk = x.kind();
+	bool imag_zero;
+	if (a.IsNumericalArray() || b.IsNumericalArray() || c.IsNumericalArray() || x.IsNumericalArray()) {
+		// One of the args is array ==> the result must be also
+		if (a.IsNumericalArray()) {
+			if (x.IsNumericalArray()) {
+				if (a.dims() != x.dims()) return -5;
+			} else {
+				w.copydimsComplexArray(a);
+			}
+			if (b.IsNumericalArray() && b.dims() != a.dims()) return -5;
+			if (c.IsNumericalArray() && c.dims() != a.dims()) return -5;
+		} else if (b.IsNumericalArray()) {
+			w.copydimsComplexArray(b);
+			if (c.IsNumericalArray() && c.dims() != b.dims()) return -5;
+			if (x.IsNumericalArray() && x.dims() != b.dims()) return -5;
+		} else if (c.IsNumericalArray()) {
+			w.copydimsComplexArray(c);
+			if (x.IsNumericalArray() && x.dims() != c.dims()) return -5;
+		} else {
+			// a, b and c are not arrays, x must be
+			w.copydimsComplexArray(x);
+		}
+		Tobject aa,bb,cc,xx,tmp1,tmp2,tmp3,tmp4;
+		Mul(tmp1,Tobject(0.0),a);	// tmp1 = 0.0*a
+		Mul(tmp2,Tobject(0.0),b);	// tmp2 = 0.0*b
+		Mul(tmp3,Tobject(0.0),c);	// tmp3 = 0.0*c
+		Mul(tmp4,Tobject(0.0),x);	// tmp4 = 0.0*x
+		Add(aa,a,tmp2);
+		Add(aa,aa,tmp3);
+		Add(aa,aa,tmp4);			// aa = a + 0.0*b + 0.0*c + 0.0*x
+		Add(bb,b,tmp1);
+		Add(bb,bb,tmp3);
+		Add(bb,bb,tmp4);			// bb = 0.0*a + b + 0.0*c + 0.0*x
+		Add(cc,c,tmp1);
+		Add(cc,cc,tmp2);
+		Add(cc,cc,tmp4);			// bb = 0.0*a + 0.0*b + c + 0.0*x
+		Add(xx,x,tmp1);
+		Add(xx,xx,tmp2);
+		Add(xx,xx,tmp3);			// xx = 0.0*a + 0.0*b + 0.0*c + x
+		// now aa, bb, cc and xx are arrays of the same size and same type (either all real, or all complex)
+		const int N = w.length();
+		imag_zero = true;
+		for (i=0; i<N; i++) {
+			if (aa.kind() == KRealArray) {
+				// all arguments are real
+				switch (func) {
+				case FN_GAUSS_2F1:
+					w.ComplexPtr()[i] = Gauss2F1(aa.RealPtr()[i],bb.RealPtr()[i],cc.RealPtr()[i],xx.RealPtr()[i]);
+					break;
+				}
+			} else {
+				// all arguments are complex
+				switch (func) {
+				case FN_GAUSS_2F1:
+					w.ComplexPtr()[i] = Gauss2F1(aa.ComplexPtr()[i],bb.ComplexPtr()[i],cc.ComplexPtr()[i],xx.ComplexPtr()[i]);
+					break;
+				}
+			}
+			if (w.ComplexPtr()[i].imag() != 0) imag_zero = false;
+		}
+		if (imag_zero) {
+			Tobject w2;
+			w2.rreserv(w.dims());
+			for (i=0; i<N; i++) w2.RealPtr()[i] = w.ComplexPtr()[i].real();
+			w.bitwiseMoveFrom(w2);
+		}
+	} else {
+		// all a, b, c and x are scalar
+		Tcomplex aa,bb,cc,xx;
+		if (ak == Kint) {
+			aa = a.IntValue();
+		} else if (ak == Kreal) {
+			aa = a.RealValue();
+		} else {
+			aa = a.ComplexValue();
+		}
+		if (bk == Kint) {
+			bb = b.IntValue();
+		} else if (bk == Kreal) {
+			bb = b.RealValue();
+		} else {
+			bb = b.ComplexValue();
+		}
+		if (ck == Kint) {
+			cc = c.IntValue();
+		} else if (ck == Kreal) {
+			cc = c.RealValue();
+		} else {
+			cc = c.ComplexValue();
+		}
+		if (xk == Kint) {
+			xx = x.IntValue();
+		} else if (xk == Kreal) {
+			xx = x.RealValue();
+		} else {
+			xx = x.ComplexValue();
+		}
+		Tcomplex w2;
+		switch (func) {
+		case FN_GAUSS_2F1:
+			w2 = Gauss2F1(aa,bb,cc,xx);
+			break;
+		}
+		if (w2.imag() == 0) w = w2.real(); else w = w2;
+	}
+	return 0;
+}
+
+[w] = IncompleteGammaP(a,x)
+/* IncompleteGammaP(a,x) is the regularized incomplete gamma function
+     IncompleteGammaP(a,x) := integrate(exp(-t)*t^(a-1),t=0..x)/Gamma(a).
+   The evaluation is reliable for Re(a) > 0 only, although a result
+   is returned also for Re(a) <= 0.
+   The notation conforms with Numerical Recipes.
+   Error codes:
+   -1: First arg not numerical
+   -2: Second arg not numerical
+   -5: Argument dimensions do not match
+ */
+{
+	return GenericTwoArgumentSpecialFunction(w,a,x,FN_INCOMPLETE_GAMMA_P);
+}
+
+[w] = IncompleteGammaQ(a,x)
+/* IncompleteGammaQ(a,x) is the regularized incomplete gamma function
+     IncompleteGammaQ(a,x) := 1 - IncompleteGammaP(a,x).
+   The evaluation is reliable for Re(a) > 0 only, although a result
+   is returned also for Re(a) <= 0.
+   The notation conforms with Numerical Recipes.
+   Error codes:
+   -1: First arg not numerical
+   -2: Second arg not numerical
+   -5: Argument dimensions do not match
+ */
+{
+	return GenericTwoArgumentSpecialFunction(w,a,x,FN_INCOMPLETE_GAMMA_Q);
+}
+
+[w] = ChebyshevT(n,x)
+/* ChebyshevT(n,x) gives the nth Chebyshev polynomial of the first kind,
+   ChebyshevT(n,cos(theta)):= cos(n*theta).
+   Error codes:
+   -1: First arg not numerical
+   -2: Second arg not numerical
+   -5: Argument dimensions do not match
+ */
+{
+	return GenericTwoArgumentSpecialFunction(w,n,x,FN_CHEBYSHEV_T);
+}
+
+[w] = LegendreP(n,m;x)
+/* LegendreP(n,x) is the nth Legendre polynomial P_n(x)
+   evaluated at x.
+   LegendreP(n,m,x) is the associated Legendre function
+   P_n^m(x).
+   The Arfken definition is in use, which is different from
+   e.g. what Mathematica uses.
+   Error codes:
+   -1: First arg not numerical
+   -2: Second arg not numerical
+   -3: Third arg not numerical
+   -5: Argument dimensions do not match
+*/
+{
+	if (Nargin == 3) {
+		return GenericThreeArgumentSpecialFunction(w,n,m,x,FN_LEGENDRE_P3);
+	} else {
+		return GenericTwoArgumentSpecialFunction(w,n,m,FN_LEGENDRE_P2);
+	}
+}
+
+[w] = Kummer1F1(a,c,z)
+/* Kummer1F1(a,c,z) is the 1F1 confluent hypergeometric function,
+   defined by
+     1F1(a,c,z) = sum(((a)_n/(c)_n)*z^n/n!,n=0..Inf)
+   where (a)_n is the Pochhammer symbol poch(a,n),
+      (a)_n = a*(a+1)*...*(a+n-1) = Gamma(a+n)/Gamma(a).
+   The function has no singularities or branch cuts for any z,
+   but is infinite when c is a non-positive integer.
+   The method of evaluation is power series expansion for
+   small and moderate |z| and direct integration of the defining
+   diff. equation in other cases.
+   See also: Kummer1F1Regularized, Gauss2F1.
+   Error codes:
+   -1: First arg not numerical
+   -2: Second arg not numerical
+   -3: Third arg not numerical
+   -5: Argument dimensions do not match
+*/
+{
+	return GenericThreeArgumentSpecialFunction(w,a,c,z,FN_KUMMER_1F1);
+}
+
+[w] = Kummer1F1Regularized(a,c,z)
+/* Kummer1F1Regularized(a,c,z) is the regularized confluent
+   hypergeometric function, defined by
+   Kummer1F1Regularized(a,c,z):= Kummer1F1(a,c,z)/Gamma(c).
+   This function is finite for all finite values of the parameters.
+   The evaluation method works also when c is negative integer.
+   See also: Kummer1F1.
+   Error codes:
+   -1: First arg not numerical
+   -2: Second arg not numerical
+   -3: Third arg not numerical
+   -5: Argument dimensions do not match
+*/
+{
+	return GenericThreeArgumentSpecialFunction(w,a,c,z,FN_KUMMER_1F1_REGULARIZED);
+}
+
+[w] = Gauss2F1(a,b,c,z)
+/* Gauss2F1(a,b,c,z) is Gauss' 2F1 hypergeometric function
+   F(a,b;c;z), defined by the power series
+      F(a,b;c;z) = sum(((a)_n*(b)*n/(c)_n)*z^n/n!,n=0..Inf)
+   where (a)_n is the Pochhammer symbol poch(a,n),
+      (a)_n = a*(a+1)*...*(a+n-1) = Gamma(a+n)/Gamma(a).
+   The function has a singularity at z=1 and a branch cut
+   in Re(z) > 1, Im(z) == 0. The function is evaluated for
+   any numerical arguments and is threaded automatically over
+   array arguments. The method of evaluation is power series
+   expansion for small |z|, a transformation formula for certain
+   large |z|, and direct integration of the defining diff. equation
+   in other cases.
+   See also: Kummer1F1.
+   Error codes:
+   -1: Args must be complex scalars
+   -2: Second arg not numerical
+   -3: Third arg not numerical
+   -4: Fourth arg not numerical
+   -5: Argument dimensions do not match
+*/
+{
+	return GenericFourArgumentSpecialFunction(w,a,b,c,z,FN_GAUSS_2F1);
+}

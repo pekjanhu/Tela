@@ -1,0 +1,14 @@
+TELA SOURCE CODE CAVEATS									PJ 20.2.1994
+
+In object.C, member function Tobject::setsize(int):
+
+	// We must use the smallest type of (Tint,Treal,Tcomplex) here.
+	// We assume that on any system, Treal or Tcomplex is not smaller than Tint.
+	// We also assume that the resulting pointer from 'new Tint[]' is properly
+	// aligned to be used even with Tcomplex. This is because usually 'new' calls
+	// malloc(2), which usually returns a pointer properly aligned for any use.
+	// If any of these assumptions is invalid, the program will probably crash.
+	// In such a case, a separate version of setsize should be defined for
+	// Int,Real and Complex.
+
+

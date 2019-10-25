@@ -1,0 +1,507 @@
+/*
+ * This file is part of tela the Tensor Language.
+ * Copyright (c) 1994-2000 Pekka Janhunen
+ */
+
+/*
+	sppc.ct
+	Functions using the Simple Panel Plot Composer (sppc program)
+	Preprocess with ctpp.
+	C-tela code is C++ equipped with []=f() style function definition.
+*/
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <signal.h>
+#include <ctype.h>
+
+static FILE *fp = 0;
+static char sppc_fn[MAXFILENAME] = "";
+static char *output_fn = 0;
+static bool PanelIncomplete = false;
+static bool UseBinary = true;
+
+static bool OpenSPPCFile()
+{
+	if (!fp) {
+		tmpnam(sppc_fn);
+		fp = fopen(sppc_fn,"w");
+		return (fp != 0);
+	}
+	return true;
+}
+
+static void WriteVector(FILE *fp, const Tobject& x)	// x is known to be KRealArray or KIntArray, and rank(x)==1
+{
+	Tint i;
+	const Tint n = x.length();
+	if (UseBinary) {
+		fprintf(fp,"(1 %d\n",n);
+		if (x.kind() == KRealArray) {
+			if (sizeof(Treal) == sizeof(double))
+				fwrite(x.RealPtr(),sizeof(double),n,fp);
+			else {
+				double *const buff = new double [n];
+				for (i=0; i<n; i++) buff[i] = x.RealPtr()[i];
+				fwrite(buff,sizeof(double),n,fp);
+				delete [] buff;
+			}
+		} else {
+			// x is IntArray
+			double *const buff = new double [n];
+			for (i=0; i<n; i++) buff[i] = x.IntPtr()[i];
+			fwrite(buff,sizeof(double),n,fp);
+			delete [] buff;
+		}
+		fprintf(fp,")\n");
+	} else {
+		fprintf(fp,"[1 %d",n);
+		if (x.kind() == KRealArray) {
+			for (i=0; i<n; i++) fprintf(fp," %1.10g",double(x.RealPtr()[i]));
+		} else {
+			// x is KIntArray
+			for (i=0; i<n; i++) fprintf(fp," %1.10g",double(x.IntPtr()[i]));
+		}
+		fprintf(fp,"]\n");
+	}
+}
+
+static void WriteMatrix(FILE *fp, const Tobject& x) // x is known to be KRealArray or KIntArray, rank(x)==1 or rank(x)==2
+{
+	Tint i,nx,ny;
+	if (x.rank()==1) {
+		nx = x.length();
+		ny = 1;
+	} else {
+		nx = x.dims()[0];
+		ny = x.dims()[1];
+	}
+	if (UseBinary) {
+		fprintf(fp,"(%d %d\n",nx,ny);
+		if (x.kind() == KRealArray) {
+			if (sizeof(Treal) == sizeof(double)) {
+				fwrite(x.RealPtr(),sizeof(double),nx*ny,fp);
+			} else {
+				double *const buff = new double [nx*ny];
+				for (i=0; i<nx*ny; i++) buff[i] = x.RealPtr()[i];
+				fwrite(buff,sizeof(double),nx*ny,fp);
+				delete [] buff;
+			}
+		} else {
+			// x is KIntArray
+			double *const buff = new double [nx*ny];
+			for (i=0; i<nx*ny; i++) buff[i] = x.IntPtr()[i];
+			fwrite(buff,sizeof(double),nx*ny,fp);
+			delete [] buff;
+		}
+		fprintf(fp,")\n");
+	} else {
+		fprintf(fp,"[%d %d",nx,ny);
+		if (x.kind() == KRealArray) {
+			for (i=0; i<nx*ny; i++) fprintf(fp," %1.10g",double(x.RealPtr()[i]));
+		} else {
+			for (i=0; i<nx*ny; i++) fprintf(fp," %1.10g",double(x.IntPtr()[i]));
+		}
+		fprintf(fp,"]\n");
+	}
+}
+
+static bool RightCurve = false;
+
+static int HandleOpts(const TConstObjectPtr argin[], int start, int Nargin)
+// Returns error code, on success return 0
+// Error codes: 5: Odd number of arguments, 6: Option name not a string, 7: Unknown option, 8: Bad option value
+{
+	// Check that there are even number of arguments (option-value pairs)
+	if (((Nargin-start) % 2) != 0) return 5;
+	int p;
+	for (p=start; p<Nargin; p+=2) {
+		if (!argin[p]->IsString()) return 6;
+		Tstring S = *argin[p];
+		char *command = (char *)S;
+		if (!strcmp(command,"title") || !strcmp(command,"leftlabel") || !strcmp(command,"rightlabel")
+			|| !strcmp(command,"xleftlabel") || !strcmp(command,"xrightlabel")
+			|| !strcmp(command,"label")) {
+			if (!argin[p+1]->IsString()) {
+				cerr << "Non-string value given to " << command << " option\n";
+				return 8;
+			}
+		} else if (!strcmp(command,"output")) {
+			if (!argin[p+1]->IsString()) {
+				cerr << "Non-string value given to output option\n";
+				return 8;
+			}
+			if (argin[p+1]->length()==0) continue;		// if the string is empty, do not use it
+			Tstring SS = *argin[p+1];
+			if (output_fn) free(output_fn);
+			output_fn = strdup((char*)SS);
+			continue;
+		} else if (!strcmp(command,"usebinary")) {
+			if (!argin[p+1]->IsString()) {
+				cerr << "Non-string value given to usebinary option\n";
+				return 8;
+			}
+			Tstring SS = *argin[p+1];
+			if (!strcasecmp((char*)SS,"true")) {
+				UseBinary = true;
+			} else if (!strcasecmp((char*)SS,"false")) {
+				UseBinary = false;
+			} else {
+				cerr << "Bad option value \"" << SS << "\" for \"usebinary\", ignored. Must be \"true\" or \"false\".\n";
+			}
+			continue;
+		} else if (!strcmp(command,"grid") || !strcmp(command,"interp") || !strcmp(command,"ylog") || !strcmp(command,"arrow")
+				   || !strcmp(command,"zlog") || !strcmp(command,"xlog") || !strcmp(command,"rightcurve")
+				   || !strcmp(command,"houraxis") || !strcmp(command,"showneg") || !strcmp(command,"houraxis_x")) {
+			bool val = false;
+			if (argin[p+1]->IsString()) {
+				Tstring SS = *argin[p+1];
+				if (!strcasecmp((char*)SS,"true")) {
+					val = true;
+				} else if (!strcasecmp((char*)SS,"false")) {
+					val = false;
+				} else {
+					cerr << "warning: give true or false for " << command << " (gave " << (char*)SS << ")\n";
+				}
+			} else if (argin[p+1]->kind() == Kint) {
+				val = (argin[p+1]->IntValue() != 0);
+			} else {
+				cerr << "Invalid value for " << command << " option\n";
+				return 8;
+			}
+			if (!strcmp(command,"rightcurve"))
+				RightCurve = true;
+			else
+				fprintf(fp,"%s=[1 1 %d]\n",command,int(val));
+			continue;
+		} else if (!strcmp(command,"linetype") || !strcmp(command,"markertype")) {
+			if (argin[p+1]->kind() != Kint) {
+				cerr << "Non-integer value given to " << command << " option\n";
+				return 8;
+			}
+		} else if (!strcmp(command,"linecolor") || !strcmp(command,"fillcolor") || !strcmp(command,"markercolor")
+			|| !strcmp(command,"foreground") || !strcmp(command,"background")) {
+			if (argin[p+1]->kind() != KRealArray && argin[p+1]->kind() != KIntArray
+				|| argin[p+1]->rank()!=1 || argin[p+1]->length()!=3) {
+				cerr << "Value given to " << command << " option, which is not a 3-vector (color spec)\n";
+				return 8;
+			}
+		} else if (!strcmp(command,"palette")) {
+			if (!argin[p+1]->IsString()) {
+				if (argin[p+1]->kind() != KIntArray || argin[p+1]->rank() != 2 || argin[p+1]->dims()[0]!=3
+					|| argin[p+1]->dims()[1] != 256) {
+					cerr << "Value given to " << command << " option, which is not 3x256 int array\n";
+					return 8;
+				}
+				fprintf(fp,"palette=");
+				WriteMatrix(fp,*argin[p+1]);
+				continue;
+			}
+		} else if (!strcmp(command,"linewidth") || !strcmp(command,"markersize")
+				   || !strcmp(command,"endpoint_x") || !strcmp(command,"endpoint_y")
+				   || !strcmp(command,"xmin") || !strcmp(command,"xmax")
+				   || !strcmp(command,"ymin") || !strcmp(command,"ymax")
+				   || !strcmp(command,"ymin_right") || !strcmp(command,"ymax_right")
+				   || !strcmp(command,"zmin") || !strcmp(command,"zmax")
+				   || !strcmp(command,"framewidth") || !strcmp(command,"titlefontsize")
+				   || !strcmp(command,"labelfontsize") || !strcmp(command,"axisfontsize")
+				   || !strcmp(command,"annotfontsize")) {
+			if (argin[p+1]->kind() != Kint && argin[p+1]->kind() != Kreal) {
+				cerr << "Non-scalar value given to " << command << " option\n";
+				return 8;
+			}
+		}
+		fprintf(fp,"%s=",command);
+		if (argin[p+1]->IsString()) {
+			Tstring SS = *argin[p+1];
+			fputc(34,fp);		// ascii 34 is doublequote
+			int i;
+			char *ss = (char *)SS;
+			for (i=0; ss[i]; i++) {
+				if (ss[i]==34) fputc(92,fp);	// ascii 92 is backslash
+				fputc(ss[i],fp);
+			}
+			fprintf(fp,"\"\n");
+		} else if (argin[p+1]->kind() == KIntArray) {
+			WriteVector(fp,*argin[p+1]);
+		} else if (argin[p+1]->kind() == KRealArray) {
+			WriteVector(fp,*argin[p+1]);
+		} else if (argin[p+1]->kind() == Kint) {
+			fprintf(fp,"[1 1 %d]\n",int(argin[p+1]->IntValue()));
+		} else if (argin[p+1]->kind() == Kreal) {
+			fprintf(fp,"[1 1 %1.10g]\n",double(argin[p+1]->RealValue()));
+		}
+	}
+	return 0;
+}
+
+[] = sppcopts(...)
+/* sppcopts([,"option",value,...]) provides a method for giving
+   SPPC options without using any SPPC primitive. The following
+   options can be given. These can also be, and usually are,
+   attached to the plotting functions themselves (curve, pseudo, etc.).
+   Options marked with (*) are global, others are reset after
+   each panel:
+
+   Option name       Type         Explanation
+   ------------------------------------------
+  *title             string       Overall title of page
+   leftlabel         string       Left label of this panel
+   rightlabel        string       Right label of this panel
+   xrightlabel       string       Right label on bottom horiz axis
+   xleftlabel        string       Left label on bottom horiz axis
+   linetype          integer      0=none,1=solid,2=dashed,3=dotted,
+                                    4=dotdashed
+   linecolor         3-vector     Curve color, RGB-values in 0..1 range
+   fillcolor         3-vector     Fill color (for filled curves only)
+  *foreground        3-vector     Color of axes, labels etc.
+  *background        3-vector     Background color of page
+  *framewidth        real or int  Frame and axis line width, in 1/72-inch
+   linewidth         real or int  Curve line width, in 1/72-inch
+  *xmin,*xmax,ymin,               Manually given axis limits,
+     ymax,zmin,zmax  real           z refers to pseudocolor scaling
+   ymin_right,ymax_right real     Right vertical axis min,max
+   rightcurve        true/false   This curve uses the right vertical axis.
+                                    Reset after each curve.
+   houraxis          true/false   This xlabels() is hours, render as hh:mm
+   xlabelskip        integer      Tick marks between each xlabel (default 1)
+  *houraxis_x        true/false   Horizontal axis is hour axis
+  *grid              true/false   Whether to draw dotted grid lines
+  *interp            true/false   If true, draws pseudocolor surfs smoothly
+  *palette           3x256 matrix Color palette, Int matrix, values in 0..255
+                     "default"    Rainbow palette
+  *xlog              true/false   Logarithmic horizontal axis
+   ylog              true/false   Logarithmic vertical axis
+   zlog              true/false   Logarithmic color scaling for pseudos
+  *showneg           true/false   If log scale: show <= 0 values as smallest
+  *titlefontsize     real         Size of title font in 1/72-inch units
+  *labelfontsize     real         Size of side label font
+  *axisfontsize      real         Size of axis tickmark label font
+  *annotfontsize     real         Size of marker label font
+  *usebinary         true/false   Default true; if false, uses ASCII in tmpfile
+   panelheight       real         Relative height of panel, default 1.0
+
+   Using SPPC in batch mode: see endpanels.
+  
+   See also: curve, sppcmark, pseudo, panel, xlabels, endpanels.
+   Error codes:
+   5: Odd number of arguments
+   6: Option name not a string
+   7: Unknown option
+   8: Bad option value
+*/
+{
+	if (!OpenSPPCFile()) return 1;
+	const int retval=HandleOpts(argin,0,Nargin);
+	if (retval) return retval;
+	return 0;
+}
+
+[] = curve(x,y...)
+/* curve(x,y) adds a curve in the current SPPC panel.
+   SPPC option-value pairs can be added as further arguments.
+   Do 'help sppcopts' for list of possible options.
+   See also: sppcmark, pseudo, panel, endpanels, sppcopts, xlabels.
+   Error codes:
+   1: Could not open temporary MTV file
+   2: First argument (x) not a real vector
+   3: Second argument (y) not a real vector
+   4: First two arguments of different lengths
+   5: Odd number of arguments
+   6: Option name not a string
+   7: Unknown option
+   8: Bad option value
+*/
+{
+	if (!OpenSPPCFile()) return 1;
+	PanelIncomplete = true;
+	if (x.rank() != 1 || x.kind()!=KRealArray && x.kind()!=KIntArray) return 2;
+	if (y.rank() != 1 || y.kind()!=KRealArray && y.kind()!=KIntArray) return 3;
+	if (x.length() != y.length()) return 4;
+	RightCurve = false;
+	const int retval=HandleOpts(argin,2,Nargin);
+	if (retval) return retval;
+	fprintf(fp,"x="); WriteVector(fp,x);
+	fprintf(fp,RightCurve ? "y_right=" : "y="); WriteVector(fp,y);
+	fprintf(fp,RightCurve ? "curve_right\n" : "curve\n");
+	RightCurve = false;
+	return 0;
+}
+
+[] = sppcmark(x,y...)
+/* sppcmark(x,y) sets a marker in the current SPPC panel.
+   The following options can be given, in addition to those
+   listed under 'help sppcopts':
+
+   Option      Type       Explanation
+   ------      ----       -----------
+   label       string     Text to draw at (x,y)
+   markertype  integer    0=none,1=dot,2=+,3=X,4=box,5=filled box,
+                            6=diamond, 7=filled diamond, 8=triangle,
+                            9=filled triangle, 10=inverted triangle,
+                            11=filled inverted triangle, 12=circle,
+                            13=filled circle
+   markersize  real       in points (1/72 inch), default 6
+   markercolor 3-vector   Color of marker and text
+   endpoint_x  real       Draws a line from (x,y)
+   endpoint_y  real          to (endpoint_x,endpoint_y).
+                             Current linewidth, linetype, linecolor
+                             are used.
+   arrow       true/false Whether to draw arrowhead at line end							 
+   
+   See also: curve, pseudo, panel, endpanels, sppcopts, xlabels.
+   Error codes:
+   1: Bad first argument x (not scalar)
+   2: Bad second argument y (not scalar)
+   5: Odd number of arguments
+   6: Option name not a string
+   7: Unknown option
+   8: Bad option value
+*/
+{
+	if (!OpenSPPCFile()) return 1;
+	PanelIncomplete = true;
+	if (x.kind() != Kreal && x.kind() != Kint) return 1;
+	if (y.kind() != Kreal && y.kind() != Kint) return 2;
+	const int retval=HandleOpts(argin,2,Nargin);
+	if (retval) return retval;
+	fprintf(fp,"x=[1 1 %1.16e]\n",(x.kind()==Kreal) ? double(x.RealValue()) : double(x.IntValue()));
+	fprintf(fp,"y=[1 1 %1.16e]\n",(y.kind()==Kreal) ? double(y.RealValue()) : double(y.IntValue()));
+	fprintf(fp,"mark\n");
+	return 0;
+}
+
+[] = pseudo(x,y,z...)
+/* pseudo(x,y,z) plots a pseudocolor plot in the current SPPC panel.
+   SPPC option-value pairs can be added as further arguments,
+   for example, pseudo(x,y,z,"interp","true) uses smooth rendering.
+   Do 'help sppcopts' for list of valid options.
+   See also: curve, sppcmark, panel, endpanels, sppcopts, xlabels.
+   Error codes:
+   1: Could not open temporary MTV file
+   2: First argument (x) not a real vector
+   3: Second argument (y) not a real vector
+   4: Third argument (z) not a real matrix
+   5: Odd number of arguments
+   6: Option name not a string
+   7: Unknown option
+   8: Bad option value
+   9: Third argument (z) dimensions do not match x,y lengths
+*/
+{
+	if (!OpenSPPCFile()) return 1;
+	PanelIncomplete = true;
+	if (x.rank() != 1 || x.kind()!=KRealArray && x.kind()!=KIntArray) return 2;
+	if (y.rank() != 1 || y.kind()!=KRealArray && y.kind()!=KIntArray) return 3;
+	if (z.rank() != 2 || z.kind()!=KRealArray) return 4;
+	const Tint nx = z.dims()[0];
+	const Tint ny = z.dims()[1];
+	if (x.length() != nx || y.length() != ny) return 9;
+	const int retval=HandleOpts(argin,3,Nargin);
+	if (retval) return retval;
+	fprintf(fp,"x="); WriteVector(fp,x);
+	fprintf(fp,"y="); WriteVector(fp,y);
+	fprintf(fp,"z="); WriteMatrix(fp,z);
+	fprintf(fp,"pcolor\n");
+	return 0;
+}
+
+[] = panel(...)
+/* panel() finishes the current SPPC panel by drawing the pending
+   curve and pseudo objects.
+   Do 'help sppcopts' for list of valid options.
+   See also: curve, sppcmark, pseudo, endpanels, sppcopts, xlabels.
+   Error codes:
+   1: Calling panel before calling curve or pseudo
+   5: Odd number of arguments
+   6: Option name not a string
+   7: Unknown option
+   8: Bad option value
+*/
+{
+	if (!fp) return 1;
+	const int retval=HandleOpts(argin,0,Nargin);
+	if (retval) return retval;
+	fprintf(fp,"panel\n");
+	PanelIncomplete = false;
+	return 0;
+}
+
+[] = xlabels(x,y...)
+/* xlabels(x,y) puts a xlabel vector to SPPC page.
+   xlabels(x,y,"houraxis","true") assumes y represents hours
+   and renders the labels as hh:mm.
+   Do 'help sppcopts' to see other valid options (especially
+   rightlabel and leftlabel).
+   See also: curve, sppcmark, pseudo, endpanels, sppcopts, panel.
+   Error codes:
+   1: Could not open temporary MTV file
+   2: First argument (x) not a real vector
+   3: Second argument (y) not a real vector
+   4: First two arguments of different lengths
+   5: Odd number of arguments
+   6: Option name not a string
+   7: Unknown option
+   8: Bad option value
+*/
+{
+	if (!OpenSPPCFile()) return 1;
+	if (x.rank() != 1 || x.kind()!=KRealArray && x.kind()!=KIntArray) return 2;
+	if (y.rank() != 1 || y.kind()!=KRealArray && y.kind()!=KIntArray) return 3;
+	if (x.length() != y.length()) return 4;
+	const int retval=HandleOpts(argin,2,Nargin);
+	if (retval) return retval;
+	fprintf(fp,"x="); WriteVector(fp,x);
+	fprintf(fp,"textvec="); WriteVector(fp,y);
+	fprintf(fp,"texts\n");
+	return 0;
+}
+
+[] = endpanels(...)
+/* endpanels() finishes the current SPPC page by drawing
+   the pending panels. Do 'help sppcopts' for list of valid options.
+   
+   Additionally, endpanels recognizes option "output". If set to non-empty string,
+   it stores the SPPC code in the named file instead of calling ghostview,
+   e.g.: endpanels("output","myfile.sppc").
+   You can then do e.g.
+     sppc -papertype 8x14cm -landscape <myfile.sppc >myfile.ps
+   See sppc -help for possible options. This enables "blind" batch mode runs.
+   
+   See also: curve, sppcmark, pseudo, panel, sppcopts, xlabels.
+   Error codes:
+   1: Calling endpanels before calling curve or pseudo
+   5: Odd number of arguments
+   6: Option name not a string
+   7: Unknown option
+   8: Bad option value
+*/
+{
+	if (!fp) return 1;
+	if (PanelIncomplete) fprintf(fp,"panel\n");
+	PanelIncomplete = false;
+	const int retval=HandleOpts(argin,0,Nargin);
+	if (retval) return retval;
+	fprintf(fp,"plot\n");
+	fclose(fp);
+	fp = 0;
+	if (output_fn) {
+		char *cmd = new char [100+strlen(sppc_fn)+strlen(output_fn)];
+		sprintf(cmd,"mv %s %s",sppc_fn,output_fn);
+		system(cmd);
+		delete [] cmd;
+		free(output_fn);
+		output_fn = 0;
+	} else {
+		char ps_fn[MAXFILENAME];
+		tmpnam(ps_fn);
+		char *cmd = new char [100+2*strlen(sppc_fn)+3*strlen(ps_fn)];
+//		sprintf(cmd,"(sppc <%s >%s; rm -f %s; ghostview %s; rm -f %s)&",sppc_fn,ps_fn,sppc_fn,ps_fn,ps_fn);
+		sprintf(cmd,"(sppc -gl <%s; rm -f %s)&",sppc_fn,sppc_fn);
+		system(cmd);
+		delete [] cmd;
+	}
+	return 0;
+}
+

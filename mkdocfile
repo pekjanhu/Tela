@@ -1,0 +1,184 @@
+#!/bin/sh
+
+# Usage: mkdocfile [-S] [file.ct].
+# Read all file.ct and produce a sorted SGML document 'telafuncs.sgml'.
+# If -S options is given, produces 'telafuncsSectioned.sgml'.
+# Find .ct files in current directory, if not found then ./opt
+
+# For AWK, either nawk or gawk will do. The old awk is not sufficient!
+# On many new systems, awk refers to nawk or gawk or equivalent.
+AWK=gawk
+outputfile_allsorted=`pwd`/telafuncs.sgml
+outputfile_sect=`pwd`/telafuncsSectioned.sgml
+include_errorcodes="true"
+awkscript=$TMPDIR/awkscript$$
+
+basetmpdir=${TMPDIR:-/tmp}
+
+tmpdir=$basetmpdir/mkdocfile$$
+mkdir $tmpdir
+
+trap "rm $awkscript; rm -rf $tmpdir; exit 1" 1 2 3 15
+
+# The awkscript translates lines of the form ' See also: abc, def, ghj.'
+# to be 'See also: <ref id="abc" name="abc">, <ref id="def" name="def">, <ref id="ghj" name="ghj">.
+# The script needs to be called with awk -f script -v fbasename=value
+cat <<EOF >$awkscript
+BEGIN {printf("<sect1>%s<label id=\"%s\">\n<p>\n<tscreen><verb>\n",fbasename,fbasename); seealso=0}
+/^ *See also:/ {
+    sub(/\/\*/,"");
+    sub(/\*\//,"");
+    printf("</verb>\nSee also: ");
+    for(i=3; i<=NF; i++) {
+       s = \$i;
+       S = "";
+       for(j=1; j<=length(s); j++) {
+          ch = substr(s,j,1);
+          if (ch ~ /[a-z]|[A-Z]|_|[0-9]/) S = (S ch);
+       }
+       if (length(S) > 0) {
+          if (i>3) printf(", ");
+          printf("<ref id=\"%s\" name=\"%s\">",S,S);
+       }
+    }
+    printf(".\n");
+    seealso = 1;
+}
+!/^ *See also:/ {
+    sub(/\/\*/,"");
+    sub(/\*\//,"");
+    if (seealso!=0) printf("<verb>\n");
+    print;
+    seealso = 0;
+}
+END {if (seealso==0) printf("</verb>\n"); printf("</tscreen>\n")}
+EOF
+
+if [ "$1" = "-S" ]; then
+  sectioned="true"
+  outputfile=$outputfile_sect
+  shift
+else
+  sectioned="false"
+  outputfile=$outputfile_allsorted
+fi
+
+if [ $# -gt 1 ]; then
+  sourcefiles=$*
+  # find source files in ., then in ./opt
+  modsourcefiles=""
+  for srcfile in $sourcefiles; do
+    if [ -f $srcfile ]; then
+      modsourcefiles="$modsourcefiles $srcfile"
+    elif [ -f opt/$srcfile ]; then
+      modsourcefiles="$modsourcefiles opt/$srcfile"
+    else
+      echo "*** mkdocfile: source file $srcfile not found"
+    fi
+  done
+  sourcefiles="$modsourcefiles"
+else
+  sourcefiles=*.ct
+fi
+
+if [ -r VERSION ]; then
+  VersionString=`cat VERSION | tr -d '\012'`
+else
+  VersionString=""
+fi
+
+if [ "$include_errorcodes" = "true" ]; then
+  errorcode_remover="cat"
+else
+  errorcode_remover="sed -e '/Error codes:/q'"
+fi
+
+
+echo "Producing SGML document ${outputfile}."
+
+if [ -f COPYRIGHT_HEADER ]; then
+	hl=`wc -l COPYRIGHT_HEADER | awk '{print $1}' | tr -d '\012'`
+else
+	hl="0"
+fi
+
+for srcfile in $sourcefiles; do
+   echo "processing $srcfile"
+   linenums=`fgrep -n '[' $srcfile | fgrep ':[' | sed -e 's/:.*$//g' | tr '\012' ' '`
+   echo "linenums = $linenums"
+   for L in $linenums; do
+     fbasename=`tail +$L $srcfile | head -1 | sed -e 's/^.*=//g' -e 's/(.*//g' |tr -d ' '`
+     echo "  $fbasename"
+   	 tail +$L $srcfile | $errorcode_remover | sed -e '/\*\//q' | \
+		  $AWK -v fbasename=$fbasename -f $awkscript >$tmpdir/f.$fbasename
+   done
+   if [ ".$sectioned" = ".true" ]; then
+     sectname=`basename $srcfile .ct`
+     sectdescription=`tail +$hl $srcfile | head -3 | tail -1 | sed -e 's/^[       ]*//g' | tr -d '\012'`
+     (cd $tmpdir;\
+      echo "<sect>$sectdescription" >one_section;\
+      echo "<p>" >>one_section;\
+      echo "This section describes functions from file $srcfile." >>one_section;\
+      echo "" >>one_section;\
+      cat f.* >>one_section;\
+      rm f.*;\
+      mv one_section ff.$sectname)
+   fi
+done
+
+cd $tmpdir
+
+if [ ".$sectioned" = ".true" ]; then
+   for i in ff.*; do
+      mv $i `echo $i | sed -e 's/^.//' |tr -d '\012'`
+   done
+fi
+
+cat <<END-OF-PROLOG >$outputfile
+<!doctype linuxdoc system>
+
+<!-- Tela functions contained in $sourcefiles in SGML format -->
+
+<article>
+
+<title>Builtin Tela functions
+<author> Pekka Janhunen, <tt/Pekka dot Janhunen (and put at here) fmi.fi/
+<date>Version $VersionString, `date`
+<abstract>
+This document has been automatically generated from the online
+help messages of builtin Tela functions.
+</abstract>
+
+<toc>
+
+<sect> INTRODUCTION
+<p>
+Negative error codes describe fatal errors, whereas positive error
+codes are warnings only. In case of fatal error, the function
+output arguments have undefined values. If a function has no output
+arguments, it typically has only positive return codes.
+
+The error code descriptions do normally not appear in the Tela
+help messages. If an error occurs, Tela will however find and
+display the proper textual message.
+
+END-OF-PROLOG
+
+if [ ".$sectioned" = ".true" ]; then
+   for f in $sourcefiles; do
+      cat f.`basename $f .ct` >>$outputfile
+      echo "" >>$outputfile
+   done
+else
+   for f in f.*; do
+      cat $f >>$outputfile
+      echo "" >>$outputfile
+   done
+fi
+
+echo "</article>" >>$outputfile
+
+cd ..
+rm -r $tmpdir
+rm $awkscript
+   

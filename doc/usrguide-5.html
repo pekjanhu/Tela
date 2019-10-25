@@ -1,0 +1,99 @@
+<title>Program code representations</title>
+<h1>5 <a name="s5"> Program code representations </h1>
+<p> <a href="usrguide.html#toc5"> Contents of this section</a></p>
+
+<p>Thus far we have used and studied only one form of existence of our
+programs, namely the native Tela source code (t-files and command
+line). Both internally and externally, programs exist in other forms
+too. Here is a complete list of all code representations in Tela:</p>
+<p>
+<pre>
+- t-code (the native Tela code)
+- "TreeCode" (internal representation for t-code)
+- "FlatCode" (another internal representation for t-code)
+- C-tela code (code similar to C++)
+- Compiled object code (machine language)
+</pre>
+</p>
+<p>When a program is <b>source</b>'d (
+source </a>
+) in or when a
+command line is typed, a lexical analyzer first breaks it in tokens,
+that is, keywords, separators, numbers, identifiers etc. The output of
+the lexical analyzer is a stream of tokens without hierarchical
+structure. A parser continues to produce a treelike representation,
+the TreeCode. The TreeCode is no longer a stream but has structure in
+it. TreeCode is immediately translated into FlatCode, which is a
+sequence of virtual machine instructions that the Tela kernel can
+understand, and it is reminiscent to assembly language. You can see
+both TreeCode and FlatCode representations of your input by setting
+the VerboseMode on:</p>
+<p>
+<blockquote><code>
+<pre>
+&gt;VerboseMode(on)
+0
+&gt;1 + 2.3*pi
+BLOCK[SET[PLUS[1,TIMES[2.3,pi]]],NOP]
+Source file: "stdin"
+no input args, no output args, no locals, stack frame size 1.
+Maximum number of operands is 3.
+0       MUL     $0,2.3,pi
+4       INC     $0
+6       PRI     $0
+8.22566
+</pre>
+</code></blockquote>
+</p>
+<p>Alternatively, you can invoke Tela with the --verbose or -v flag. The
+FlatCode of any <em>source</em>'d (
+source </a>source </a>
+) function can be
+seen by using <em>disasm</em> (
+source </a>source </a>disasm </a>
+):</p>
+<p>
+<pre>
+&gt;disasm(mean)
+Disassembly of 'mean', Source file: "std.t"
+1 input arg, 1 output arg, no locals, stack frame size 4.
+Maximum number of operands is 4.
+0       CALL    sum,1,$3,$1
+5       CALL    length,1,$0,$1
+10      DIV     $2,$3,$0
+</pre>
+</p>
+<p>The definition of <em>mean</em> is</p>
+<p>
+<pre>
+function y = mean(x)
+// mean(x) computes the arithmetic mean of a numeric array x.
+{
+    y=sum(x)/length(x)
+};
+</pre>
+</p>
+<p>and you can easily guess what each of the FlatCode instructions do.</p>
+<p>C-tela code is another way to write new functions for Tela. Many Tela
+builtin functions are written in C-tela; those which are not are
+either in native t-code or are so-called intrinsic functions (meaning
+that they generate virtual machine instructions directly like macros).
+C-tela code can be compiled into object files using the program
+<b>telakka</b> (
+source </a>source </a>disasm </a>telakka </a>
+). The object files can
+be either statically or dynamically linked with the rest of the Tela
+kernel.</p>
+<p>There exists a standard function <em>t2ct</em> (
+source </a>source </a>disasm </a>telakka </a>t2ct </a>
+) to translate t-code into C-tela code. The conversion is
+made possible by the fact each FlatCode instruction can be made to
+correspond simple C-tela codings. As of this writing, however, the
+Tela compiling scheme is still somewhat incomplete and under
+development. When it is fully functional, you can go all the way from
+t-code down to object code automatically.</p>
+<p></p>
+<p><a href="usrguide-6.html"> Next </a> Chapter, <a href="usrguide-4.html"> Previous </a> Chapter</p><p>Table of contents of <a href="usrguide.html#toc5">this chapter</a>,
+ General <a href="usrguide.html#toc">table of contents</a></p>
+<p><a href="usrguide.html"> Top </a> of the document,
+ <a href="#0"> Beginning of this Chapter</a></p>

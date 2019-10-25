@@ -1,0 +1,297 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="LinuxDoc-Tools 0.9.21">
+ <TITLE>Builtin Tela functions: fft.ct</TITLE>
+ <LINK HREF="telafuncsSectioned-9.html" REL=next>
+ <LINK HREF="telafuncsSectioned-7.html" REL=previous>
+ <LINK HREF="telafuncsSectioned.html#toc8" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="telafuncsSectioned-9.html">Next</A>
+<A HREF="telafuncsSectioned-7.html">Previous</A>
+<A HREF="telafuncsSectioned.html#toc8">Contents</A>
+<HR>
+<H2><A NAME="s8">8.</A> <A HREF="telafuncsSectioned.html#toc8">fft.ct</A></H2>
+
+<P>This section describes functions from file fft.ct.</P>
+
+<H2><A NAME="cosFFT"></A> <A NAME="ss8.1">8.1</A> <A HREF="telafuncsSectioned.html#toc8.1">cosFFT</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[f] = cosFFT(u; dim)
+ cosFFT(u) gives the cosine Fast Fourier Transform of array u.
+   If u's rank is more than one, the transform is computed
+   only along the first dimension (many independent 1D
+   transforms).
+
+   cosFFT(u,dim) computes the FFT along the specified dimension.
+   The first dimension is labeled 1 and so on.
+
+   For vector u, f=cosFFT(u) is equivalent with
+
+   n = length(u); f = zeros(n);
+   for (j=1; j&lt;=n; j++)
+       f[j] = u[1] - (-1)^j*u[n] + 2*sum(u[2:n-1]*cos((1:n-2)*(j-1)*pi/(n-1)));
+
+   Note that cosFFT is most efficient when n-1 is a product of small
+   primes, where n is the transform length.
+           
+</PRE>
+
+See also: 
+<A HREF="#invcosFFT">invcosFFT</A>, 
+<A HREF="#sinFFT">sinFFT</A>, 
+<A HREF="#cosqFFT">cosqFFT</A>, 
+<A HREF="#sinqFFT">sinqFFT</A>, 
+<A HREF="telafuncsSectioned-7.html#realFFT">realFFT</A>, 
+<A HREF="telafuncsSectioned-7.html#FFT">FFT</A>.
+<PRE>
+   Error codes:
+   -1: First argument not a real array
+   -2: Second argument not integer
+   -3: Second argument out of range
+   
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="cosqFFT"></A> <A NAME="ss8.2">8.2</A> <A HREF="telafuncsSectioned.html#toc8.2">cosqFFT</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[f] = cosqFFT(u; dim)
+ cosqFFT computes the quarter-wave cosine Fourier transform.
+   Except for the quarter-wave cosine character, it works similarly to cosFFT.
+   
+   For vector u, f=cosqFFT(u) is equivalent with
+
+   n = length(u); f = zeros(n);
+   for (j=1; j&lt;=n; j++)
+       f[j] = u[1] + 2*sum(u[2:n]*cos((2*j-1)*(1:n-1)*pi/(2*n)));
+   
+   cosqFFT is most efficient when the transform length is a product
+   of small primes.
+           
+</PRE>
+
+See also: 
+<A HREF="#invcosqFFT">invcosqFFT</A>, 
+<A HREF="telafuncsSectioned-7.html#realFFT">realFFT</A>, 
+<A HREF="#sinqFFT">sinqFFT</A>, 
+<A HREF="telafuncsSectioned-7.html#FFT">FFT</A>.
+<PRE>
+   Error codes:
+   -1: First argument not a real array
+   -2: Second argument not integer
+   -3: Second argument out of range
+   
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="invcosFFT"></A> <A NAME="ss8.3">8.3</A> <A HREF="telafuncsSectioned.html#toc8.3">invcosFFT</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[f] = invcosFFT(u; dim)
+ invcosFFT() is the inverse of cosFFT().
+   Actually invcosFFT differs from cosFFT only by normalization,
+   but it is provided as a separate function for convenience.
+   
+   For vector f, u=invcosFFT(f) is equivalent with
+
+   n = length(f); u = zeros(n);
+   for (j=1; j&lt;=n; j++)
+       u[j] = (f[1] - (-1)^j*f[n] + 2*sum(f[2:n-1]*cos((1:n-2)*(j-1)*pi/(n-1))))/(2*n-2)
+   
+</PRE>
+
+See also: 
+<A HREF="#cosFFT">cosFFT</A>.
+<PRE>
+   Error codes:
+   -1: First argument not a real array
+   -2: Second argument not integer
+   -3: Second argument out of range
+   
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="invcosqFFT"></A> <A NAME="ss8.4">8.4</A> <A HREF="telafuncsSectioned.html#toc8.4">invcosqFFT</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[f] = invcosqFFT(u; dim)
+ invcosqFFT() is the inverse of cosqFFT()
+   (inverse quarter-wave cosine Fourier transform).
+   
+   For vector f, u=invcosqFFT(f) is equivalent with
+
+   n = length(f); u = zeros(n);
+   for (j=1; j&lt;=n; j++)
+       u[j] = (1/n)*sum(f*cos((2*(1:n)-1)*(j-1)*pi/(2*n)));
+   
+</PRE>
+
+See also: 
+<A HREF="#cosqFFT">cosqFFT</A>.
+<PRE>
+   Error codes:
+   -1: First argument not a real array
+   -2: Second argument not integer
+   -3: Second argument out of range
+   
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="invsinFFT"></A> <A NAME="ss8.5">8.5</A> <A HREF="telafuncsSectioned.html#toc8.5">invsinFFT</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[f] = invsinFFT(u; dim)
+ invsinFFT() is the inverse of sinFFT().
+   Actually invsinFFT differs from sinFFT only by normalization,
+   but it is provided as a separate function for convenience.
+   
+   For vector f, u=invsinFFT(f) is equivalent with
+
+   n = length(f); u = zeros(n);
+   for (j=1; j&lt;=n; j++)
+       u[j] = (1/(n+1))*sum(f*sin((1:n)*j*pi/(n+1)));
+   
+</PRE>
+
+See also: 
+<A HREF="#sinFFT">sinFFT</A>.
+<PRE>
+   Error codes:
+   -1: First argument not a real array
+   -2: Second argument not integer
+   -3: Second argument out of range
+   
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="invsinqFFT"></A> <A NAME="ss8.6">8.6</A> <A HREF="telafuncsSectioned.html#toc8.6">invsinqFFT</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[f] = invsinqFFT(u; dim)
+ invsinqFFT() is the inverse of sinqFFT()
+   (inverse quarter-wave sine Fourier transform).
+   
+   For vector f, u=invsinqFFT(f) is equivalent with
+
+   n = length(f); u = zeros(n);
+   for (j=1; j&lt;=n; j++)
+       u[j] = (1/n)*sum(f*sin((2*(1:n)-1)*j*pi/(2*n)));
+   
+</PRE>
+
+See also: 
+<A HREF="#sinqFFT">sinqFFT</A>.
+<PRE>
+   Error codes:
+   -1: First argument not a real array
+   -2: Second argument not integer
+   -3: Second argument out of range
+   
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="sinFFT"></A> <A NAME="ss8.7">8.7</A> <A HREF="telafuncsSectioned.html#toc8.7">sinFFT</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[f] = sinFFT(u; dim)
+ sinFFT(u) gives the sine Fast Fourier Transform of array u.
+   If u's rank is more than one, the transform is computed
+   only along the first dimension (many independent 1D
+   transforms).
+
+   sinFFT(u,dim) computes the FFT along the specified dimension.
+   The first dimension is labeled 1 and so on.
+
+   For vector u, f=sinFFT(u) is equivalent with
+
+   n = length(u); f = zeros(n);
+   for (j=1; j&lt;=n; j++)
+       f[j] = 2*sum(u*sin((1:n)*j*pi/(n+1)));
+
+   Note that sinFFT is the most efficient when n+1 is a product of
+   small primes, where n is the transform length.
+           
+</PRE>
+
+See also: 
+<A HREF="#invsinFFT">invsinFFT</A>, 
+<A HREF="#cosFFT">cosFFT</A>, 
+<A HREF="#sinqFFT">sinqFFT</A>, 
+<A HREF="#cosqFFT">cosqFFT</A>, 
+<A HREF="telafuncsSectioned-7.html#realFFT">realFFT</A>, 
+<A HREF="telafuncsSectioned-7.html#FFT">FFT</A>.
+<PRE>
+   Error codes:
+   -1: First argument not a real array
+   -2: Second argument not integer
+   -3: Second argument out of range
+   
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="sinqFFT"></A> <A NAME="ss8.8">8.8</A> <A HREF="telafuncsSectioned.html#toc8.8">sinqFFT</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[f] = sinqFFT(u; dim)
+ sinqFFT computes the quarter-wave sine Fourier transform of array u.
+   Except for the quarter-wave sine character, it works similarly to sinFFT.
+   
+   For vector u, f=sinqFFT(u) is equivalent with
+
+   n = length(u); f = zeros(n);
+   for (j=1; j&lt;=n; j++)
+       f[j] = (-1)^(j-1)*u[n] + 2*sum(u[1:n-1]*sin((2*j-1)*(1:n-1)*pi/(2*n)));
+
+   sinqFFT is most efficient when the transform length is a product
+   of small primes.
+           
+</PRE>
+
+See also: 
+<A HREF="#invsinqFFT">invsinqFFT</A>, 
+<A HREF="telafuncsSectioned-7.html#realFFT">realFFT</A>, 
+<A HREF="#cosqFFT">cosqFFT</A>, 
+<A HREF="telafuncsSectioned-7.html#FFT">FFT</A>.
+<PRE>
+   Error codes:
+   -1: First argument not a real array
+   -2: Second argument not integer
+   -3: Second argument out of range
+   
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+
+<HR>
+<A HREF="telafuncsSectioned-9.html">Next</A>
+<A HREF="telafuncsSectioned-7.html">Previous</A>
+<A HREF="telafuncsSectioned.html#toc8">Contents</A>
+</BODY>
+</HTML>

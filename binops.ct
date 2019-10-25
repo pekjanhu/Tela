@@ -1,0 +1,146 @@
+/*
+ * This file is part of tela the Tensor Language.
+ * Copyright (c) 1994-1999 Pekka Janhunen
+ */
+
+/*
+	binops.ct
+	Binary AND, OR, XOR, NOT  as band, bor, bxor, bnot
+	Preprocess with ctpp.
+	C-tela code is C++ equipped with []=f() style function definition.
+*/
+
+[u] = band(x,y)
+/* band(x,y) is the binary AND.
+   The arguments must be integer arrays or scalars.
+   If they are arrays, they must be of the same dimensions.
+   See also: bor, bxor, bnot.
+   Error codes:
+   -1: First argument not integer
+   -2: Second argument not integer
+   -3: Arrays are of incompatible dimensions
+*/
+{
+	const Tkind xk = x.kind();
+	const Tkind yk = y.kind();
+	if (xk!=Kint && xk!=KIntArray) return -1;
+	if (yk!=Kint && yk!=KIntArray) return -2;
+	Tint i;
+	if (xk == Kint && yk == Kint) {
+		u = x.IntValue() & y.IntValue();
+	} else if (xk == Kint && yk == KIntArray) {
+		const Tint N = y.length();
+		u.ireserv(y.dims());
+		VECTORIZED for (i=0; i<N; i++)
+			u.IntPtr()[i] = x.IntValue() & y.IntPtr()[i];
+	} else if (xk == KIntArray && yk == Kint) {
+		const Tint N = x.length();
+		u.ireserv(x.dims());
+		VECTORIZED for (i=0; i<N; i++)
+			u.IntPtr()[i] = x.IntPtr()[i] & y.IntValue();
+	} else {
+		if (x.dims() != y.dims()) return -3;
+		const Tint N = x.length();
+		u.ireserv(x.dims());
+		VECTORIZED for (i=0; i<N; i++)
+			u.IntPtr()[i] = x.IntPtr()[i] & y.IntPtr()[i];
+	}
+	return 0;
+}
+
+[u] = bor(x,y)
+/* bor(x,y) is the binary OR.
+   The arguments must be integer arrays or scalars.
+   If they are arrays, they must be of the same dimensions.
+   See also: band, bxor, bnot.
+   Error codes:
+   -1: First argument not integer
+   -2: Second argument not integer
+   -3: Arrays are of incompatible dimensions
+*/
+{
+	const Tkind xk = x.kind();
+	const Tkind yk = y.kind();
+	if (xk!=Kint && xk!=KIntArray) return -1;
+	if (yk!=Kint && yk!=KIntArray) return -2;
+	Tint i;
+	if (xk == Kint && yk == Kint) {
+		u = x.IntValue() | y.IntValue();
+	} else if (xk == Kint && yk == KIntArray) {
+		const Tint N = y.length();
+		u.ireserv(y.dims());
+		VECTORIZED for (i=0; i<N; i++)
+			u.IntPtr()[i] = x.IntValue() | y.IntPtr()[i];
+	} else if (xk == KIntArray && yk == Kint) {
+		const Tint N = x.length();
+		u.ireserv(x.dims());
+		VECTORIZED for (i=0; i<N; i++)
+			u.IntPtr()[i] = x.IntPtr()[i] | y.IntValue();
+	} else {
+		if (x.dims() != y.dims()) return -3;
+		const Tint N = x.length();
+		u.ireserv(x.dims());
+		VECTORIZED for (i=0; i<N; i++)
+			u.IntPtr()[i] = x.IntPtr()[i] | y.IntPtr()[i];
+	}
+	return 0;
+}
+
+[u] = bxor(x,y)
+/* bxor(x,y) is the binary XOR (exclusive OR).
+   The arguments must be integer arrays or scalars.
+   If they are arrays, they must be of the same dimensions.
+   See also: band, bor, bnot.
+   Error codes:
+   -1: First argument not integer
+   -2: Second argument not integer
+   -3: Arrays are of incompatible dimensions
+*/
+{
+	const Tkind xk = x.kind();
+	const Tkind yk = y.kind();
+	if (xk!=Kint && xk!=KIntArray) return -1;
+	if (yk!=Kint && yk!=KIntArray) return -2;
+	Tint i;
+	if (xk == Kint && yk == Kint) {
+		u = x.IntValue() ^ y.IntValue();
+	} else if (xk == Kint && yk == KIntArray) {
+		const Tint N = y.length();
+		u.ireserv(y.dims());
+		VECTORIZED for (i=0; i<N; i++)
+			u.IntPtr()[i] = x.IntValue() ^ y.IntPtr()[i];
+	} else if (xk == KIntArray && yk == Kint) {
+		const Tint N = x.length();
+		u.ireserv(x.dims());
+		VECTORIZED for (i=0; i<N; i++)
+			u.IntPtr()[i] = x.IntPtr()[i] ^ y.IntValue();
+	} else {
+		if (x.dims() != y.dims()) return -3;
+		const Tint N = x.length();
+		u.ireserv(x.dims());
+		VECTORIZED for (i=0; i<N; i++)
+			u.IntPtr()[i] = x.IntPtr()[i] ^ y.IntPtr()[i];
+	}
+	return 0;
+}
+
+[u] = bnot(x)
+/* bnot(x) is the binary NOT operation.
+   The argument must be an integer scalar or array.
+   See also: band, bor, bxor.
+   Error codes:
+   -1: Argument not integer
+*/
+{
+	if (x.kind()!=Kint && x.kind()!=KIntArray) return -1;
+	if (x.kind()==Kint) {
+		u = ~x.IntValue();
+	} else {
+		const Tint N = x.length();
+		Tint i;
+		u.ireserv(x.dims());
+		VECTORIZED for (i=0; i<N; i++)
+			u.IntPtr()[i] = ~x.IntPtr()[i];
+	}
+	return 0;
+}

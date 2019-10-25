@@ -1,0 +1,109 @@
+<title>Simple interactive use</title>
+<h1>2 <a name="s2"> Simple interactive use </h1>
+<p> <a href="usrguide.html#toc2"> Contents of this section</a></p>
+
+<p></p>
+<p>When you start Tela from the Unix prompt without arguments (usually by
+typing <b>tela</b>), the system enters interactive mode after reading
+some initialization files and is ready to parse and execute command
+lines. The Tela prompt is ``&gt; ''. The GNU Readline library is the first
+layer interacting with the user. This library makes it easy to modify
+and reexecute previous commands. The most important key combinations
+are (Ctrl means keeping Control down when pressing the key):</p>
+<p>
+<blockquote><code>
+<pre>
+Ctrl-P         Get Previous line
+Ctrl-N         Get Next line
+Ctrl-F         Forward cursor one character position
+Ctrl-B         Backward cursor one character position
+
+Ctrl-A         Set cursor position at beginning of line
+Ctrl-E         Set cursor position at End of line
+Ctrl-K         Delete (Kill) text beyond cursor position
+
+TAB            Try to complete reserved word, identifier or filename
+Enter          Execute command line (cursor need not be at end position)
+
+Ctrl-C         Interrupt command during command execution
+Ctrl-D         Quit Tela (must be alone in line)
+</pre>
+</code></blockquote>
+</p>
+<p>You have probably used other software which also uses the GNU Readline
+library, e.g. the GNU debugger <b>gdb</b>. If your terminal is properly
+configured, you can use the arrow keys instead of Ctrl-P, Ctrl-N,
+Ctrl-F and Ctrl-B to move in the history buffer. You should get
+familiar with these commands as soon as possible, since it will
+greatly speed up your working with Tela. The command completion is
+able to complete Tela reserved words, function names (either
+intrinsic, standard, or user-defined), variables names and
+filenames. Filename completion is invoked if the TAB key is pressed
+inside a string (``...''). This can be useful with the <b>source</b>
+command, for example.</p>
+<p>Tela uses the X window system to display graphics. The graphics is
+displayed by a separate program, named PlotMTV, but calling it is
+transparent to the user. The DISPLAY environment variable must be
+properly defined, otherwise the graphics will not work.</p>
+<p>Try entering the following commands first (``&gt; `` means the Tela prompt
+which you obviously do not type):</p>
+<p>
+<blockquote><code>
+<pre>
+&gt; x=0:0.1:4*pi
+&gt; plot(x,sin(x))
+</pre>
+</code></blockquote>
+</p>
+<p>The first command creates a vector of real numbers ranging from 0 to 4
+times Pi with step 0.1 and assigns the vector to variables x. The
+second command then plots sin(x) versus x. A graph of sin(x) should
+appear in a new PlotMTV window, if not, the system is not properly
+installed.</p>
+<p>In Matlab, an expression is printed if there is no semicolon at the
+end of command line.  In Tela, however, an expression is printed if it
+is not assigned to any variable, regardless of any semicolon. In fact,
+Tela internally inserts a semicolon at the end of every command line
+before actually parsing it. The insertion is not done when reading
+commands from a file.</p>
+<p>This leads us to the next topic: how to execute commands from a file.
+Type</p>
+<p>
+<blockquote><code>
+<pre>
+&gt; source("demo")
+</pre>
+</code></blockquote>
+</p>
+<p>A menu of choices appears, but let us first explain what the
+<b>source</b> command does. It looks for file named ``demo.t'' in the
+current TELAPATH (if the file name contains a period, the ``.t'' is
+not appended). The TELAPATH is a list of directories where input files
+are searched, similar in function to the Unix PATH. The file
+``demo.t'' is found in some standard directory and commands in it are
+executed. The current TELAPATH can be seen by giving the command
+<b>telapath()</b>.</p>
+<p>When reading commands from a t-file, there should be a semicolon at the
+end of each statement (or actually separating the consecutive
+statements, but the difference is unessential here).</p>
+<p>OK, now play with the demos. Press a number and ENTER to the menus, to
+get back to command level select Quit.</p>
+<p>The typical and recommended way to use Tela when developing something
+bigger than one line is the following: Open an editor window and a
+shell (Xterm) executing Tela on your workstation. Create a t-file, for
+example ``mine.t'' with the editor and write some Tela commands in
+it. Remember to use semicolons as statement separators. Try it out by
+typing <b>source(``mine.t'')</b> in the Tela window. You must have
+started Tela from the same directory where ``mine.t'' lies, or you can
+use the Tela <b>cd</b> command to change to that directory. (See
+<b>help cd</b>.) Doing this repeatedly you only need save the file from
+the editor and press Ctrl-P ENTER in Tela window to execute the file
+with changes you just made. This is only slightly clumsier than
+program development with Turbo Pascal in the old times: instead of a
+single keypress you now have to press three keys and switch the window with
+the mouse once to execute the program!</p>
+<p></p>
+<p><a href="usrguide-3.html"> Next </a> Chapter, <a href="usrguide-1.html"> Previous </a> Chapter</p><p>Table of contents of <a href="usrguide.html#toc2">this chapter</a>,
+ General <a href="usrguide.html#toc">table of contents</a></p>
+<p><a href="usrguide.html"> Top </a> of the document,
+ <a href="#0"> Beginning of this Chapter</a></p>

@@ -1,0 +1,69 @@
+<title>Tela 1.22 Features</title>
+
+<h1>Tela Features</h1>
+
+<h3>For version 1.23 and later</h3>
+
+Tela (TEnsor LAnguage) is a scientific computing language and environment.
+It is mainly targeted for prototyping large-scale numerical simulations
+and doing pre- and postprocessing for them, and it replaces a compiled
+language like C++ or Fortran in this respect. The feature set is therefore
+biased to operations needed in partial differential equation solvers.
+A relatively complete graphics is included via a separate program (PlotMTV).
+
+Even though Tela is mainly a prototyping and development environment,
+modest-size 2D simulations can be run in modern (1994) desktop workstations
+while preserving "interactive" response times. Only large 2D or 3D simulations
+must usually be coded in C or Fortran and run on supercomputers.
+
+<ul>
+
+<li>Complete Fortran-90 style array language. Arrays can be N-dimensional
+and they can be integer, real or complex valued. Easy and flexible mechanism
+for defining new functions. Package (module) mechanism for eliminating
+name conflicts.
+
+<li>Very fast execution in interpreted mode. Translator to C++ is
+under development and partially working, which may increase speed
+even further.
+
+<li>Linear algebra: matrix inversion, matrix product, eigenvalues,
+eigenvectors, determinant, LU, Cholesky, singular value decompositions
+and linear system solution.
+
+<li>Full set of fast Fourier transform routines. In addition to
+ordinary complex and real FFTs there are sine, cosine, plus quarter-wave
+sine and cosine transforms. All routines can work along any dimension
+in an N-dimensional real or complex array, making it possible e.g. to
+solve any constant-coefficient elliptic boundary value problem in 2D or 3D
+with any boundary conditions (Dirichlet, Neumann or periodic type; each
+boundary may have its own type of boundary condition). An example how
+this is done is included in the distribution (testpoisson.t).
+
+<li>Unix commands can be run under Tela control. Standard input and
+output can be mapped to Tela strings. C stdio like functions for
+manipulating files.
+
+<li>Can work with HDF, netCDF (vers.>=1.23), plain ASCII, MATLAB binary
+files (MAT-files) and PBM (PPM, PGM) image files directly.
+Graphics can be saved as PostScript and GIF from the PlotMTV program.
+Can interface to XV.
+
+<li>Graphics: 2D and 3D line and curve plots, contour plots, density plots,
+vector field plots and surface plots. Cartesian intersection surfaces
+in 3D space. Bar charts and histograms. Possibility to redraw existing
+windows or create new window for each new plot. Possibilities for overlaying
+and stacking plots and saving them in PostScript or GIF files. Possibility
+to annotate plots with text strings and simple geometric primitives.
+Palette can be changed and nonuniform grids can be used (vers>=1.23).
+
+<li>Numerical analysis: linear interpolation (intpol), integration (integrate),
+function minimization (fmin), root finding (roots, fsolve), linear regression
+(fitline, fitlinear), nonlinear fitting (fitnl). Preliminary version of
+special function package (specfun.t), which contains a relatively complete set
+of special functions.
+
+</ul>
+
+<address>tela-suggestions@fmi.fi</address>
+

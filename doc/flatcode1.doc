@@ -1,0 +1,280 @@
+TELA Flatcode documentation 						PJ 10.2.1994
+Version 1.1											Last mod. 2.1.1995 PJ
+
+This file lists the Tela flatcode ("assembly language") instructions,
+together with a brief exaplanation,  in alphabetical order.
+
+ABS											Absolute value
+
+	ABS a,b			a = abs(b)
+	ABS a			a = abs(a)
+
+
+ADD											Addition
+
+	ADD a,b,c		a = b + c
+	ADD a,b			a = a + b
+
+
+AND											Logical AND
+
+	AND a,b,c		a = b && c
+	AND a,b			a = a && b
+
+
+APPEND										Array append
+
+	APPEND r,a,b,..	Append arrays a,b,... to r
+
+
+ARRAY										Array construction
+
+	ARRAY r,a,b,..	Construct a higher rank array r = #(a,b,..)
+
+
+BIF											Conditional branch
+
+	BIF offset,a	Branch to PC+offset if a is nonzero
+
+
+BIFN										Conditional branch
+
+	BIFN offset,a	Branch to PC+offset if a is zero
+
+
+BRA											Unconditional branch
+
+	BRA offset		Branch to PC+offset (add offset to program counter)
+
+
+CALL										Function call
+
+	CALL fn,N, out1,out2,...outN, in1,in2,...,inM
+					Call function fn with N output arguments and M input arguments.
+					N must be an integer. M is determined from the number of
+					operands and N implicitly.
+
+CZEROS										Create zeroed complex array
+
+	CZEROS a,d1,d2,...,dN
+					a = czeros(d1,d2,...,dN)
+					di:s must be constant, and N may not exceed MAXRANK
+
+
+DEC											Decrementation (decreasing by one)
+
+	DEC a			a = a - 1
+
+
+DIV											Division
+
+	DIV a,b,c		a = b / c
+	DIV a,b			a = a / b
+
+
+EQ											Comparison for equality
+
+	EQ a,b,c		a = (b == c)
+
+
+GATH										Gather component(s) from array
+
+	GATH x,a,i1,...,iN
+					x = a[i1,...,iN]
+
+GE											Greater-or-equal comparison
+
+	GE a,b,c		a = (b >= c)
+
+
+GETIN
+
+	GETIN x,i		x = i-th optional input arg
+
+GETOUT
+
+	GETOUT x,i		x = i-th optional output arg
+
+
+GT											Greater-than comparison
+
+	GT a,b,c		a = (b > c)
+
+
+INC											Incrementation (increasing by one)
+
+	INC a			a = a + 1
+
+
+INCJMP										Increment and jump
+
+	INCJMP addr,a	a = a + 1; Jump to addr
+
+
+IZEROS										Create zeroed integer array
+
+	IZEROS a,d1,d2,...,dN
+					a = izeros(d1,d2,...,dN)
+					di:s must be constant, and N may not exceed MAXRANK
+
+
+JIF											Conditional jump
+
+	JIF addr,a		Jump to addr if a is nonzero
+
+
+JIFN										Conditional jump
+
+	JIFN addr,a		Jump to addr if a is zero
+
+
+JMP											Unconditional jump
+
+	JMP addr		Jump to addr (set program counter to addr)
+
+
+JNGT
+
+	JNGT addr,a,b	Jump to addr if a is NOT greater than b
+
+
+JNGE
+
+	JNGE addr,a,b	Jump to addr if a is NOT greater or equal than b
+
+
+JNLE
+
+	JNLE addr,a,b	Jump to addr if a is NOT less or equal than b
+
+
+JNLT
+
+	JNLT addr,a,b	Jump to addr if a is NOT less than b
+
+
+LE											Less-or-equal comparison
+
+	LE a,b,c		a = (b <= c)
+
+
+LT											Less-than comparison
+
+	LT a,b,c		a = (b < c)
+
+
+MAX											Find maximum (b,c must be int or real)
+
+	MAX a,b			a = max(b)				result a is always scalar
+	MAX a,b,c		a = max(b,c)			a is array if both b,c are arrays
+
+
+MGATH										Mapped gather operation
+
+	MGATH x,a,i1,...,iN
+					x = a<[i1,...,iN]>
+
+
+MIN											Find minimum (b,c must be int or real)
+
+	MIN a,b			a = min(b)				result a is always scalar
+	MIN a,b,c		a = min(b,c)			a is array if both b,c are arrays
+
+
+MMPOS										Return min/max position
+											of last MIN or MAX unary operation.
+	MMPOS a			a = MinMaxPosition		Integer scalar is assigned to a.
+
+MOVE										Assignment
+
+	MOVE a,b		a = b
+
+
+MSCAT										Mapped scatter operation
+
+	MSCAT x,a,i1,...,iN
+					a<[i1,...,iN]> = x
+
+
+MUL											Pointwise multiplication
+
+	MUL a,b,c		a = b * c
+	MUL a,b			a = a * b
+
+
+NEG											Negation (sign change)
+
+	NEG a,b			a = -b
+	NEG a			a = -a
+
+
+NEQ											Not-equal comparison
+
+	NEQ a,b,c		a = (b != c)
+
+
+NOP											No operation
+
+	NOP
+
+
+NOT											Logical NOT
+
+	NOT a,b			a = !b
+	NOT a			a = !a
+
+
+OR											Logical OR
+
+	OR a,b,c		a = b || c
+	OR a,b			a = a || b
+
+
+OZEROS										Create array of void objects
+
+	OZEROS a,d1,d2,...,dN
+					a = voids(d1,d2,...,dN)
+					di:s must be constant, and N may not exceed MAXRANK
+
+
+POW											Raising to power
+
+	POW a,b,c		a = b ^ c		(b to the power c)
+	POW a,b			a = a ^ b
+
+
+PRI											Print a value to stdout
+
+	PRI a
+
+
+RANGE										Generate range of values
+
+	RANGE x,a,b,s	a = a:s:b 				**Note order of b and s!
+
+
+RZEROS										Create zeroed real array
+
+	RZEROS a,d1,d2,...,dN
+					a = zeros(d1,d2,...,dN)
+					di:s must be constant, and N may not exceed MAXRANK
+
+
+SCAT										Scatter component(s) to array
+
+	SCAT x,a,i1,...,iN
+					a[i1,...,iN] = x
+
+
+SETOUT
+
+	SETOUT i,x		i-th optional output arg = x
+
+
+SUB											Subtraction
+
+	SUB a,b,c		a = b - c
+	SUB a,b			a = a - b
+
+
+

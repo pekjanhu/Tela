@@ -1,0 +1,217 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="LinuxDoc-Tools 0.9.21">
+ <TITLE>Builtin Tela functions: specfun_ct.ct</TITLE>
+ <LINK HREF="telafuncsSectioned-14.html" REL=next>
+ <LINK HREF="telafuncsSectioned-12.html" REL=previous>
+ <LINK HREF="telafuncsSectioned.html#toc13" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="telafuncsSectioned-14.html">Next</A>
+<A HREF="telafuncsSectioned-12.html">Previous</A>
+<A HREF="telafuncsSectioned.html#toc13">Contents</A>
+<HR>
+<H2><A NAME="s13">13.</A> <A HREF="telafuncsSectioned.html#toc13">specfun_ct.ct</A></H2>
+
+<P>This section describes functions from file specfun_ct.ct.</P>
+
+<H2><A NAME="ChebyshevT"></A> <A NAME="ss13.1">13.1</A> <A HREF="telafuncsSectioned.html#toc13.1">ChebyshevT</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[w] = ChebyshevT(n,x)
+ ChebyshevT(n,x) gives the nth Chebyshev polynomial of the first kind,
+   ChebyshevT(n,cos(theta)):= cos(n*theta).
+   Error codes:
+   -1: First arg not numerical
+   -2: Second arg not numerical
+   -5: Argument dimensions do not match
+ 
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="Gauss2F1"></A> <A NAME="ss13.2">13.2</A> <A HREF="telafuncsSectioned.html#toc13.2">Gauss2F1</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[w] = Gauss2F1(a,b,c,z)
+ Gauss2F1(a,b,c,z) is Gauss' 2F1 hypergeometric function
+   F(a,b;c;z), defined by the power series
+      F(a,b;c;z) = sum(((a)_n*(b)*n/(c)_n)*z^n/n!,n=0..Inf)
+   where (a)_n is the Pochhammer symbol poch(a,n),
+      (a)_n = a*(a+1)*...*(a+n-1) = Gamma(a+n)/Gamma(a).
+   The function has a singularity at z=1 and a branch cut
+   in Re(z) > 1, Im(z) == 0. The function is evaluated for
+   any numerical arguments and is threaded automatically over
+   array arguments. The method of evaluation is power series
+   expansion for small |z|, a transformation formula for certain
+   large |z|, and direct integration of the defining diff. equation
+   in other cases.
+</PRE>
+
+See also: 
+<A HREF="#Kummer1F1">Kummer1F1</A>.
+<PRE>
+   Error codes:
+   -1: Args must be complex scalars
+   -2: Second arg not numerical
+   -3: Third arg not numerical
+   -4: Fourth arg not numerical
+   -5: Argument dimensions do not match
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="IncompleteGammaP"></A> <A NAME="ss13.3">13.3</A> <A HREF="telafuncsSectioned.html#toc13.3">IncompleteGammaP</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[w] = IncompleteGammaP(a,x)
+ IncompleteGammaP(a,x) is the regularized incomplete gamma function
+     IncompleteGammaP(a,x) := integrate(exp(-t)*t^(a-1),t=0..x)/Gamma(a).
+   The evaluation is reliable for Re(a) > 0 only, although a result
+   is returned also for Re(a) &lt;= 0.
+   The notation conforms with Numerical Recipes.
+   Error codes:
+   -1: First arg not numerical
+   -2: Second arg not numerical
+   -5: Argument dimensions do not match
+ 
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="IncompleteGammaQ"></A> <A NAME="ss13.4">13.4</A> <A HREF="telafuncsSectioned.html#toc13.4">IncompleteGammaQ</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[w] = IncompleteGammaQ(a,x)
+ IncompleteGammaQ(a,x) is the regularized incomplete gamma function
+     IncompleteGammaQ(a,x) := 1 - IncompleteGammaP(a,x).
+   The evaluation is reliable for Re(a) > 0 only, although a result
+   is returned also for Re(a) &lt;= 0.
+   The notation conforms with Numerical Recipes.
+   Error codes:
+   -1: First arg not numerical
+   -2: Second arg not numerical
+   -5: Argument dimensions do not match
+ 
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="Kummer1F1"></A> <A NAME="ss13.5">13.5</A> <A HREF="telafuncsSectioned.html#toc13.5">Kummer1F1</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[w] = Kummer1F1(a,c,z)
+ Kummer1F1(a,c,z) is the 1F1 confluent hypergeometric function,
+   defined by
+     1F1(a,c,z) = sum(((a)_n/(c)_n)*z^n/n!,n=0..Inf)
+   where (a)_n is the Pochhammer symbol poch(a,n),
+      (a)_n = a*(a+1)*...*(a+n-1) = Gamma(a+n)/Gamma(a).
+   The function has no singularities or branch cuts for any z,
+   but is infinite when c is a non-positive integer.
+   The method of evaluation is power series expansion for
+   small and moderate |z| and direct integration of the defining
+   diff. equation in other cases.
+</PRE>
+
+See also: 
+<A HREF="#Kummer1F1Regularized">Kummer1F1Regularized</A>, 
+<A HREF="#Gauss2F1">Gauss2F1</A>.
+<PRE>
+   Error codes:
+   -1: First arg not numerical
+   -2: Second arg not numerical
+   -3: Third arg not numerical
+   -5: Argument dimensions do not match
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="Kummer1F1Regularized"></A> <A NAME="ss13.6">13.6</A> <A HREF="telafuncsSectioned.html#toc13.6">Kummer1F1Regularized</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[w] = Kummer1F1Regularized(a,c,z)
+ Kummer1F1Regularized(a,c,z) is the regularized confluent
+   hypergeometric function, defined by
+   Kummer1F1Regularized(a,c,z):= Kummer1F1(a,c,z)/Gamma(c).
+   This function is finite for all finite values of the parameters.
+   The evaluation method works also when c is negative integer.
+</PRE>
+
+See also: 
+<A HREF="#Kummer1F1">Kummer1F1</A>.
+<PRE>
+   Error codes:
+   -1: First arg not numerical
+   -2: Second arg not numerical
+   -3: Third arg not numerical
+   -5: Argument dimensions do not match
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="LegendreP"></A> <A NAME="ss13.7">13.7</A> <A HREF="telafuncsSectioned.html#toc13.7">LegendreP</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[w] = LegendreP(n,m;x)
+ LegendreP(n,x) is the nth Legendre polynomial P_n(x)
+   evaluated at x.
+   LegendreP(n,m,x) is the associated Legendre function
+   P_n^m(x).
+   The Arfken definition is in use, which is different from
+   e.g. what Mathematica uses.
+   Error codes:
+   -1: First arg not numerical
+   -2: Second arg not numerical
+   -3: Third arg not numerical
+   -5: Argument dimensions do not match
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="logfact"></A> <A NAME="ss13.8">13.8</A> <A HREF="telafuncsSectioned.html#toc13.8">logfact</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[y] = logfact(x)
+ logfact(x) returns log(x!) for any numerical x, including complex.
+   The result for real or int x is usually real, but may be complex
+   if x is negative. For arrays, the function is applied componentwise.
+   In the array case, the result is complex if any of the imaginary
+   parts becomes nonzero, otherwise real.
+</PRE>
+
+See also: 
+<@@ref>factfact</A>, 
+<@@ref>factfact</A><@@ref>GammaGamma</A>, 
+<@@ref>factfact</A><@@ref>GammaGamma</A><@@ref>logGammalogGamma</A>.
+<PRE>
+   Error codes:
+   -1: Argument not numerical
+ 
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+
+<HR>
+<A HREF="telafuncsSectioned-14.html">Next</A>
+<A HREF="telafuncsSectioned-12.html">Previous</A>
+<A HREF="telafuncsSectioned.html#toc13">Contents</A>
+</BODY>
+</HTML>

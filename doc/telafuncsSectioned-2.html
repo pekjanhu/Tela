@@ -1,0 +1,2619 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="LinuxDoc-Tools 0.9.21">
+ <TITLE>Builtin Tela functions: std.ct</TITLE>
+ <LINK HREF="telafuncsSectioned-3.html" REL=next>
+ <LINK HREF="telafuncsSectioned-1.html" REL=previous>
+ <LINK HREF="telafuncsSectioned.html#toc2" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="telafuncsSectioned-3.html">Next</A>
+<A HREF="telafuncsSectioned-1.html">Previous</A>
+<A HREF="telafuncsSectioned.html#toc2">Contents</A>
+<HR>
+<H2><A NAME="s2">2.</A> <A HREF="telafuncsSectioned.html#toc2">std.ct</A></H2>
+
+<P>This section describes functions from file std.ct.</P>
+
+<H2><A NAME="BatchMode"></A> <A NAME="ss2.1">2.1</A> <A HREF="telafuncsSectioned.html#toc2.1">BatchMode</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[y] = BatchMode()
+ BatchMode() returns 1 if this Tela process is in batch mode
+   (command line switch -b), otherwise 0.
+</PRE>
+
+See also: 
+<A HREF="#SilentMode">SilentMode</A>, 
+<A HREF="#VerboseMode">VerboseMode</A>, 
+<A HREF="#UsingReadline">UsingReadline</A>.
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="CheckReadOnlyMode"></A> <A NAME="ss2.2">2.2</A> <A HREF="telafuncsSectioned.html#toc2.2">CheckReadOnlyMode</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[;y] = CheckReadOnlyMode(;x)
+ CheckReadOnlyMode() returns 1 if this Tela process checks that function
+   input arguments are not modified by the function. The check is done by
+   default, but if it causes problems (bugs in Tela) you can turn it off
+   using CheckReadOnlyMode(off).
+   CheckReadOnlyMode returns the old mode setting.
+</PRE>
+
+See also: 
+<A HREF="#SilentMode">SilentMode</A>, 
+<A HREF="#BatchMode">BatchMode</A>, 
+<A HREF="#VerboseMode">VerboseMode</A>.
+<PRE>
+   Error codes:
+   1: Argument not integer 
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="DebugQueryMode"></A> <A NAME="ss2.3">2.3</A> <A HREF="telafuncsSectioned.html#toc2.3">DebugQueryMode</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[;y] = DebugQueryMode(;x)
+ DebugQueryMode() returns 1 if the debug query mode
+   has been set, otherwise 0.
+   DebugQueryMode(on) and DebugQueryMode(off) change
+   the current setting.
+
+   If debug query mode is on, the program will ask whether
+   the user wants to enter debug mode if control-C is
+   pressed (INT signal sent). Otherwise the program simply
+   stops on pressing control-C.
+   Error codes:
+   1: Argument not integer 
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="GetInstructionData"></A> <A NAME="ss2.4">2.4</A> <A HREF="telafuncsSectioned.html#toc2.4">GetInstructionData</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[Ninstructions,Noperations] = GetInstructionData(p,mnemo)
+ [Ninstr,Nops] = GetInstructionData(p,"mnemonic") returns
+   the number of specific instructions executed when p=perf() was
+   gathered, and the number of (floating point) operations associated
+   with the instruction.
+   The mnemonic must be a string, and it may be any of the names
+   that appear in the disasm(f) listing. In addition, mnemonic may
+   be "flop", which includes all instructions that may perform floating
+   point arithmetic, or it may be "*", which includes all instructions.
+   Error codes:
+   -1: Bad first argument, must be obtained from perf()
+   -2: Second arg not a string
+   -3: Second arg not a recognized string
+   
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="HeavisideTheta"></A> <A NAME="ss2.5">2.5</A> <A HREF="telafuncsSectioned.html#toc2.5">HeavisideTheta</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[y] = HeavisideTheta(x)
+ y = HeavisideTheta(x) returns 1 if x>=0 and 0 if x&lt;0.
+   x must be real. If x is array, the operation is applied componentwise.
+</PRE>
+
+See also: 
+<A HREF="#sign">sign</A>.
+<PRE>
+   Error codes:
+   -1: Complex or nonnumeric input argument 
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="Im"></A> <A NAME="ss2.6">2.6</A> <A HREF="telafuncsSectioned.html#toc2.6">Im</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[y] = Im(x)
+ y = Im(x) takes the imaginary part of a complex quantity x.
+   If x is real or integer, the result is zero.
+   If x is an array, the operation is applied componentwise.
+</PRE>
+
+See also: 
+<A HREF="#Re">Re</A>, 
+<A HREF="#conj">conj</A>, 
+<A HREF="#arg">arg</A>.
+<PRE>
+   Error codes:
+   -1: Nonnumeric input argument 
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="Re"></A> <A NAME="ss2.7">2.7</A> <A HREF="telafuncsSectioned.html#toc2.7">Re</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[y] = Re(x)
+ y = Re(x) takes the real part of a complex quantity x.
+   If x is real or integer, it is returned as such.
+   If x is an array, the operation is applied componentwise.
+</PRE>
+
+See also: 
+<A HREF="#Im">Im</A>, 
+<A HREF="#conj">conj</A>, 
+<A HREF="#arg">arg</A>.
+<PRE>
+   Error codes:
+   -1: Nonnumeric input argument 
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="SilentMode"></A> <A NAME="ss2.8">2.8</A> <A HREF="telafuncsSectioned.html#toc2.8">SilentMode</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[y] = SilentMode()
+ SilentMode() returns 1 if this Tela process is in silent mode
+   (command line switch -s), otherwise 0.
+</PRE>
+
+See also: 
+<A HREF="#BatchMode">BatchMode</A>, 
+<A HREF="#VerboseMode">VerboseMode</A>, 
+<A HREF="#CheckReadOnlyMode">CheckReadOnlyMode</A>.
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="UsingReadline"></A> <A NAME="ss2.9">2.9</A> <A HREF="telafuncsSectioned.html#toc2.9">UsingReadline</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[y] = UsingReadline()
+ UsingReadline() returns 1 if this Tela was compiled
+   to use the GNU readline library, otherwise 0.
+</PRE>
+
+See also: 
+<A HREF="#BatchMode">BatchMode</A>, 
+<A HREF="#SilentMode">SilentMode</A>, 
+<A HREF="#VerboseMode">VerboseMode</A>.
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="VerboseMode"></A> <A NAME="ss2.10">2.10</A> <A HREF="telafuncsSectioned.html#toc2.10">VerboseMode</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[;y] = VerboseMode(;x)
+ VerboseMode() returns 1 if this Tela process is in verbose mode
+   (command line switch -v), otherwise 0.
+   VerboseMode(on) and VerboseMode(off) set the verbose mode on
+   and off, respectively. They return the old mode setting.
+</PRE>
+
+See also: 
+<A HREF="#SilentMode">SilentMode</A>, 
+<A HREF="#BatchMode">BatchMode</A>.
+<PRE>
+   Error codes:
+   1: Argument not integer 
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="abs2"></A> <A NAME="ss2.11">2.11</A> <A HREF="telafuncsSectioned.html#toc2.11">abs2</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[y] = abs2(x)
+ y = abs2(x) computes the square of the absolute value of x.
+   If x is real or integer, the result is just the square of x.
+   If x is complex, the result is equal to x*conj(x), except that
+   the latter would produce a complex result with zero or tiny
+   (because of possible roundoff error) imaginary part.
+   If x is an array, the operation is applied componentwise.
+   Error codes:
+   -1: Nonnumeric input argument 
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="acos"></A> <A NAME="ss2.12">2.12</A> <A HREF="telafuncsSectioned.html#toc2.12">acos</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[y] = acos(x)
+ y = acos(x) computes the arc cosine of x.
+   If x is complex, the result is complex, otherwise real.
+   If x is an array, the operation is applied componentwise.
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="all"></A> <A NAME="ss2.13">2.13</A> <A HREF="telafuncsSectioned.html#toc2.13">all</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[y] = all(x)
+ all(x) returns 1 if all elements of x are nonzero,
+   and 0 otherwise.
+   x must be an integer array or scalar.
+
+   Conditional statements (if, while, for, until) assume
+   implicit all, for example saying
+       if (A > 0) ...
+   is equivalent of saying
+       if (all(A > 0)) ... ,
+   thus you will need all less frequently than you need any.
+   
+</PRE>
+
+See also: 
+<A HREF="#any">any</A>.
+<PRE>
+   Error codes:
+   1: Argument not integer or IntArray 
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="any"></A> <A NAME="ss2.14">2.14</A> <A HREF="telafuncsSectioned.html#toc2.14">any</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[y] = any(x)
+ any(x) returns 1 if at least one element of x is nonzero,
+   and 0 otherwise.
+   x must be a integer array or scalar.
+
+   Conditional statements (if, while, for, until) default
+   to implicit all, thus you sometimes need to use any
+   with these statements.
+   
+</PRE>
+
+See also: 
+<A HREF="#all">all</A>.
+<PRE>
+   Error codes:
+   1: Argument not integer or IntArray 
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="arg"></A> <A NAME="ss2.15">2.15</A> <A HREF="telafuncsSectioned.html#toc2.15">arg</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[phi] = arg(z)
+ arg(z) returns the argument of a complex quantity
+   (in radians). The result is between -pi and pi.
+   If z is a complex array, the operation is applied
+   componentwise.
+</PRE>
+
+See also: 
+<A HREF="#Re">Re</A>, 
+<A HREF="#Im">Im</A>, 
+<A HREF="#conj">conj</A>.
+<PRE>
+   Error codes:
+   -1: Argument has undefined value
+   1: Nonnumeric argument 
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="asin"></A> <A NAME="ss2.16">2.16</A> <A HREF="telafuncsSectioned.html#toc2.16">asin</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[y] = asin(x)
+ y = asin(x) computes the arc sine of x.
+   If x is complex, the result is complex, otherwise real.
+   If x is an array, the operation is applied componentwise.
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="atan"></A> <A NAME="ss2.17">2.17</A> <A HREF="telafuncsSectioned.html#toc2.17">atan</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[y] = atan(x)
+ y = atan(x) computes the arc tangent of x.
+   If x is complex, the result is complex, otherwise real.
+   If x is an array, the operation is applied componentwise.
+</PRE>
+
+See also: 
+<A HREF="#atan2">atan2</A>.
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="atan2"></A> <A NAME="ss2.18">2.18</A> <A HREF="telafuncsSectioned.html#toc2.18">atan2</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[z] = atan2(y,x)
+ z = atan2(y,x) computes the arcus tangent of y/x using the signs
+   of both arguments to determine the quadrant of the return value.
+   The input argument must be integer or real scalars and the
+   return value is real. They can also be real arrays; in this case
+   both must be arrays of the same length.
+</PRE>
+
+See also: 
+<A HREF="#atan">atan</A>.
+<PRE>
+   Error codes:
+   -1: Bad input argument
+   -2: Input arrays must be of same length
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="autoglobal"></A> <A NAME="ss2.19">2.19</A> <A HREF="telafuncsSectioned.html#toc2.19">autoglobal</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[] = autoglobal(...)
+ autoglobal("sym1","sym2",...) sets the 'autoglobal' attribute
+   to given symbols. The symbols are then globally accessible
+   from inside packages and functions without need to explicitly
+   declaring them global. Constants such as pi carry the autoglobal
+   attribute automatically, but with this function it is possible
+   for the user to define more autoglobal symbols.
+
+   Warning: This function is for experts only. It is not advisable
+   to say autoglobal("x"), for instance, because many existing code
+   may then break down.
+</PRE>
+
+See also: 
+<A HREF="#hide">hide</A>.
+<PRE>
+   Error codes:
+   1: Argument not a string 
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="autosource"></A> <A NAME="ss2.20">2.20</A> <A HREF="telafuncsSectioned.html#toc2.20">autosource</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[] = autosource(fn...)
+ autosource("file.t","name1","name2",...) tags symbols
+   name1, name2,... such that the command source("file.t")
+   is effectively executed when any of the symbols name
+   is used. This is load-on-demand.
+</PRE>
+
+See also: 
+<A HREF="#source">source</A>.
+<PRE>
+   Error codes:
+   1: Argument not a string 
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="avoid_constructors"></A> <A NAME="ss2.21">2.21</A> <A HREF="telafuncsSectioned.html#toc2.21">avoid_constructors</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[] = avoid_constructors(flag)
+ avoid_constructors(on) affects the operation
+   of subsequent t2ct function calls.
+   When this flag is on, the generated C-tela (C++)
+   code avoids constructing class objects on the stack
+   but instead declares these objects as pointers and
+   initializes them using the 'new' operator.
+   This mode compiles on ATT Cfront versions that do not
+   support goto statements in blocks having constructors.
+
+   However, in some rare cases avoid_constructors(on)
+   is known to produce incorrect code. The default is
+   avoid_constructors(off).
+</PRE>
+
+See also: 
+<A HREF="#t2ct">t2ct</A>.
+<PRE>
+   Error codes:
+   1: Argument not an integer
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="cd"></A> <A NAME="ss2.22">2.22</A> <A HREF="telafuncsSectioned.html#toc2.22">cd</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[] = cd(fn)
+ cd("pathname") will change the current directory to "pathname".
+   cd("") will change to home directory.
+   cd("~/my/dir") will change to directory "my/dir" in the
+   home directory.
+</PRE>
+
+See also: 
+<A HREF="#getenv">getenv</A>.
+<PRE>
+   Error codes:
+   1: Input argument not a string
+   2: Directory not found
+   3: This system does not support cd 
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="ceil"></A> <A NAME="ss2.23">2.23</A> <A HREF="telafuncsSectioned.html#toc2.23">ceil</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[y] = ceil(x)
+ ceil(x) returns the smallest integer which is larger than x.
+   x must be integer or real scalar or array. If it is an array,
+   the operation is applied componentwise.
+</PRE>
+
+See also: 
+<A HREF="#floor">floor</A>, 
+<A HREF="#round">round</A>, 
+<A HREF="#trunc">trunc</A>.
+<PRE>
+   Error codes:
+   -1: Complex or nonnumeric input argument 
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="clear"></A> <A NAME="ss2.24">2.24</A> <A HREF="telafuncsSectioned.html#toc2.24">clear</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[] = clear(...)
+ clear() removes all variables that are visible from
+   the whos() function from the workspace. Function definitions
+   are not cleared. Variables in loaded packages are also not affected.
+
+   clear("var1","var2",...) removes only the specified variables.
+   If a string is not a variable name, no warning is given.
+</PRE>
+
+See also: 
+<A HREF="#whos">whos</A>, 
+<A HREF="#hide">hide</A>, 
+<A HREF="#unhide">unhide</A>.
+<PRE>
+   Error codes:
+   1: Bad argument, not a string
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="conj"></A> <A NAME="ss2.25">2.25</A> <A HREF="telafuncsSectioned.html#toc2.25">conj</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[y] = conj(x)
+ y = conj(x) computes the complex conjugate of x.
+   Real and integer arguments are returned as such.
+   If x is an array, the operation is applied componentwise.
+</PRE>
+
+See also: 
+<A HREF="#Re">Re</A>, 
+<A HREF="#Im">Im</A>, 
+<A HREF="#arg">arg</A>.
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="cos"></A> <A NAME="ss2.26">2.26</A> <A HREF="telafuncsSectioned.html#toc2.26">cos</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[y] = cos(x)
+ y = cos(x) computes the cosine function of x.
+   If x is complex, the result is complex, otherwise real.
+   The argument must be in radians.
+   If x is an array, the operation is applied componentwise.
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="cosh"></A> <A NAME="ss2.27">2.27</A> <A HREF="telafuncsSectioned.html#toc2.27">cosh</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[y] = cosh(x)
+ y = cosh(x) computes the hyperbolic cosine function of x.
+   If x is complex, the result is complex, otherwise real.
+   If x is an array, the operation is applied componentwise.
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="cot"></A> <A NAME="ss2.28">2.28</A> <A HREF="telafuncsSectioned.html#toc2.28">cot</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[y] = cot(x)
+ y = cot(x) is the cotangent function
+   cot(x) = 1/tan(x) = cos(x)/sin(x). 
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="cputime"></A> <A NAME="ss2.29">2.29</A> <A HREF="telafuncsSectioned.html#toc2.29">cputime</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[t] = cputime(;p)
+ cputime() returns the CPU time in seconds used by the current
+   tela session. cputime(p) returns CPU time from performance data
+   array p, previously obtained from perf().
+</PRE>
+
+See also: 
+<A HREF="#tic">tic</A>, 
+<A HREF="#toc">toc</A>, 
+<A HREF="#perf">perf</A>.
+<PRE>
+   Error codes:
+   -1: Bad argument, must be obtained from perf() 
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="csc"></A> <A NAME="ss2.30">2.30</A> <A HREF="telafuncsSectioned.html#toc2.30">csc</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[y] = csc(x)
+ y = csc(x) is the cosecant function
+   csc(x) = 1/sin(x). 
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="cumprod"></A> <A NAME="ss2.31">2.31</A> <A HREF="telafuncsSectioned.html#toc2.31">cumprod</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[y] = cumprod(x)
+ y = cumprod(x) forms an array of partial products
+   y = #(x[1],x[1]*x[2],...,prod(x[1:n]),...).
+   The result y has the same size and type as x. Unlike
+   prod, cumprod does not try to avoid integer overflows.
+   The array x is logically flattened, to apply
+   along a specified dimension use map(cumsum,...).
+   If x is scalar, it is returned as such.
+</PRE>
+
+See also: 
+<A HREF="#prod">prod</A>, 
+<A HREF="#cumsum">cumsum</A>, 
+<A HREF="#map">map</A>.
+<PRE>
+   Error codes:
+   -1: Nonnumeric input arg 
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="cumsum"></A> <A NAME="ss2.32">2.32</A> <A HREF="telafuncsSectioned.html#toc2.32">cumsum</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[y] = cumsum(x)
+ y = cumsum(x) forms an array of partial sums
+   y = #(x[1],x[1]+x[2],...,sum(x[1:n]),...).
+   The result y has the same size and type as x.
+   The array x is logically flattened, to apply
+   along a specified dimension use map(cumsum,...).
+   If x is scalar, it is returned as such.
+</PRE>
+
+See also: 
+<A HREF="#sum">sum</A>, 
+<A HREF="#cumprod">cumprod</A>, 
+<A HREF="#map">map</A>.
+<PRE>
+   Error codes:
+   -1: Nonnumeric input arg 
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="diag"></A> <A NAME="ss2.33">2.33</A> <A HREF="telafuncsSectioned.html#toc2.33">diag</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[y] = diag(x; offset)
+ diag(V, K) (V is a vector) returns a square diagonal matrix, with
+   vector V on the main diagonal (K == 0, default), the K-th super
+   diagonal (K > 0) or the K-th sub-diagonal (K &lt; 0).
+
+   diag(M, K) (M is a matrix) returns the main diagonal (K == 0,
+   default), the K-th super diagonal (K > 0), or the K-th sub-diagonal
+   (K &lt; 0) of M as a vector.  M need not necessarily be square.
+
+   Error codes:
+   -1: Input array X (arg 1) not vector or matrix
+   -2: Expecting offset K (arg 2) to be integral
+   -3: Internal error
+    1: Requested diagonal out of range
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="disasm"></A> <A NAME="ss2.34">2.34</A> <A HREF="telafuncsSectioned.html#toc2.34">disasm</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[] = disasm(fn)
+ disasm(f) produces disassembly listing of function f.
+   Error codes:
+   1: Argument not a Tela function 
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="error"></A> <A NAME="ss2.35">2.35</A> <A HREF="telafuncsSectioned.html#toc2.35">error</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[] = error(;msg)
+ error("message") writes message and returns to the
+   Tela main level.
+   error() uses a default message.
+</PRE>
+
+See also: 
+<A HREF="#exit">exit</A>.
+<PRE>
+   Error codes:
+   -1: Argument not a string
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="eval"></A> <A NAME="ss2.36">2.36</A> <A HREF="telafuncsSectioned.html#toc2.36">eval</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[] = eval(s)
+ eval("string") executes string as a Tela command, as it had been
+   typed from the keyboard.
+   The evaluation is done in global context. The symbols appearing
+   in the string refer to the global ones.
+</PRE>
+
+See also: 
+<A HREF="#evalexpr">evalexpr</A>.
+<PRE>
+   Error codes:
+   1: Argument not a string 
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="evalexpr"></A> <A NAME="ss2.37">2.37</A> <A HREF="telafuncsSectioned.html#toc2.37">evalexpr</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[y] = evalexpr(s)
+ y = evalexpr("expression") executes string as a Tela command,
+   returning its value in y.
+   The evaluation is done in global context. The symbols appearing
+   in the string refer to the global ones.
+</PRE>
+
+See also: 
+<A HREF="#eval">eval</A>.
+<PRE>
+   Error codes:
+   1: Argument not a string 
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="exit"></A> <A NAME="ss2.38">2.38</A> <A HREF="telafuncsSectioned.html#toc2.38">exit</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[] = exit(;rv)
+ exit() stops Tela, returning zero (success) exit code
+   to the calling process.
+
+   exit(n) returns exit code n instead of zero.
+   n must be an int scalar.
+
+   Function quit is a synonym for exit.
+</PRE>
+
+See also: 
+<A HREF="#error">error</A>.
+<PRE>
+Error codes:
+   1: expecting integer scalar for EXIT_CODE (arg 1).
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="exp"></A> <A NAME="ss2.39">2.39</A> <A HREF="telafuncsSectioned.html#toc2.39">exp</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[y] = exp(x)
+ y = exp(x) computes the exponent function of x.
+   If x is complex, the result is complex, otherwise real.
+   If x is an array, the operation is applied componentwise.
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="find"></A> <A NAME="ss2.40">2.40</A> <A HREF="telafuncsSectioned.html#toc2.40">find</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[y] = find(x)
+ I=find(V) returns the index vector I=(i) for which
+   V[i] is nonzero. V must be an integer array. The length
+   of I is equal to the number of nonzeros in V.
+   If V is multidimensional, it is used in flattened form.
+
+   Example: If V=#(1,-2.3,4,5,-8.2), find(V &lt; 0) returns
+   #(2, 5).
+   
+</PRE>
+
+See also: 
+<A HREF="#any">any</A>, 
+<A HREF="#all">all</A>, 
+<A HREF="#flatten">flatten</A>.
+<PRE>
+   Error codes:
+   1: Argument not integer vector 
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="flatten"></A> <A NAME="ss2.41">2.41</A> <A HREF="telafuncsSectioned.html#toc2.41">flatten</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[y] = flatten(;x)
+ flatten(x) returns the array x flattened to a vector.
+   If x is not an array, it is returned as is.
+
+   Example: flatten(#(1,2; 3,4)) returns #(1,2,3,4).
+   
+   x = flatten() flattens x "in place". This is much faster
+   (it works in constant time) than to do x = flatten(x),
+   since no data movement is involved. 
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="flip"></A> <A NAME="ss2.42">2.42</A> <A HREF="telafuncsSectioned.html#toc2.42">flip</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[y] = flip(x;d)
+ flip(A) reverses the first dimension of array A.
+   flip(A,d) reverses the d'th dimension. For example,
+   flip(#(1,6,2; 7,9,2.3),2) returns #(2,6,1; 2.3,9,7).
+   If A is non-array it is returned as such, regardless of d.
+</PRE>
+
+See also: 
+<A HREF="#transpose">transpose</A>.
+<PRE>
+   Error codes:
+   -1: Second argument not an integer scalar
+   -2: Second argument out of range 
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="floor"></A> <A NAME="ss2.43">2.43</A> <A HREF="telafuncsSectioned.html#toc2.43">floor</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[y] = floor(x)
+ floor(x) returns the largest integer which is smaller than x.
+   x must be integer or real scalar or array. If it is an array,
+   the operation is applied componentwise.
+</PRE>
+
+See also: 
+<A HREF="#ceil">ceil</A>, 
+<A HREF="#round">round</A>, 
+<A HREF="#trunc">trunc</A>.
+<PRE>
+   Error codes:
+   -1: Complex or nonnumeric input argument 
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="gaussrand"></A> <A NAME="ss2.44">2.44</A> <A HREF="telafuncsSectioned.html#toc2.44">gaussrand</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[x] = gaussrand(...)
+ gaussrand() returns a Gaussian-distributed random real.
+   The distribution function is f(x) = (1/(2*pi))*exp(-0.5*x^2)
+   so that the mean is zero and the standard deviation is unity.
+   gaussrand(N) returns a vector of length N,
+   gaussrand(N,M) returns a matrix of size N x M, etc.
+   Example: To test gaussrand, plot it together with the distribution
+   function, as follows:
+
+   N=50000; x=-4:0.1:4; y=(N/(2*pi))*exp(-0.5*x^2);
+   hold(on); hist(gaussrand(N),20,-4,4); plot(x,y); hold(off);
+</PRE>
+
+See also: 
+<A HREF="#rand">rand</A>, 
+<A HREF="#srand">srand</A>.
+<PRE>
+   Error codes:
+   -1: Tried to create too high rank array
+   -2: Argument not an integer
+   -3: Non-positive integer argument
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="getenv"></A> <A NAME="ss2.45">2.45</A> <A HREF="telafuncsSectioned.html#toc2.45">getenv</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[y] = getenv(varname)
+ getenv("envvar") returns the value of environment variable
+   "envvar", or VOID if such variable is not defined in
+   the UNIX environment.
+
+   For example, getenv("LOGNAME") returns the login name of
+   the owner of the Tela prcess.
+   (If Unix functions are not available, getenv will always
+   return VOID.)
+</PRE>
+
+See also: 
+<A HREF="#putenv">putenv</A>, 
+<A HREF="#getpid">getpid</A>, 
+<A HREF="#cd">cd</A>.
+<PRE>
+   Error codes:
+   -1: Argument not a string
+   
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="getpid"></A> <A NAME="ss2.46">2.46</A> <A HREF="telafuncsSectioned.html#toc2.46">getpid</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[y] = getpid()
+ getpid() returns the process ID of the Tela process.
+   This can be used e.g. to generate unique temporary
+   file names. If Unix functions are not available,
+   getpid() returns 0. 
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="help"></A> <A NAME="ss2.47">2.47</A> <A HREF="telafuncsSectioned.html#toc2.47">help</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[] = help(;fn)
+ help(function-name) or help("help-item") displays the help information
+   associated with a given function or a given help item. On command line
+   you may use the abbreviation
+
+      ?help-item
+   or
+      help help-item
+
+   These forms are translated to help("help-item") before parsing.
+
+   First tries:
+   help operators
+   help special
+   help if
+   help for
+   help function
+   ...
+   
+   Error codes:
+   1: Item not found
+   2: Cannot open help file 
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="herm"></A> <A NAME="ss2.48">2.48</A> <A HREF="telafuncsSectioned.html#toc2.48">herm</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[B] = herm(A; P)
+ herm(A) is the same as conj(transpose(A)).
+   herm(A,P) is the same as conj(transpose(A,P)).
+   You can abbreviate "herm(A)" as "A'".
+</PRE>
+
+See also: 
+<A HREF="#transpose">transpose</A>, 
+<A HREF="#flip">flip</A>, 
+<A HREF="#conj">conj</A>.
+<PRE>
+   Error codes:
+   -1: Permutation argument not integer array
+   -2: Permutation argument of bad rank or size
+   -3: Permutation argument contains invalid integers 
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="hide"></A> <A NAME="ss2.49">2.49</A> <A HREF="telafuncsSectioned.html#toc2.49">hide</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[] = hide(...)
+ hide("sym-name",...) sets the 'hidden' attribute to
+   specified symbols.
+</PRE>
+
+See also: 
+<A HREF="#whos">whos</A>, 
+<A HREF="#unhide">unhide</A>, 
+<A HREF="#autoglobal">autoglobal</A>.
+<PRE>
+   Error codes:
+   1: Argument not a string
+   2: Argument does not name a symbol
+   
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="info"></A> <A NAME="ss2.50">2.50</A> <A HREF="telafuncsSectioned.html#toc2.50">info</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[] = info()
+ info() shows information about various class sizes for this Tela implementation.
+   It also prints the total counts of Tnode, Tprg and Tobject objects at the moment. 
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="input_string"></A> <A NAME="ss2.51">2.51</A> <A HREF="telafuncsSectioned.html#toc2.51">input_string</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[s] = input_string(;prompt)
+ input_string() waits for an input line from the keyboard
+   and returns it as a string. The newline is not included
+   in the result.
+   If the string is enclosed in double quotes, they are removed.
+
+   input_string("prompt") displays prompt first.
+   Error codes:
+   -1: EOF encountered. 
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="isCfunction"></A> <A NAME="ss2.52">2.52</A> <A HREF="telafuncsSectioned.html#toc2.52">isCfunction</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[y] = isCfunction(x)
+ isCfunction(x) returns 1 if x is a C-tela function.
+   and 0 otherwise.
+</PRE>
+
+See also: 
+<A HREF="#isfunction">isfunction</A>, 
+<A HREF="#isTfunction">isTfunction</A>.
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="isTfunction"></A> <A NAME="ss2.53">2.53</A> <A HREF="telafuncsSectioned.html#toc2.53">isTfunction</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[y] = isTfunction(x)
+ isTfunction(x) returns 1 if x is a function written in Tela
+   and 0 otherwise.
+</PRE>
+
+See also: 
+<A HREF="#isfunction">isfunction</A>, 
+<A HREF="#isCfunction">isCfunction</A>.
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="isarray"></A> <A NAME="ss2.54">2.54</A> <A HREF="telafuncsSectioned.html#toc2.54">isarray</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[y] = isarray(x)
+ isarray(x) returns 1 if x is an array and 0 if it is not.
+</PRE>
+
+See also: 
+<A HREF="#isscalar">isscalar</A>, 
+<A HREF="#isvector">isvector</A>, 
+<A HREF="#ismatrix">ismatrix</A>.
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="ischar"></A> <A NAME="ss2.55">2.55</A> <A HREF="telafuncsSectioned.html#toc2.55">ischar</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[y] = ischar(x)
+ ischar(x) returns 1 if x is a character and 0 otherwise.
+</PRE>
+
+See also: 
+<A HREF="#isstring">isstring</A>, 
+<A HREF="#isstr">isstr</A>.
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="iscomplex"></A> <A NAME="ss2.56">2.56</A> <A HREF="telafuncsSectioned.html#toc2.56">iscomplex</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[y] = iscomplex(x)
+ iscomplex(x) returns 1 if x is a complex array or scalar,
+   and 0 if it is real or integer or a nonnumeric object.
+</PRE>
+
+See also: 
+<A HREF="#isreal">isreal</A>, 
+<A HREF="#isfloat">isfloat</A>, 
+<A HREF="#isint">isint</A>.
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="isdefined"></A> <A NAME="ss2.57">2.57</A> <A HREF="telafuncsSectioned.html#toc2.57">isdefined</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[y] = isdefined(x)
+ isdefined(x) returns 1 if x is not undefined and 0 if
+   it is undefined. Optional function arguments are undefined
+   if not assigned by the caller; isdefined can be used
+   inside the function to test whether this is the case.
+</PRE>
+
+See also: 
+<A HREF="#isundefined">isundefined</A>.
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="isfinite"></A> <A NAME="ss2.58">2.58</A> <A HREF="telafuncsSectioned.html#toc2.58">isfinite</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[y] = isfinite(x)
+ isfinite(x) returns 1 if x is a finite number and 0 otherwise.
+   If x is array, the operation is applied componentwise.
+   If x is non-numeric it is considered not finite.
+   Integer and consequently strings and chars are always finite. 
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="isfloat"></A> <A NAME="ss2.59">2.59</A> <A HREF="telafuncsSectioned.html#toc2.59">isfloat</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[y] = isfloat(x)
+ isfloat(x) returns 1 if x is a floating point array
+   or scalar, and 0 otherwise. Notice the difference between
+   isfloat and isreal. isreal(x) is 1 for integer objects,
+   while isfloat(x) is 0.
+</PRE>
+
+See also: 
+<A HREF="#isreal">isreal</A>, 
+<A HREF="#isint">isint</A>, 
+<A HREF="#iscomplex">iscomplex</A>.
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="isfunction"></A> <A NAME="ss2.60">2.60</A> <A HREF="telafuncsSectioned.html#toc2.60">isfunction</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[y] = isfunction(x)
+ isfunction(x) returns 1 if x is a function
+   (Tela-function, C-tela function or intrinsic function)
+   and 0 otherwise.
+</PRE>
+
+See also: 
+<A HREF="#isCfunction">isCfunction</A>, 
+<A HREF="#isTfunction">isTfunction</A>.
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="isint"></A> <A NAME="ss2.61">2.61</A> <A HREF="telafuncsSectioned.html#toc2.61">isint</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[y] = isint(x)
+ isint(x) returns 1 if x is integer scalar or array
+   and 0 if it is not.
+</PRE>
+
+See also: 
+<A HREF="#isreal">isreal</A>, 
+<A HREF="#isfloat">isfloat</A>, 
+<A HREF="#iscomplex">iscomplex</A>.
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="islist"></A> <A NAME="ss2.62">2.62</A> <A HREF="telafuncsSectioned.html#toc2.62">islist</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[y] = islist(x)
+ islist(x) returns 1 if x is a heterogenous collection and 0 otherwise. 
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="ismatrix"></A> <A NAME="ss2.63">2.63</A> <A HREF="telafuncsSectioned.html#toc2.63">ismatrix</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[y] = ismatrix(x)
+ ismatrix(x) returns 1 if x is a matrix (2D array)
+   and 0 if it is not.
+</PRE>
+
+See also: 
+<A HREF="#isscalar">isscalar</A>, 
+<A HREF="#isvector">isvector</A>, 
+<A HREF="#isarray">isarray</A>.
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="isreal"></A> <A NAME="ss2.64">2.64</A> <A HREF="telafuncsSectioned.html#toc2.64">isreal</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[y] = isreal(x)
+ isreal(x) returns 1 if x is numerical non-complex
+   array or scalar, and 0 otherwise.
+</PRE>
+
+See also: 
+<A HREF="#isfloat">isfloat</A>, 
+<A HREF="#isint">isint</A>, 
+<A HREF="#iscomplex">iscomplex</A>.
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="isscalar"></A> <A NAME="ss2.65">2.65</A> <A HREF="telafuncsSectioned.html#toc2.65">isscalar</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[y] = isscalar(x)
+ isscalar(x) returns 1 if x is scalar and 0 if it is not.
+</PRE>
+
+See also: 
+<A HREF="#isvector">isvector</A>, 
+<A HREF="#ismatrix">ismatrix</A>, 
+<A HREF="#isarray">isarray</A>.
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="isstr"></A> <A NAME="ss2.66">2.66</A> <A HREF="telafuncsSectioned.html#toc2.66">isstr</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[y] = isstr(x)
+ isstr(x) returns 1 if x is a character or string
+   and 0 otherwise.
+</PRE>
+
+See also: 
+<A HREF="#isstring">isstring</A>, 
+<A HREF="#ischar">ischar</A>.
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="isstring"></A> <A NAME="ss2.67">2.67</A> <A HREF="telafuncsSectioned.html#toc2.67">isstring</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[y] = isstring(x)
+ isstring(x) returns 1 if x is a string and 0 otherwise.
+</PRE>
+
+See also: 
+<A HREF="#ischar">ischar</A>, 
+<A HREF="#isstr">isstr</A>.
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="isundefined"></A> <A NAME="ss2.68">2.68</A> <A HREF="telafuncsSectioned.html#toc2.68">isundefined</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[y] = isundefined(x)
+ isundefined(x) returns 1 if x is not undefined and 0 if
+   it is undefined. Optional function arguments are undefined
+   if not assigned by the caller; isdefined can be used
+   inside the function to test whether this is the case.
+</PRE>
+
+See also: 
+<A HREF="#isdefined">isdefined</A>.
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="isvector"></A> <A NAME="ss2.69">2.69</A> <A HREF="telafuncsSectioned.html#toc2.69">isvector</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[y] = isvector(x)
+ isvector(x) returns 1 if x is a vector and 0 if it is not.
+</PRE>
+
+See also: 
+<A HREF="#isscalar">isscalar</A>, 
+<A HREF="#ismatrix">ismatrix</A>, 
+<A HREF="#isarray">isarray</A>.
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="isvoid"></A> <A NAME="ss2.70">2.70</A> <A HREF="telafuncsSectioned.html#toc2.70">isvoid</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[y] = isvoid(x)
+ isvoid(x) returns 1 if x is a void value and 0 otherwise. 
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="length"></A> <A NAME="ss2.71">2.71</A> <A HREF="telafuncsSectioned.html#toc2.71">length</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[L] = length(x)
+ length(x) returns the total number of elements in array x.
+   If x is scalar, length(x) is 1. If x is undefined, an error
+   results. Notice that if x is e.g. a matrix, its length is
+   equal to the product of the row and column dimensions,
+   which is different from e.g. the Matlab convention.
+</PRE>
+
+See also: 
+<A HREF="#size">size</A>, 
+<A HREF="#rank">rank</A>.
+<PRE>
+   Error codes:
+   -1: Argument has undefined value 
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="limit"></A> <A NAME="ss2.72">2.72</A> <A HREF="telafuncsSectioned.html#toc2.72">limit</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[y] = limit(x,a,b)
+ limit(x,a,b) limits x to the range [a,b].
+   x may be an integer or real array or scalar,
+   the a and b arguments must be integer or real
+   scalars. The result type is integer only
+   if all x,a,b are integers, otherwise it is real.
+   limit(x,a,b) is equivalent to min(b,max(x,a)).
+
+   Notice: limit is builtin function in >=1.23
+   version. Before 1.23 it was a t-file function.
+
+   (Usually a&lt;=b, if a>b then limit(x,a,b) has the
+   value of b but this behavior should not be trusted.)
+   Error codes:
+   -1: First arg not int or real
+   -2: Second arg not int or real scalar
+   -3: Third arg not int or real scalar
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="log"></A> <A NAME="ss2.73">2.73</A> <A HREF="telafuncsSectioned.html#toc2.73">log</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[y] = log(x)
+ y = log(x) computes the natural logarithm of x.
+   If x is complex, the result is complex. If x is real or
+   integer, but negative, the result is complex (purely
+   imaginary). If x is real or integer and non-negative,
+   the result is real.
+   If x is an array, the operation is applied componentwise.
+   If some of the components are negative, all components
+   of the result are complex. 
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="map"></A> <A NAME="ss2.74">2.74</A> <A HREF="telafuncsSectioned.html#toc2.74">map</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[B] = map(fn,A,darg)
+ [B] = map(fn,A,d) maps function fn along d'th dimension
+   in array A. Fn is a functional argument. It must return a scalar
+   or a vector when called with one vector argument. The type and length
+   of the returned value must not change from call to call.
+
+   For example, map(mean,A,1) computes the columnwise means
+   of matrix A, returning a vector. map(sort,A,2) sorts all rows
+   of matrix A in ascending order. Notice than many standard
+   functions, including mean, have a builtin mapping capabability;
+   using map in these cases is unnecessary.
+</PRE>
+
+See also: 
+<A HREF="#mapmin">mapmin</A>, 
+<A HREF="#mapmax">mapmax</A>, 
+<A HREF="#flip">flip</A>.
+<PRE>
+   Error codes:
+   -1: First arg not a function
+   -2: Second arg not a numerical array
+   -3: Third arg not an integer scalar
+   -4: Third arg (the dimension) out of range
+   -5: First arg (function) did not return a numerical object
+   -6: First arg (function) unexpectedly changed its return type
+   -7: First arg is an intrinsic function; it is no good
+   -8: Function returned rank>1 array when first called
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="mapmax"></A> <A NAME="ss2.75">2.75</A> <A HREF="telafuncsSectioned.html#toc2.75">mapmax</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[y;P] = mapmax(x;d)
+ mapmax(x,d) finds maximum along d'th dimension in array x.
+   The result is an array with rank one less than rank(x).
+   The array may not be complex.
+   [M,p] = mapmax(x,d) returns the maximum positions p along with
+   the maximums m. The array p is of the same shape as M, but is
+   integer-valued.
+
+   mapmax(x) is a flattened form which returns a scalar result.
+   It is equivalent to max(x). [M,p] = mapmax(x) also works.
+
+   Using mapmax is faster than using map and max together.
+   In the latter case you would also have to define another function:
+       function y=max1(x) {y=max(x)}
+   because being intrinsic function, max can not be passed
+   to map directly. 
+   
+</PRE>
+
+See also: 
+<A HREF="#mapmin">mapmin</A>, 
+<A HREF="#map">map</A>, 
+<A HREF="#limit">limit</A>.
+<PRE>
+   Error codes:
+   -1: First arg not a numerical array
+   -2: Second arg not an integer scalar
+   -3: Second arg (the dimension) out of range
+   -4: First arg is complex 
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="mapmin"></A> <A NAME="ss2.76">2.76</A> <A HREF="telafuncsSectioned.html#toc2.76">mapmin</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[y;P] = mapmin(x;d)
+ mapmin(x,d) finds minimum along d'th dimension in array x.
+   The result is an array with rank one less than rank(x).
+   The array x may not be complex.
+   [m,p] = mapmin(x,d) returns the minimum positions p along with
+   the minimum values m. The array p is of the same shape as m,
+   but is integer-valued.
+
+   mapmin(x) is a flattened form which returns a scalar result.
+   It is equivalent to min(x). [m,p] = mapmin(x) also works.
+
+   Using mapmin is faster than using map and min together.
+   In the latter case you would also have to define another function:
+       function y=min1(x) {y=min(x)}
+   because being intrinsic function, min can not be passed
+   to map directly. 
+   
+</PRE>
+
+See also: 
+<A HREF="#mapmax">mapmax</A>, 
+<A HREF="#map">map</A>, 
+<A HREF="#limit">limit</A>.
+<PRE>
+   Error codes:
+   -1: First arg not a numerical array
+   -2: Second arg not an integer scalar
+   -3: Second arg (the dimension) out of range
+   -4: First arg is complex 
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="meminuse"></A> <A NAME="ss2.77">2.77</A> <A HREF="telafuncsSectioned.html#toc2.77">meminuse</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[m] = meminuse()
+ meminuse() returns the size of the current Tela process
+   in bytes. The result is a real number.
+
+   Implementation: It uses the getrusage function if it is available
+   and if it seems to be working properly. Otherwise it calls sbrk(0),
+   which should return the data segment size in bytes. On Cray UNICOS
+   it multiplies the sbrk(0) value by 8 (Cray is a word machine).
+   If sbrk is not available, it returns always 0.
+   - Surprisingly, many Unix systems have the getrusage function but
+   the relevant field in struct rusage is always returned as zero.
+   In this case the sbrk method is used.
+   - On some machines the result is unreliable.
+
+   If Tela has been compiled with TELASPECIFIC_NEWDELETE defined,
+   Tela's own new/delete operators are in use. In this case meminuse
+   will report the memory asked from the OS with malloc from C++ code
+   only. Any use of malloc from C code (GNU readline library, HDF library ...)
+   will thus not be included, as also not the data segment and stack size.
+   The result can nevertheless be a useful measure of the user memory.
+   You can tell if TELASPECIFIC_NEWDELETE is on by looking at the output
+   of the info() function.
+</PRE>
+
+See also: 
+<A HREF="#info">info</A>.
+<PRE>
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="menu"></A> <A NAME="ss2.78">2.78</A> <A HREF="telafuncsSectioned.html#toc2.78">menu</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[result] = menu(title...)
+ choice = menu("title","choice1","choice2",...) displays
+   a menu of choices and returns the number entered by
+   the user.
+</PRE>
+
+See also: 
+<A HREF="#smenu">smenu</A>.
+<PRE>
+   Error codes:
+   -1: Less than two input args 
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="ones"></A> <A NAME="ss2.79">2.79</A> <A HREF="telafuncsSectioned.html#toc2.79">ones</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[y] = ones(...)
+ ones(n,m...) returns an integer array with all elements
+   equal to 1 of size n x m x ... .
+
+   ones(V) where V is an integer vector, and thus
+   ones(size(A)), works also.
+</PRE>
+
+See also: 
+<A HREF="#rand">rand</A>, 
+<A HREF="telafuncsSectioned-6.html#eye">eye</A>.
+<PRE>
+   
+   Error codes:
+   -1: Input argument not an integer or IntVector
+   -2: Rank of requested tensor array exceeds MAXRANK
+   -3: Non-positive input argument
+   -4: Negative input argument
+   -5: Integer array rank not 1
+   
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="pause"></A> <A NAME="ss2.80">2.80</A> <A HREF="telafuncsSectioned.html#toc2.80">pause</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[] = pause(;seconds)
+ pause() will wait for a keypress on keyboard.
+   pause(n) will pause for n seconds and then continue.
+   The argument n may be integer or real.
+
+   Note: some systems implicitly round a real argument
+   to nearest whole number.
+   Error codes:
+   1: Argument not a real scalar
+   2: Argument is negative
+   3: This system does not support pausing for n seconds 
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="perf"></A> <A NAME="ss2.81">2.81</A> <A HREF="telafuncsSectioned.html#toc2.81">perf</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[v] = perf()
+ perf() returns an array containing all maintained operation
+   counters. To measure performance of a code segment, do
+
+   p0=perf(); mycode(); p=perf()-p0;
+
+   Now you can apply various performance-related functions to p:
+   for example cputime(p), Mflops(p). 
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="prod"></A> <A NAME="ss2.82">2.82</A> <A HREF="telafuncsSectioned.html#toc2.82">prod</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[y] = prod(x;d)
+ prod(x) multiplies all the elements of x, if x is an array.
+   prod(x,d) takes the product along d'th dimension only, returning
+   an array of rank one less than rank(x).
+   If x is scalar, it is returned as such.
+   If I is integer array, prod(I) will be of type real if the product
+   would cause integer overflow. In all other cases, including prod(I,d),
+   the type of y equals the component type of x.
+</PRE>
+
+See also: 
+<A HREF="#sum">sum</A>, 
+<A HREF="#cumprod">cumprod</A>.
+<PRE>
+   Error codes:
+   -1: Nonnumeric input arg
+   -2: Second argument not an integer
+   -3: Second argument (dimension spec) out of range 
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="putenv"></A> <A NAME="ss2.83">2.83</A> <A HREF="telafuncsSectioned.html#toc2.83">putenv</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[] = putenv(varname,value)
+ putenv("varname","value") sets an environment variable.
+   The environment variables are inherited to Unix system programs
+   invoked with system() and run(), as well as new PlotMTV windows.
+   For example:
+   putenv("MTV_PSFONT1","32");  // set large font
+   plot(x,y,"toplabel","Large");
+</PRE>
+
+See also: 
+<A HREF="#getenv">getenv</A>.
+<PRE>
+   Error codes:
+   -1: First argument not a string
+   -2: Second argument not a string
+   -3: First argument an empty string
+   -4: Environment variable name may not contain the '=' character
+   -5: Environment variable value may not contain the '=' character
+   1: System call failed to set environment variable
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="quit"></A> <A NAME="ss2.84">2.84</A> <A HREF="telafuncsSectioned.html#toc2.84">quit</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[] = quit(;rv)
+ quit() stops Tela, returning zero (success) exit code
+   to the calling process.
+
+   quit(n) returns exit code n instead of zero.
+   n must be an int scalar.
+
+   Function quit is a synonym for exit.
+</PRE>
+
+See also: 
+<A HREF="#error">error</A>.
+<PRE>
+Error codes:
+    1: expecting integer scalar for EXIT_CODE (arg 1).
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="rand"></A> <A NAME="ss2.85">2.85</A> <A HREF="telafuncsSectioned.html#toc2.85">rand</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[x] = rand(...)
+ rand() returns a uniformly distributed random real x, 0&lt;=x&lt;1.
+   rand(N) (N positive integer) returns a real random vector of length N.
+   rand(N,M) returns a random matrix, and so on.
+</PRE>
+
+See also: 
+<A HREF="#srand">srand</A>, 
+<A HREF="#gaussrand">gaussrand</A>.
+<PRE>
+   Error codes:
+   -1: Tried to create too high rank array
+   -2: Argument not an integer
+   -3: Non-positive integer argument 
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="rank"></A> <A NAME="ss2.86">2.86</A> <A HREF="telafuncsSectioned.html#toc2.86">rank</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[y] = rank(x)
+ rank(A) returns the number of dimensions of array A.
+   The rank of a scalar is 0. The rank of a nonnumeric
+   object, including undefined value, is -1. The rank function
+   never generates an error.
+</PRE>
+
+See also: 
+<A HREF="#length">length</A>, 
+<A HREF="#size">size</A>.
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="reshape"></A> <A NAME="ss2.87">2.87</A> <A HREF="telafuncsSectioned.html#toc2.87">reshape</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[B] = reshape(A...)
+ reshape(A,n,m,...) returns the data in array A rearranged
+   to have dimensionality n x m x ... . The product of the indices
+   must equal the length of A.
+   reshape(A,#(n,m...)) works also.
+
+   Example: reshape(#(1,2,3,4,5,6), 2,3) returns
+       #(1, 2, 3;
+             4, 5, 6)  
+   Error codes:
+   -1: First argument not an array
+   -2: Later argument not an integer
+   -3: Product of dimensions does not equal the length of first argument
+   -4: Number of input arguments exceeds MAXRANK
+   -5: Second arg is array but not integer vector
+   
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="round"></A> <A NAME="ss2.88">2.88</A> <A HREF="telafuncsSectioned.html#toc2.88">round</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[y] = round(x)
+ round(x) returns the nearest integer.
+   x must be integer or real scalar or array. If it is an array,
+   the operation is applied componentwise.
+</PRE>
+
+See also: 
+<A HREF="#floor">floor</A>, 
+<A HREF="#ceil">ceil</A>, 
+<A HREF="#trunc">trunc</A>.
+<PRE>
+   Error codes:
+   -1: Complex or nonnumeric input argument 
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="run"></A> <A NAME="ss2.89">2.89</A> <A HREF="telafuncsSectioned.html#toc2.89">run</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[output] = run(cmd; input)
+ run("cmd","input") runs operating system (Unix) command
+   "cmd", using contents of the second argument string as
+   standard input. It returns the standard output of "cmd"
+   as a string.
+
+   The form run("cmd") may be used if the command does not
+   read standard input. The command is executed by /bin/sh.
+</PRE>
+
+See also: 
+<A HREF="#system">system</A>.
+<PRE>
+
+   Error codes:
+   -1: First argument not a string
+   -2: Second argument not a string
+   -3: Error with temporary file
+   -4: Error with internal pipe
+   -5: run not supported: OS does not provide unistd.h nor popen()
+   7: wait(2) returned error
+   -8: pipe(2) returned error
+   -9: cannot fork(2) a child process
+   
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="sec"></A> <A NAME="ss2.90">2.90</A> <A HREF="telafuncsSectioned.html#toc2.90">sec</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[y] = sec(x)
+ y = sec(x) is the secant function
+   sec(x) = 1/cos(x). 
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="showcompiled"></A> <A NAME="ss2.91">2.91</A> <A HREF="telafuncsSectioned.html#toc2.91">showcompiled</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[] = showcompiled(filename...)
+ showcompiled("filename.ct",f1,f2,...) compiles functions
+   f1,f2,... to C-tela code, creating "filename.ct".
+   If no suffix is given in "filename", the suffix
+   ".ct" will be assumed.
+   showcompiled(f1,f2,...) displays on standard output.
+</PRE>
+
+See also: 
+<A HREF="#t2ct">t2ct</A>.
+<PRE>
+   Error codes:
+   1: One of the args is not a Tela-function
+   2: Cannot open output file
+   
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="sign"></A> <A NAME="ss2.92">2.92</A> <A HREF="telafuncsSectioned.html#toc2.92">sign</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[y] = sign(x)
+ y = sign(x) returns 1 if x>0, 0 if x==0, and -1 if x&lt;0.
+   x must be real. If x is array, the operation is applied componentwise.
+</PRE>
+
+See also: 
+<A HREF="#HeavisideTheta">HeavisideTheta</A>.
+<PRE>
+   Error codes:
+   -1: Complex or nonnumeric input argument 
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="sin"></A> <A NAME="ss2.93">2.93</A> <A HREF="telafuncsSectioned.html#toc2.93">sin</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[y] = sin(x)
+ y = sin(x) computes the sine function of x.
+   If x is complex, the result is complex, otherwise real.
+   The argument must be in radians.
+   If x is an array, the operation is applied componentwise.
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="sinh"></A> <A NAME="ss2.94">2.94</A> <A HREF="telafuncsSectioned.html#toc2.94">sinh</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[y] = sinh(x)
+ y = sinh(x) computes the hyperbolic sine function of x.
+   If x is complex, the result is complex, otherwise real.
+   If x is an array, the operation is applied componentwise.
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="size"></A> <A NAME="ss2.95">2.95</A> <A HREF="telafuncsSectioned.html#toc2.95">size</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[...] = size(x)
+ [n,m,...] = size(A) finds out the dimensions of array A.
+   The number of n,m... must not exceed rank(A). If rank(A)==0
+   (that is, A is scalar), n=size(A) sets 1 to n.
+   V = size(A) assigns the dimension vector [n,m,..] to V.
+   If A is scalar, V is set to 1, if A is vector, V becomes
+   a one-element vector.
+</PRE>
+
+See also: 
+<A HREF="#length">length</A>, 
+<A HREF="#rank">rank</A>.
+<PRE>
+   Error codes:
+   -1: No output arguments
+   -2: Argument has undefined value
+   1: More than one output arg but non-array input arg
+   2: Too many output args relative to input arg rank 
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="smenu"></A> <A NAME="ss2.96">2.96</A> <A HREF="telafuncsSectioned.html#toc2.96">smenu</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[result] = smenu(title...)
+ choice = smenu("title","choice1","choice2",...) displays
+   a menu of choices and returns the "choice" string corresponding
+   to the number entered by the user.
+</PRE>
+
+See also: 
+<A HREF="#menu">menu</A>.
+<PRE>
+   Error codes:
+   -1: Less than two input args 
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="sort"></A> <A NAME="ss2.97">2.97</A> <A HREF="telafuncsSectioned.html#toc2.97">sort</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[y,I] = sort(abs(z));
+
+Then y=z[I] is the wanted result. This method, when applicable,
+is most probably faster than supplying a user-defined comparison
+function.
+
+sort() is a rewritten function which should be backward compatible
+with the old one. In this Tela version the old sort function is
+still available under sort_old().
+Error codes:
+   1: Internal error
+   2: Expecting Tela or CTela function in CMP (arg 2)
+   3: CMP signature is not b = CMP(x1, x2)
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="sort_old"></A> <A NAME="ss2.98">2.98</A> <A HREF="telafuncsSectioned.html#toc2.98">sort_old</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[y;I] = sort_old(x)
+ sort_old is the old sort routine. Use it only if you
+   encounter problems with sort(), sort_old will be
+   removed in a later version. The new sort() function
+   accepts a second input argument (user-defined comparison)
+   but is otherwise identical in semantics.
+   
+   sort_old(x) returns array x sorted in ascending order.
+   If x is complex, it is sorted by the real parts.
+   If x is not an array, it is returned as is.
+   [y,I] = sort_old(x) returns also an index vector I such that
+   y == x[I].
+
+   To sort with user-defined comparisons, do the following.
+   For example, if you want to sort a complex vector z by
+   absolute value as Matlab does, first sort a vector of
+   absolute values saving the index information:
+
+   [y,I] = sort_old(abs(z));
+
+   Then y=z[I] is the wanted result.
+
+   If x is multidimensional, it is implicitly flattened.
+   Use the map function to get around this problem.
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="source"></A> <A NAME="ss2.99">2.99</A> <A HREF="telafuncsSectioned.html#toc2.99">source</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[] = source(fn)
+ source("file.t") loads the tela code from given file.
+</PRE>
+
+See also: 
+<A HREF="#source_silent">source_silent</A>, 
+<A HREF="#autosource">autosource</A>, 
+<A HREF="telafuncsSectioned-3.html#load">load</A>.
+<PRE>
+   Error codes:
+   1: Operation did not succeed
+   2: Argument not a string 
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="source_silent"></A> <A NAME="ss2.100">2.100</A> <A HREF="telafuncsSectioned.html#toc2.100">source_silent</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[] = source_silent(fn)
+ source_silent("file.t") is similar to source("file.t"),
+   but it does not complain if e.g. the file does not exist.
+</PRE>
+
+See also: 
+<A HREF="#source">source</A>, 
+<A HREF="#autosource">autosource</A>, 
+<A HREF="telafuncsSectioned-3.html#load">load</A>.
+<PRE>
+   Error codes:
+   1: Argument not a string 
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="sqrt"></A> <A NAME="ss2.101">2.101</A> <A HREF="telafuncsSectioned.html#toc2.101">sqrt</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[y] = sqrt(x)
+ y = sqrt(x) computes the square root of x.
+   If x is complex, the result is complex. If x is real or
+   integer, but negative, the result is complex (purely
+   imaginary). If x is real or integer and non-negative,
+   the result is real.
+   If x is an array, the operation is applied componentwise.
+   If some of the components are negative, all components
+   of the result are complex.
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="srand"></A> <A NAME="ss2.102">2.102</A> <A HREF="telafuncsSectioned.html#toc2.102">srand</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[] = srand(seed)
+ srand(seed) seeds the random number generator.
+   The same seed will always produce the same random
+   number sequence. The argument must be an integer.
+</PRE>
+
+See also: 
+<A HREF="#rand">rand</A>.
+<PRE>
+   Error codes:
+   1: Argument not an integer 
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="str2num"></A> <A NAME="ss2.103">2.103</A> <A HREF="telafuncsSectioned.html#toc2.103">str2num</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[y] = str2num(s)
+ str2num(s) converts a string to a number.
+   The string must represent a scalar. If an error
+   occurs, str2num returns a void value.
+   Error codes:
+   1: Argument not a string 
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="streq"></A> <A NAME="ss2.104">2.104</A> <A HREF="telafuncsSectioned.html#toc2.104">streq</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[y] = streq(s1,s2)
+ streq("string1","string2") returns 1 if the argument
+   strings are exactly equal and 0 otherwise. If one of
+   the args is not a string, the result is also 0.
+</PRE>
+
+See also: 
+<A HREF="#strstarteq">strstarteq</A>.
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="strmat"></A> <A NAME="ss2.105">2.105</A> <A HREF="telafuncsSectioned.html#toc2.105">strmat</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[x] = strmat(...)
+ strmat("string1","string2",...) makes a string matrix
+   ouf of individual strings. The strings need not be same length,
+   they are padded with zeros (invisible) if they are not.
+
+   Usage example:
+   S = strmat("string1","longer_string");
+   s = tostring(S[1,:]);
+   after which streq(s,"string1") will return true (1).
+   The function tostring is needed to get rid of possible
+   extra zeros at the end of the string.
+   
+</PRE>
+
+See also: 
+<A HREF="#strmat2">strmat2</A>, 
+<A HREF="#tostring">tostring</A>, 
+<A HREF="#streq">streq</A>.
+<PRE>
+   Error codes:
+   -1: Argument not a string
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="strmat2"></A> <A NAME="ss2.106">2.106</A> <A HREF="telafuncsSectioned.html#toc2.106">strmat2</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[x] = strmat2(str; sep)
+ strmat2("string") creates a string matrix from "string"
+   interpreting the newline character as row ending marker.
+   strmat2("string",sep) uses separator sep instead of
+   newline char; sep may be either character or string.
+   If sep is a string, any character that is a member of sep
+   is taken to be a separator. If the rows have unequal lengths,
+   they are padded with zeros.
+</PRE>
+
+See also: 
+<A HREF="#strmat">strmat</A>.
+<PRE>
+   Error codes:
+   -1: First arg not a string
+   -2: Second arg not a char or string
+   
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="strstarteq"></A> <A NAME="ss2.107">2.107</A> <A HREF="telafuncsSectioned.html#toc2.107">strstarteq</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[y] = strstarteq(s1,s2)
+ strstarteq("string1","string2") returns 1 if the argument
+   strings are equal on the first min(length(s1),length(s2))
+   characters and 0 otherwise.
+   If one of the the args is not a string, the result is also 0.
+</PRE>
+
+See also: 
+<A HREF="#streq">streq</A>.
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="sum"></A> <A NAME="ss2.108">2.108</A> <A HREF="telafuncsSectioned.html#toc2.108">sum</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[y] = sum(x;d)
+ sum(x) sums all the elements of x, if x is an array.
+   The result type is always the same as the component type
+   of x. If x is scalar, it is returned as such.
+   sum(x,d) sums only along d'th dimension, returning array
+   of rank one less than rank(x).
+</PRE>
+
+See also: 
+<A HREF="#cumsum">cumsum</A>, 
+<A HREF="#prod">prod</A>, 
+<A HREF="#map">map</A>.
+<PRE>
+   Error codes:
+   -1: Nonnumeric input arg
+   -2: Second argument not an integer
+   -3: Second argument (dimension spec) out of range 
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="system"></A> <A NAME="ss2.109">2.109</A> <A HREF="telafuncsSectioned.html#toc2.109">system</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[] = system(s)
+ system("string") executes string as an external operating system
+   command.
+</PRE>
+
+See also: 
+<A HREF="#system_with_returnvalue">system_with_returnvalue</A>, 
+<A HREF="#run">run</A>.
+<PRE>
+
+   Error codes:
+   1: Argument not a string 
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="system_with_returnvalue"></A> <A NAME="ss2.110">2.110</A> <A HREF="telafuncsSectioned.html#toc2.110">system_with_returnvalue</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[;rv] = system_with_returnvalue(s)
+ system_with_returnvalue("string") executes string as an external operating system
+   command and returns the return value rv of the command.
+</PRE>
+
+See also: 
+<A HREF="#system">system</A>, 
+<A HREF="#run">run</A>.
+<PRE>
+
+   Error codes:
+   1: Argument not a string 
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="t2ct"></A> <A NAME="ss2.111">2.111</A> <A HREF="telafuncsSectioned.html#toc2.111">t2ct</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[] = t2ct(fn)
+ t2ct("filename.t") translates t-code to ct-code.
+   This makes it possible to compile t-files into
+   faster code.
+
+   To compile a t-file "fyle.t", do the following:
+
+   (1) Generate "fyle.ct" by t2ct("fyle.t") from Tela.
+   You can also do this from the shell prompt or Makefile by
+
+   tela -sbe 't2ct("fyle.t")'
+
+   (use single quotes around the argument but cannot show it here, sorry).
+   
+   (2) Compile it using
+
+   telakka -c fyle.ct
+
+   from the shell or the Makefile. (From within Tela,
+   you can use the system function, or precede the command
+   line by "!" in interactive mode.)
+
+   (3) The resulting object file fyle.o can be linked directly
+   to Tela on some systems (e.g. Linux using the DLD library):
+
+   link("fyle.o")
+
+   On systems using the DSO library (SGI, Sun ...) you must first
+   make a shared object file:
+
+   ld -o fyle.so -shared fyle.o
+
+   The DSO file can now be linked to Tela:
+
+   link("fyle.so")
+
+   (When using the DLD library you can emulate the previous step
+   by ld -o fyle.so -r fyle.o, this makes it possible to write machine-
+   independent Makefiles using gmake.)
+
+   (3b) If you do not want dynamic linking, or if your system does
+   not support it (e.g. UNICOS), you can always link your stuff in
+   a new Tela kernel by simply using the telakka command:
+
+   telakka -o newtela fyle.o
+
+   When you start the binary 'newtela' the functions defined in
+   fyle.t are available.
+   
+</PRE>
+
+See also: 
+<A HREF="#avoid_constructors">avoid_constructors</A>, 
+<A HREF="#system">system</A>.
+<PRE>
+   Error codes:
+   1: Operation did not succeed
+   2: Argument not a string
+   3: Could not open output file
+   
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="tan"></A> <A NAME="ss2.112">2.112</A> <A HREF="telafuncsSectioned.html#toc2.112">tan</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[y] = tan(x)
+ y = tan(x) computes the tangent function of x.
+   If x is complex, the result is complex, otherwise real.
+   The argument must be in radians.
+   If x is an array, the operation is applied componentwise.
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="tanh"></A> <A NAME="ss2.113">2.113</A> <A HREF="telafuncsSectioned.html#toc2.113">tanh</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[y] = tanh(x)
+ y = tanh(x) computes the hyperbolic tangent function of x.
+   If x is complex, the result is complex, otherwise real.
+   If x is an array, the operation is applied componentwise.
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="telapath"></A> <A NAME="ss2.114">2.114</A> <A HREF="telafuncsSectioned.html#toc2.114">telapath</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[currentpath; maxelements] = telapath(;newpath)
+ telapath() returns the current Tela path as a string.
+   telapath(NEWPATH) sets the Tela search path to NEWPATH and returns
+   the *old* search path.
+   [oldpath,maxelems] = telapath()
+   also returns the maximum number of members in the
+   search path in maxelems (currently 100).
+   Error codes:
+   -1: expecting string NEWPATH (arg 1)
+    1: too many elements in NEWPATH (arg 1); ignoring trailing elements
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="tic"></A> <A NAME="ss2.115">2.115</A> <A HREF="telafuncsSectioned.html#toc2.115">tic</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[] = tic()
+ tic() marks the CPU time at which it was invoked.
+   To measure CPU time, use tic() and toc().
+</PRE>
+
+See also: 
+<A HREF="#cputime">cputime</A>, 
+<A HREF="#toc">toc</A>.
+<PRE>
+   Example:
+
+      a = rand(100,100); tic(); b=inv(a); toc()
+
+  This would measure the CPU time in inverting a 100x100
+  random real matrix. See also: toc. 
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="toc"></A> <A NAME="ss2.116">2.116</A> <A HREF="telafuncsSectioned.html#toc2.116">toc</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[t] = toc()
+ toc() gives the CPU seconds used since the last call to tic().
+</PRE>
+
+See also: 
+<A HREF="#tic">tic</A>, 
+<A HREF="#cputime">cputime</A>.
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="tostring"></A> <A NAME="ss2.117">2.117</A> <A HREF="telafuncsSectioned.html#toc2.117">tostring</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[y] = tostring(x)
+ tostring(x) converts an integer vector to a string.
+   Transfer of characters is stopped if zero element
+   is encountered.
+   tostring(A) where A is geneeral integer array copies
+   A and sets the string flag.
+   Error codes:
+   -1: Argument not an integer array
+   
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="transpose"></A> <A NAME="ss2.118">2.118</A> <A HREF="telafuncsSectioned.html#toc2.118">transpose</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[B] = transpose(A; P)
+ B = transpose(A) returns a transpose of array A: B[i,j,k...l] = A[l...k,j,i].
+   B = transpose(A,P) where P is integer vector transposes the indices according
+   to the permutation defined by P.
+   For example if A has rank 3, B = transpose(A,[2,1,3]) causes the assignment
+   B[j,i,k] = A[i,j,k] to be carried out. B = transpose(A) would in this case
+   correspond to B[k,j,i] = A[i,j,k].
+
+   The second argument is meaningful only if rank(A) is greater than 2.
+   
+   You can abbreviate "transpose(A)" by "A.'".
+</PRE>
+
+See also: 
+<A HREF="#herm">herm</A>, 
+<A HREF="#flip">flip</A>.
+<PRE>
+   Error codes:
+   -1: Permutation argument not integer array
+   -2: Permutation argument of bad rank or size
+   -3: Permutation argument contains invalid integers 
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="trunc"></A> <A NAME="ss2.119">2.119</A> <A HREF="telafuncsSectioned.html#toc2.119">trunc</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[y] = trunc(x)
+ trunc(x) returns the nearest integer not larger in absolute value.
+   x must be integer or real scalar or array. If it is an array,
+   the operation is applied componentwise.
+</PRE>
+
+See also: 
+<A HREF="#floor">floor</A>, 
+<A HREF="#ceil">ceil</A>, 
+<A HREF="#round">round</A>.
+<PRE>
+   Error codes:
+   -1: Complex or nonnumeric input argument 
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="unhide"></A> <A NAME="ss2.120">2.120</A> <A HREF="telafuncsSectioned.html#toc2.120">unhide</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[] = unhide(...)
+ hide("sym-name",...) unsets the 'hidden' attribute to
+   specified symbols.
+</PRE>
+
+See also: 
+<A HREF="#whos">whos</A>, 
+<A HREF="#hide">hide</A>.
+<PRE>
+   Error codes:
+   1: Argument not a string
+   2: Argument does not name a symbol
+   
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="version"></A> <A NAME="ss2.121">2.121</A> <A HREF="telafuncsSectioned.html#toc2.121">version</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[x] = version()
+ version() returns the Tela version number (real) currently
+   in use. 
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="where"></A> <A NAME="ss2.122">2.122</A> <A HREF="telafuncsSectioned.html#toc2.122">where</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[y] = where(c,a,b)
+ where(c,a,b) returns a where c is nonzero and b where c is zero.
+   Usually the arguments are arrays, and if they are, they must be
+   of similar dimensions.
+   Error codes:
+   -1: First argument not integer-valued
+   -2: Second arg non-numeric
+   -3: Second arg is incompatible array
+   -4: Third arg non-numeric
+   -5: Third arg incompatible array
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="whos"></A> <A NAME="ss2.123">2.123</A> <A HREF="telafuncsSectioned.html#toc2.123">whos</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[] = whos(;hidden)
+ whos() displays names of variables together with their
+   types and values, if short. 'Hidden' symbols are not shown.
+   whos("hidden") shows also hidden symbols.
+</PRE>
+
+See also: 
+<A HREF="#hide">hide</A>, 
+<A HREF="#unhide">unhide</A>.
+<PRE>
+   Error codes:
+   1: Bad argument
+   -1: Cannot open pipe to sort
+   
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+
+<HR>
+<A HREF="telafuncsSectioned-3.html">Next</A>
+<A HREF="telafuncsSectioned-1.html">Previous</A>
+<A HREF="telafuncsSectioned.html#toc2">Contents</A>
+</BODY>
+</HTML>

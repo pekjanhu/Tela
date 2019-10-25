@@ -1,0 +1,309 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="LinuxDoc-Tools 0.9.21">
+ <TITLE>Builtin Tela functions: sppc.ct</TITLE>
+ <LINK HREF="telafuncsSectioned-6.html" REL=next>
+ <LINK HREF="telafuncsSectioned-4.html" REL=previous>
+ <LINK HREF="telafuncsSectioned.html#toc5" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="telafuncsSectioned-6.html">Next</A>
+<A HREF="telafuncsSectioned-4.html">Previous</A>
+<A HREF="telafuncsSectioned.html#toc5">Contents</A>
+<HR>
+<H2><A NAME="s5">5.</A> <A HREF="telafuncsSectioned.html#toc5">sppc.ct</A></H2>
+
+<P>This section describes functions from file sppc.ct.</P>
+
+<H2><A NAME="curve"></A> <A NAME="ss5.1">5.1</A> <A HREF="telafuncsSectioned.html#toc5.1">curve</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[] = curve(x,y...)
+ curve(x,y) adds a curve in the current SPPC panel.
+   SPPC option-value pairs can be added as further arguments.
+   Do 'help sppcopts' for list of possible options.
+</PRE>
+
+See also: 
+<A HREF="#sppcmark">sppcmark</A>, 
+<A HREF="#pseudo">pseudo</A>, 
+<A HREF="#panel">panel</A>, 
+<A HREF="#endpanels">endpanels</A>, 
+<A HREF="#sppcopts">sppcopts</A>, 
+<A HREF="#xlabels">xlabels</A>.
+<PRE>
+   Error codes:
+   1: Could not open temporary MTV file
+   2: First argument (x) not a real vector
+   3: Second argument (y) not a real vector
+   4: First two arguments of different lengths
+   5: Odd number of arguments
+   6: Option name not a string
+   7: Unknown option
+   8: Bad option value
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="endpanels"></A> <A NAME="ss5.2">5.2</A> <A HREF="telafuncsSectioned.html#toc5.2">endpanels</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[] = endpanels(...)
+ endpanels() finishes the current SPPC page by drawing
+   the pending panels. Do 'help sppcopts' for list of valid options.
+   
+   Additionally, endpanels recognizes option "output". If set to non-empty string,
+   it stores the SPPC code in the named file instead of calling ghostview,
+   e.g.: endpanels("output","myfile.sppc").
+   You can then do e.g.
+     sppc -papertype 8x14cm -landscape &lt;myfile.sppc >myfile.ps
+   See sppc -help for possible options. This enables "blind" batch mode runs.
+   
+</PRE>
+
+See also: 
+<A HREF="#curve">curve</A>, 
+<A HREF="#sppcmark">sppcmark</A>, 
+<A HREF="#pseudo">pseudo</A>, 
+<A HREF="#panel">panel</A>, 
+<A HREF="#sppcopts">sppcopts</A>, 
+<A HREF="#xlabels">xlabels</A>.
+<PRE>
+   Error codes:
+   1: Calling endpanels before calling curve or pseudo
+   5: Odd number of arguments
+   6: Option name not a string
+   7: Unknown option
+   8: Bad option value
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="panel"></A> <A NAME="ss5.3">5.3</A> <A HREF="telafuncsSectioned.html#toc5.3">panel</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[] = panel(...)
+ panel() finishes the current SPPC panel by drawing the pending
+   curve and pseudo objects.
+   Do 'help sppcopts' for list of valid options.
+</PRE>
+
+See also: 
+<A HREF="#curve">curve</A>, 
+<A HREF="#sppcmark">sppcmark</A>, 
+<A HREF="#pseudo">pseudo</A>, 
+<A HREF="#endpanels">endpanels</A>, 
+<A HREF="#sppcopts">sppcopts</A>, 
+<A HREF="#xlabels">xlabels</A>.
+<PRE>
+   Error codes:
+   1: Calling panel before calling curve or pseudo
+   5: Odd number of arguments
+   6: Option name not a string
+   7: Unknown option
+   8: Bad option value
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="pseudo"></A> <A NAME="ss5.4">5.4</A> <A HREF="telafuncsSectioned.html#toc5.4">pseudo</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[] = pseudo(x,y,z...)
+ pseudo(x,y,z) plots a pseudocolor plot in the current SPPC panel.
+   SPPC option-value pairs can be added as further arguments,
+   for example, pseudo(x,y,z,"interp","true) uses smooth rendering.
+   Do 'help sppcopts' for list of valid options.
+</PRE>
+
+See also: 
+<A HREF="#curve">curve</A>, 
+<A HREF="#sppcmark">sppcmark</A>, 
+<A HREF="#panel">panel</A>, 
+<A HREF="#endpanels">endpanels</A>, 
+<A HREF="#sppcopts">sppcopts</A>, 
+<A HREF="#xlabels">xlabels</A>.
+<PRE>
+   Error codes:
+   1: Could not open temporary MTV file
+   2: First argument (x) not a real vector
+   3: Second argument (y) not a real vector
+   4: Third argument (z) not a real matrix
+   5: Odd number of arguments
+   6: Option name not a string
+   7: Unknown option
+   8: Bad option value
+   9: Third argument (z) dimensions do not match x,y lengths
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="sppcmark"></A> <A NAME="ss5.5">5.5</A> <A HREF="telafuncsSectioned.html#toc5.5">sppcmark</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[] = sppcmark(x,y...)
+ sppcmark(x,y) sets a marker in the current SPPC panel.
+   The following options can be given, in addition to those
+   listed under 'help sppcopts':
+
+   Option      Type       Explanation
+   ------      ----       -----------
+   label       string     Text to draw at (x,y)
+   markertype  integer    0=none,1=dot,2=+,3=X,4=box,5=filled box,
+                            6=diamond, 7=filled diamond, 8=triangle,
+                            9=filled triangle, 10=inverted triangle,
+                            11=filled inverted triangle, 12=circle,
+                            13=filled circle
+   markersize  real       in points (1/72 inch), default 6
+   markercolor 3-vector   Color of marker and text
+   endpoint_x  real       Draws a line from (x,y)
+   endpoint_y  real          to (endpoint_x,endpoint_y).
+                             Current linewidth, linetype, linecolor
+                             are used.
+   arrow       true/false Whether to draw arrowhead at line end                                                  
+   
+</PRE>
+
+See also: 
+<A HREF="#curve">curve</A>, 
+<A HREF="#pseudo">pseudo</A>, 
+<A HREF="#panel">panel</A>, 
+<A HREF="#endpanels">endpanels</A>, 
+<A HREF="#sppcopts">sppcopts</A>, 
+<A HREF="#xlabels">xlabels</A>.
+<PRE>
+   Error codes:
+   1: Bad first argument x (not scalar)
+   2: Bad second argument y (not scalar)
+   5: Odd number of arguments
+   6: Option name not a string
+   7: Unknown option
+   8: Bad option value
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="sppcopts"></A> <A NAME="ss5.6">5.6</A> <A HREF="telafuncsSectioned.html#toc5.6">sppcopts</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[] = sppcopts(...)
+ sppcopts([,"option",value,...]) provides a method for giving
+   SPPC options without using any SPPC primitive. The following
+   options can be given. These can also be, and usually are,
+   attached to the plotting functions themselves (curve, pseudo, etc.).
+   Options marked with (*) are global, others are reset after
+   each panel:
+
+   Option name       Type         Explanation
+   ------------------------------------------
+  *title             string       Overall title of page
+   leftlabel         string       Left label of this panel
+   rightlabel        string       Right label of this panel
+   xrightlabel       string       Right label on bottom horiz axis
+   xleftlabel        string       Left label on bottom horiz axis
+   linetype          integer      0=none,1=solid,2=dashed,3=dotted,
+                                    4=dotdashed
+   linecolor         3-vector     Curve color, RGB-values in 0..1 range
+   fillcolor         3-vector     Fill color (for filled curves only)
+  *foreground        3-vector     Color of axes, labels etc.
+  *background        3-vector     Background color of page
+  *framewidth        real or int  Frame and axis line width, in 1/72-inch
+   linewidth         real or int  Curve line width, in 1/72-inch
+  *xmin,*xmax,ymin,               Manually given axis limits,
+     ymax,zmin,zmax  real           z refers to pseudocolor scaling
+   ymin_right,ymax_right real     Right vertical axis min,max
+   rightcurve        true/false   This curve uses the right vertical axis.
+                                    Reset after each curve.
+   houraxis          true/false   This xlabels() is hours, render as hh:mm
+   xlabelskip        integer      Tick marks between each xlabel (default 1)
+  *houraxis_x        true/false   Horizontal axis is hour axis
+  *grid              true/false   Whether to draw dotted grid lines
+  *interp            true/false   If true, draws pseudocolor surfs smoothly
+  *palette           3x256 matrix Color palette, Int matrix, values in 0..255
+                     "default"    Rainbow palette
+  *xlog              true/false   Logarithmic horizontal axis
+   ylog              true/false   Logarithmic vertical axis
+   zlog              true/false   Logarithmic color scaling for pseudos
+  *showneg           true/false   If log scale: show &lt;= 0 values as smallest
+  *titlefontsize     real         Size of title font in 1/72-inch units
+  *labelfontsize     real         Size of side label font
+  *axisfontsize      real         Size of axis tickmark label font
+  *annotfontsize     real         Size of marker label font
+  *usebinary         true/false   Default true; if false, uses ASCII in tmpfile
+   panelheight       real         Relative height of panel, default 1.0
+
+   Using SPPC in batch mode: see endpanels.
+  
+</PRE>
+
+See also: 
+<A HREF="#curve">curve</A>, 
+<A HREF="#sppcmark">sppcmark</A>, 
+<A HREF="#pseudo">pseudo</A>, 
+<A HREF="#panel">panel</A>, 
+<A HREF="#xlabels">xlabels</A>, 
+<A HREF="#endpanels">endpanels</A>.
+<PRE>
+   Error codes:
+   5: Odd number of arguments
+   6: Option name not a string
+   7: Unknown option
+   8: Bad option value
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="xlabels"></A> <A NAME="ss5.7">5.7</A> <A HREF="telafuncsSectioned.html#toc5.7">xlabels</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[] = xlabels(x,y...)
+ xlabels(x,y) puts a xlabel vector to SPPC page.
+   xlabels(x,y,"houraxis","true") assumes y represents hours
+   and renders the labels as hh:mm.
+   Do 'help sppcopts' to see other valid options (especially
+   rightlabel and leftlabel).
+</PRE>
+
+See also: 
+<A HREF="#curve">curve</A>, 
+<A HREF="#sppcmark">sppcmark</A>, 
+<A HREF="#pseudo">pseudo</A>, 
+<A HREF="#endpanels">endpanels</A>, 
+<A HREF="#sppcopts">sppcopts</A>, 
+<A HREF="#panel">panel</A>.
+<PRE>
+   Error codes:
+   1: Could not open temporary MTV file
+   2: First argument (x) not a real vector
+   3: Second argument (y) not a real vector
+   4: First two arguments of different lengths
+   5: Odd number of arguments
+   6: Option name not a string
+   7: Unknown option
+   8: Bad option value
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+
+<HR>
+<A HREF="telafuncsSectioned-6.html">Next</A>
+<A HREF="telafuncsSectioned-4.html">Previous</A>
+<A HREF="telafuncsSectioned.html#toc5">Contents</A>
+</BODY>
+</HTML>

@@ -1,0 +1,396 @@
+  Tela User's Guide
+  Pekka	Janhunen, tela-suggestions@fmi.fi, tela-bugs@fmi.fi
+  v1.21, 13 February 1995
+
+  1.  Introduction
+
+  Tela is a numerical computing	environment mainly targeted for
+  numerical simulation pre- and	postprocessing work. The language
+  supports arbitrary rank arrays (hence	the name, Tensor Language), and
+  has powerful programming capabilities	including F90 style vector
+  notation.
+
+  The on-line help is intended to be the primary source	of
+  documentation.  The command help (``help'') gives help of reserved
+  words, intrinsic functions, standard functions, and user functions.
+  The function docview() can be	used to	view the same documentation in
+  plain	ASCII form, in TeX DVI form, and in Hypertext Markup Language
+  (HTML) form. Right from the beginning	you should be familiar with the
+  help command,	and learn to browse the	HTML documentation. If you want
+  a printed ``manual'',	you can	convert	the DVI	files into PostScript
+  using	the standard TeX tool dvips and	print them.
+
+  The file you are now reading is the User's Guide. Other relevant
+  document files include telahelp (html:telahelp.html),	telafuncs
+  (html:telafuncs.html)	and telafuncsSectioned
+  (html:telafuncsSectioned.html).  The help (``help'') can retrieve the
+  equivalent information.
+
+  (For Xmosaic viewers only: If	the previous links do not work,	you can
+  try the universal links to the FMI/GEO WWW site: telahelp.html
+  (http://www.geo.fmi.fi/prog/tela/telahelp.html), telafuncs.html
+  (http://www.geo.fmi.fi/prog/tela/telafuncs.html) and
+  telafuncsSectioned.html
+  (http://www.geo.fmi.fi/prog/tela/telafuncsSectioned.html)).
+
+
+
+  2.  Simple interactive use
+
+
+  When you start Tela from the Unix prompt without arguments (usually by
+  typing tela),	the system enters interactive mode after reading some
+  initialization files and is ready to parse and execute command lines.
+  The Tela prompt is ``> ''. The GNU Readline library is the first layer
+  interacting with the user. This library makes	it easy	to modify and
+  reexecute previous commands. The most	important key combinations are
+  (Ctrl	means keeping Control down when	pressing the key):
+
+
+
+       Ctrl-P	      Get Previous line
+       Ctrl-N	      Get Next line
+       Ctrl-F	      Forward cursor one character position
+       Ctrl-B	      Backward cursor one character position
+
+       Ctrl-A	      Set cursor position at beginning of line
+       Ctrl-E	      Set cursor position at End of line
+       Ctrl-K	      Delete (Kill) text beyond	cursor position
+
+       TAB	      Try to complete reserved word, identifier	or filename
+       Enter	      Execute command line (cursor need	not be at end position)
+
+       Ctrl-C	      Interrupt	command	during command execution
+       Ctrl-D	      Quit Tela	(must be alone in line)
+
+
+  You have probably used other software	which also uses	the GNU	Readline
+  library, e.g.	the GNU	debugger gdb. If your terminal is properly
+  configured, you can use the arrow keys instead of Ctrl-P, Ctrl-N,
+  Ctrl-F and Ctrl-B to move in the history buffer. You should get
+  familiar with	these commands as soon as possible, since it will
+  greatly speed	up your	working	with Tela. The command completion is
+  able to complete Tela	reserved words,	function names (either
+  intrinsic, standard, or user-defined), variables names and filenames.
+  Filename completion is invoked if the	TAB key	is pressed inside a
+  string (``...''). This can be	useful with the	source command,	for
+  example.
+
+  Tela uses the	X window system	to display graphics. The graphics is
+  displayed by a separate program, named PlotMTV, but calling it is
+  transparent to the user. The DISPLAY environment variable must be
+  properly defined, otherwise the graphics will	not work.
+
+  Try entering the following commands first (``> `` means the Tela
+  prompt which you obviously do	not type):
+
+
+
+       > x=0:0.1:4*pi
+       > plot(x,sin(x))
+
+
+
+
+  The first command creates a vector of	real numbers ranging from 0 to 4
+  times	Pi with	step 0.1 and assigns the vector	to variables x.	The
+  second command then plots sin(x) versus x. A graph of	sin(x) should
+  appear in a new PlotMTV window, if not, the system is	not properly
+  installed.
+
+  In Matlab, an	expression is printed if there is no semicolon at the
+  end of command line.	In Tela, however, an expression	is printed if it
+  is not assigned to any variable, regardless of any semicolon.	In fact,
+  Tela internally inserts a semicolon at the end of every command line
+  before actually parsing it. The insertion is not done	when reading
+  commands from	a file.
+
+  This leads us	to the next topic: how to execute commands from	a file.
+  Type
+
+
+
+       > source("demo")
+
+
+
+
+  A menu of choices appears, but let us	first explain what the source
+  command does.	It looks for file named	``demo.t'' in the current
+  TELAPATH (if the file	name contains a	period,	the ``.t'' is not
+  appended). The TELAPATH is a list of directories where input files are
+  searched, similar in function	to the Unix PATH. The file ``demo.t'' is
+  found	in some	standard directory and commands	in it are executed. The
+  current TELAPATH can be seen by giving the command telapath().
+
+  When reading commands	from a t-file, there should be a semicolon at
+  the end of each statement (or	actually separating the	consecutive
+  statements, but the difference is unessential	here).
+
+  OK, now play with the	demos. Press a number and ENTER	to the menus, to
+  get back to command level select Quit.
+
+  The typical and recommended way to use Tela when developing something
+  bigger than one line is the following: Open an editor	window and a
+  shell	(Xterm)	executing Tela on your workstation. Create a t-file, for
+  example ``mine.t'' with the editor and write some Tela commands in it.
+  Remember to use semicolons as	statement separators. Try it out by
+  typing source(``mine.t'') in the Tela	window.	You must have started
+  Tela from the	same directory where ``mine.t''	lies, or you can use the
+  Tela cd command to change to that directory. (See help cd.) Doing this
+  repeatedly you only need save	the file from the editor and press Ctrl-
+  P ENTER in Tela window to execute the	file with changes you just made.
+  This is only slightly	clumsier than program development with Turbo
+  Pascal in the	old times: instead of a	single keypress	you now	have to
+  press	three keys and switch the window with the mouse	once to	execute
+  the program!
+
+
+  3.  Basics of	the language
+
+
+  The first thing to be	mentioned about	the Tela language is that it is
+  in many respects similar to C, or C++. So much so that I usually use
+  the GNU Emacs	C++ mode to edit Tela code, since there	is not a
+  specific Tela	mode (maybe you	could contribute one?).	 There is an if
+  statement (``if''), a	while statement	(``while'') and	a for statement
+  (``for''). There are of course many syntactic	differences also, but
+  two of them are the most fundamental:
+
+  1. In	C, a semicolon ends a statement	whilst in Tela a semicolon is a
+  separator between successive statements. Tela's use of semicolons is
+  equivalent to	Pascal rather than C in	this respect. This means for
+  example that the right brace is usually followed by a	semicolon in
+  Tela,	or at least that a semicolon does no harm there.
+
+  2. In	C the assignment is an operator, i.e. a=b is syntatically an
+  expression not a statement. In Tela the assignment is	a statement.
+  This is also similar to Pascal. This implies that the	use of
+  assignment is	more restricted	in Tela	than it	is in C	or C++.
+
+
+  3.1.	Flow of	control	statements
+
+
+  The following	subsubsections describe	the Tela control structures.
+
+
+  3.1.1.  The if statement
+
+
+  The if statement has the following syntax (stmt = statement):
+
+
+
+       if (expr)
+	  stmt
+
+
+
+
+  or
+
+
+
+
+
+
+
+  if (expr)
+      stmt
+  else
+      stmt
+
+
+
+
+  The conditional expression expr must be enclosed in parentheses.
+  There	must be	no semicolon between stmt and else.
+
+  The expression must evaluate to integer scalar or array. The condition
+  is considered	true if	the scalar is nonzero or if all	the array
+  elements are nonzero.	Examples:
+
+
+
+       if (x!=0)
+	   format("x is	nonzero, x=``\n",x)    // notice no semicolon
+       else {
+	   x = 1;
+	   format("x was zero and is now 1\n");// this semicolon is optional
+       };  // this semicolon separates this if stmt from the next stmt,	if any
+
+
+
+
+  Nested if statements are written in the following style:
+
+
+
+       if (a ==	1) {
+	   /* action for a==1 */
+       } else if (a == 2) {
+	   /* action for a==2 */
+       } else if (a == 3) {
+	   /* action for a==3 */
+       } else {
+	  /* action for	none of	the above */
+       };
+
+
+
+
+
+  3.1.2.  The while statement
+
+  The while loop statement has the following syntax:
+
+
+
+       while (expr)
+	   stmt	;
+
+
+
+
+  For example:
+
+
+
+	   while (!found) {
+	       LookForIt();
+	       counter++
+	   };
+
+  The statement	is executed until expr evaluates to true.  The
+  "trueness" of	expr is	similar	to the if statement (``if''): a	scalar
+  and all elements of an integer array must be nonzero for expr	to be
+  true.
+
+
+  3.1.3.  The repeat statement
+
+  The repeat loop statement has	the form
+
+
+
+       repeat
+	   stmt1;
+	   stmt2;
+	   ...
+       until expr;
+
+
+
+
+  The statements stmt1,	stmt2, ... are iterated	until expr evaluates to
+  true (nonzero). The statements are always executed at	least once. It
+  is analogous to the repeat statement in Pascal.
+
+
+  3.1.4.  The for statement
+
+  The for loop statment	has the	form
+
+
+
+       for (initstmt; expr; updatestmt)	stmt;
+
+
+
+
+  It is	equivalent to the while	statement
+
+
+       initstmt;
+       while (expr) {
+	   stmt;
+	   updatestmt;
+       };
+
+
+
+
+  The syntax is	rather similar to C, but there is a difference:	the
+  initstmt, updatestmt and stmt	are statements,	not expressions. On the
+  other	hand there is no comma operator	in Tela.  Thus you cannot write
+  for(i=0,j=0; i<10; i++) but instead you must write
+
+
+
+       for ({i=1; j=1};	i<=10; i++) { /* ... */	};
+
+
+
+
+  We intentionally changed the loop running from 1, not	0, to remind
+  that in Tela the first array index is	1, not 0 as in C.
+
+
+
+  3.2.	Expressions and	assignments
+
+
+  The following	subsubsections describe	Tela expressions and assignment
+  statements.
+
+
+  3.2.1.  Operators
+
+  Expressions are composed of atomic expressions and operators.	 Atomic
+  expressions can be variable names, literal constants (integers, reals,
+  imaginary constants, characters, array constructors, and strings),
+  function calls, or array references. Operators usually obey the
+  precedence rules in other programming	languages where	possible. The
+  operators are, from lowest to	highest	precedence:
+
+
+
+  Operators	  Associativity	      Meaning
+  ---------	  -------------	      -------
+  :		  non-associative     Vector creation
+  ||		  left		      Logical OR
+  &&		  left		      Logical AND
+  == !=		  left		      Equality and nonequality
+  > >= < <=	  left		      Greater than etc.
+  + -		  left		      Addition and subtraction
+  * ** / mod	  left		      Pointwise	multiplication,
+					matrix multiplication,
+					pointwise division,
+					modulus	operation
+  - +		  non-associative     Unary minus and plus
+  ^		  right		      Exponentiation
+  !		  non-associative     Logical NOT
+  \Z'\h'(u;\w'x'-\w'''/2)'''.ec
+
+
+
+  In Fortran, the operator \fB**\fR would be exponentiation, in	Tela it
+  is matrix multiplication. In C \fB^\fR would be logical XOR, in Tela
+  it is	exponentiation.	In Matlab \fB*\fR denotes matrix multiplication
+  and \fB.*\fR pointwise multiplication, in Tela \fB*\fR is pointwise
+  multiplication and \fB**\fR is the matrix product. There are no matrix
+  power	and division operators in Tela as there	are in Matlab. The
+  equivalent of	matrix division	in Tela	is the function	\fBlinsolve\fR.
+  The vector creation operator uses the	notation \fBa:step:b\fR, which
+  follows the Matlab convention. In Fortran-90 the step	is the last
+  member, \fBa:b:step\fR. The set of operators is the same as in C, with
+  the addition of vector creation, matrix multiplication, modulus,
+  exponentiation, transpose and	Hermitian transpose operators. These
+  additional operators follow Matlab conventions except	for the
+  difference in	pointwise and matrix nature of multiplication.
+
+
+  \*[SN] \*h
+
+
+
+
+
+
+
+
+
+
+
+

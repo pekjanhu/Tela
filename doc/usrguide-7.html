@@ -1,0 +1,65 @@
+<title>Interfacing issues</title>
+<h1>7 <a name="s7"> Interfacing issues Here we explain the main mechanisms to communicate with other programsand data files from Tela. How to extend Tela by your own C/C++functions has been explained in the previous section.</h1>
+<p> <a href="usrguide.html#toc7"> Contents of this section</a></p>
+
+<h2>7.1 <A Name="ss7.1"> Matlab interfacing </h2>
+
+<p></p>
+<p>There are three principal mechanisms to use Tela together with Matlab.</p>
+<p>You can import and export Matlab binary files to and from Tela using
+the <b>import</b>, <b>import1</b>, <b>export_matlab</b> commands.  Also
+Matlab-readable plain ASCII files can be read by <b>import1</b>.  Even
+all your workspace variables can be exported or imported easily in
+binary form. That is, Tela has the same functionality as two separate
+Matlab processes would have.</p>
+<p>It is possible to translate your Matlab scripts and M-files to Tela
+language.  A translator program <b>m2t</b> exists for this purpose.
+See <b>man m2t</b> for details.</p>
+<p>If you have the <b>matlabeng.ct</b> module linked within Tela, you can
+call Matlab functions and evaluate strings as Matlab commands at run
+time. To enable this, there is function <b>matlab_start</b>, which starts
+Matlab in the background and sets up necessary communication links.
+This is a good aid in development phase if e.g. some important function
+is missing in Tela. You can borrow it from Matlab.</p>
+<p></p>
+
+<h2>7.2 <A Name="ss7.2"> HDF interfacing </h2>
+
+<p></p>
+<p>Tela's native binary format is the HDF (Hierarchical Data Format from
+Univ. Illinois/NCSA) format. HDF files created with the <b>save</b> command
+can be read by various programs supporting HDF, for example Spyglass
+tool programs and IDL. The <b>import</b> command can also read many other
+types of HDF files meaningfully. The function <b>export_RIS8</b> exports
+8-bit raster image sets in HDF format.</p>
+<p></p>
+
+<h2>7.3 <A Name="ss7.3"> ASCII files </h2>
+
+<p></p>
+<p>Generic ASCII files can be read by the <b>import1</b> command.
+Multidimensional datasets can also be read by inserting the size
+information on the first line in a simple format (see <b>help
+import1</b>). ASCII files can be written using the <b>fformat</b> and
+<b>fprintf</b> functions.</p>
+<p></p>
+
+<h2>7.4 <A Name="ss7.4"> Graphics formats </h2>
+
+<p></p>
+<p>The <b>PlotMTV</b> program is responsible for the graphics.  It will
+save the image in PostScript file if you click the appropriate
+button. In <b>PlotMTV1.4.1t</b> and later you can also save the image as
+a GIF (Graphics Interchange Format) file by pressing another
+button. When the main PlotMTV window has been divided in several data
+windows, pressing the GIF button will include all data windows in the
+file. Pressing Shift-G under these circumstances will include only the
+current data window. The GIF saving will work properly only if the
+whole window is visible on your workstation screen (or in the
+virtual screen, i.e. it must be in video-RAM).</p>
+<p></p>
+
+<p><a href="usrguide-8.html"> Next </a> Chapter, <a href="usrguide-6.html"> Previous </a> Chapter</p><p>Table of contents of <a href="usrguide.html#toc7">this chapter</a>,
+ General <a href="usrguide.html#toc">table of contents</a></p>
+<p><a href="usrguide.html"> Top </a> of the document,
+ <a href="#0"> Beginning of this Chapter</a></p>

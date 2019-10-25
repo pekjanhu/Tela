@@ -1,0 +1,1146 @@
+% refcard.tex
+%
+% compile:
+%         tex refcard.tex
+% view:
+%         xdvi -paper a4r -s 6 -expert refcard.dvi
+% convert:
+%         dvips -t landscape -o refcard.ps refcard.dvi
+%
+\def\refcardsize{a4}
+%
+% This file is TeX source for a reference card describing Tela.
+%
+% Christoph L. Spiel
+% cspiel@hammersmith-consulting.com
+% Hammersmith Consulting
+%
+% Heavily modified by jwe from the source for the gdb reference card,
+% which was orignally written by Roland Pesch <pesch@cygnus.com>.
+%
+%   Copyright (C) 1991, 1992 Free Software Foundation, Inc.
+%   Permission is granted to make and distribute verbatim copies of
+%   this reference provided the copyright notices and permission notices
+%   are preserved on all copies.
+%
+% TeX markup is a programming language; accordingly this file is source
+% for a program to generate a reference.
+%
+% This program is free software; you can redistribute it and/or modify
+% it under the terms of the GNU General Public License as published by
+% the Free Software Foundation; either version 2, or (at your option)
+% any later version.
+%
+% This program is distributed in the hope that it will be useful, but
+% WITHOUT ANY WARRANTY; without even the implied warranty of
+% MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+% General Public License for more details.
+%
+% You can find a copy of the GNU General Public License in the GDB
+% manual; or write to the Free Software Foundation, Inc.,
+% 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+%
+% You only have to set the total width and height of the paper, the
+% horizontal and vertical margin space measured from *paper edge*
+% and the interline and interspec spacing.
+% In order to support a new papersize, you have to fiddle with the
+% latter four dimensions. Just try out a few values.
+% All other values will be computed at process time so it should be
+% quite easy to support different paper sizes - only four values to
+% guess :-)
+%
+% To find the configuration places, just search for the string
+% "User configuration".
+%
+%   -- Andreas Vogel (av@ssw.de)
+%
+\def\telaversion{1.32}
+\def\refcardedition{1.2}
+
+% ------------------
+% multicolumn format
+% ------------------
+
+% Declarations (these must come first)
+
+\newdimen\totalwidth
+\newdimen\totalheight
+\newdimen\hmargin
+\newdimen\vmargin
+\newdimen\secskip
+\newdimen\lskip
+\newdimen\barwidth
+\newdimen\barheight
+\newdimen\intersecwidth
+
+\newcount\columnsperpage
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%                                                                     %
+% CONFIGURATION                                                       %
+%                                                                     %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% There are currently 8 total columns, so some of these options will
+% not create a single page reference card.
+
+% Choose a paper size.  Default is US letter size.
+
+\def\refcardafoursize{a4}      % 3 columns, A4 paper (1 in = 254 mm)
+\def\refcardlegalsize{legal}   % 4 columns, US legal paper (8.5 x 14in)
+\def\refcardlettersize{letter} % 3 columns, US letter paper (8.5 x 14in)
+
+\ifx\refcardsize\refcardafoursize
+  \columnsperpage=3     % total number of columns to typeset
+  \totalwidth=297mm     % total width of paper
+  \totalheight=210mm    % total height of paper
+  \hmargin=9mm          % horizontal margin width
+  \vmargin=7mm          % vertical margin width
+  \secskip=3mm          % space between refcard secs
+  \lskip=0.4mm          % extra skip between \sec entries
+\else
+  \ifx\refcardsize\refcardlegalsize
+    \columnsperpage=4   % total number of columns to typeset
+    \totalwidth=14in    % total width of paper
+    \totalheight=8.5in  % total height of paper
+    \hmargin=0.20in     % horizontal margin width
+    \vmargin=0.25in     % vertical margin width
+    \secskip=0.75pc     % space between refcard secs
+    \lskip=2pt          % extra skip between \sec entries
+  \else
+    \columnsperpage=3   % total number of columns to typeset
+    \totalwidth=11in    % total width of paper
+    \totalheight=8.5in  % total height of paper
+    \hmargin=0.25in     % horizontal margin width
+    \vmargin=0.25in     % vertical margin width
+    \secskip=0.75pc     % space between refcard secs
+    \lskip=2pt          % extra skip between \sec entries
+  \fi
+\fi
+
+% Change according to personal taste, not papersize dependent.
+
+\barwidth=.1pt       % width of the cropmark bar
+\barheight=2pt       % height of the cropmark bar
+\intersecwidth=0.5em % width between \itmwid and \dfnwid
+
+% Uncomment only one of the following definitions for folding guides.
+
+% No printed folding guide:
+
+%\def\vdecor{\hskip\hmargin plus1fil
+%  \hskip\barwidth plus1fil
+%  \hskip\hmargin plus1fil}
+
+% Solid line folding guide:
+
+%\def\vdecor{\hskip\hmargin plus1fil%
+%  \vrule width \barwidth%
+%  \hskip\hmargin plus1fil}
+
+% For small marks near top and bottom as folding guide:
+
+\def\vdecor{\hskip\hmargin plus1fil%
+  \vbox to \vsize{\hbox to \barwidth{\vrule height\barheight width\barwidth}%
+  \vfill
+  \hbox to \barwidth{\vrule height\barheight width\barwidth}}%
+  \hskip\hmargin plus1fil}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%                                                                      %
+% END CONFIGURATION                                                    %
+%                                                                      %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% values to be computed based on above definitions.
+% nothing to configure
+
+\newdimen\fullhsize          % width of area without margins
+\newdimen\itmwid             % width of item column
+\newdimen\dfnwid             % width of definition column
+\newdimen\idnwid             % width of indented text
+\newdimen\temp               % only for temporary use
+
+% an alternate section format, used in some cases to make text fit better.
+
+\newdimen\altitmwid        % width of item column in altsec
+\newdimen\altdfnwid        % width of definition column in altsec
+
+% Subtract hmargin for left and right sides of paper from full width.
+%
+%   fullhsize = totalwidth - (2 * hmargin)
+
+\fullhsize=\totalwidth
+\temp=\hmargin
+\multiply \temp by 2
+\advance \fullhsize by -\temp
+
+% intercolumn space is composed of hmargin barwidth hmargin so that we
+% get the same amount of space on either side of the (optional) rule
+% between columns.  For N columns, we need to subtract this amount of
+% space N-1 times.  Divide by the number of columns to get the final
+% value of \hsize that we use to typeset columns.
+
+% hsize = (fullhsize - (ncols-1)*barwidth - 2*(ncols-1)*hmargin) / ncols
+
+\newcount\tmpcnt
+\tmpcnt\columnsperpage
+\advance \tmpcnt by -1
+
+\hsize=\fullhsize
+
+\temp=\barwidth
+\multiply \temp by \tmpcnt
+\advance \hsize by -\temp
+
+\multiply \tmpcnt by 2
+
+\temp=\hmargin
+\multiply \temp by \tmpcnt
+\advance \hsize by -\temp
+
+\divide \hsize by \columnsperpage
+
+% Vertical size is easy -- same amount of space above and below.
+%
+%   vsize = totalheight - (2 * vmargin)
+
+\vsize=\totalheight
+\temp=\vmargin
+\multiply \temp by 2
+\advance \vsize by -\temp
+
+% adjust the offsets so the margins are measured *from paper edge*
+
+\hoffset=-1in \advance \hoffset by \hmargin
+\voffset=-1in \advance \voffset by \vmargin
+
+% Width of items in a section.
+
+% itmwid = (hsize - intersecwidth) * 1/3
+% dfnwid = (hsize - intersecwidth) * 2/3
+
+% width of the item
+
+\temp=\hsize
+\advance \temp by -\intersecwidth
+\divide \temp by 3
+\itmwid=\temp
+
+% width of the corresponding definition
+
+\dfnwid=\hsize
+\advance \dfnwid by -\itmwid
+
+% indentation for sub items, etc.
+
+\temp=\hsize \advance\temp by -1em
+\idnwid=\temp
+
+% Width of items in an alt section.
+
+\altitmwid=\itmwid \advance \altitmwid by 0.35in
+\altdfnwid=\dfnwid \advance \altdfnwid by -0.35in
+
+% Output macros.
+%
+% Strategy:
+%
+%   * set each column in a box
+%   * append new columns in a global `holding' box, inserting
+%     intercolumn decorations as necessary.
+%   * when we fill a page, dump the saved box and the latest column,
+%     separated by the intercolumn decoration.
+
+\newbox\holdbox
+\newcount\colno
+\colno=0
+
+\output={\relax
+  \global\advance\colno by 1
+  \ifnum\colno=1
+    \global\setbox\holdbox=\columnbox
+  \else
+    \ifnum\colno=\columnsperpage
+      \shipout\hbox to \fullhsize{\box\holdbox\vdecor\columnbox}
+      \advancepageno
+      \global\colno=0
+    \else
+      \global\setbox\holdbox=\vbox{\hbox{\box\holdbox\vdecor\columnbox}}
+    \fi
+  \fi}
+
+\def\columnbox{\leftline{\pagebody}}
+
+\def\bye{\par\vfill
+  \supereject
+  \if R\lcr \null\vfill\eject \fi
+  \end}
+
+% -----
+% Fonts
+% -----
+
+\font\bbf=cmbx10
+\font\vbbf=cmbx12
+\font\smrm=cmr6
+\font\brm=cmr10
+\font\rm=cmr7
+\font\it=cmti7
+\font\tt=cmtt8
+
+\font\tenrm=cmr7 % roman
+\font\teni=cmmi7 % math italic
+\font\tensy=cmsy7 % math symbols
+\font\tenex=cmex7 % math extension
+
+\font\sevenrm=cmr5 % roman
+\font\seveni=cmmi5 % math italic
+\font\sevensy=cmsy5 % math symbols
+\font\sevenex=cmex5 % math extension
+
+\textfont0=\tenrm \scriptfont0=\sevenrm% \scriptscriptfont0=\fiverm
+\textfont1=\teni \scriptfont1=\seveni% \scriptscriptfont1=\fivei
+\textfont2=\tensy \scriptfont2=\sevensy% \scriptscriptfont2=\fivesy
+\textfont3=\tenex \scriptfont3=\tenex% \scriptscriptfont3=\tenex
+
+% We can afford to allow some slop
+
+\hfuzz=1pt
+\vfuzz=1pt
+\hyphenpenalty=5000
+\tolerance=2000
+\raggedright
+\raggedbottom
+\normalbaselineskip=9pt
+\baselineskip=9pt
+
+\parindent=0pt
+\parskip=0pt
+\footline={\vbox to0pt{\hss}}
+
+\def\ctl#1{{\tt C-#1}}
+\def\opt#1{{\brm[{\rm #1}]}}
+\def\xtra#1{\noalign{\smallskip{\tt#1}}}
+
+% A normal section
+
+\long\def\sec#1;#2\endsec{\vskip \secskip
+  \halign{%
+%
+% column 1 (of halign):
+%
+    \vtop{\hsize=\itmwid\tt ##\par\vskip \lskip }\hfil
+%
+% column 2 (of halign):
+%
+    &\vtop{%
+      \hsize=\dfnwid
+      \hangafter=1
+      \hangindent=\intersecwidth
+      \rm ##\par\vskip \lskip}\cr
+%
+% Tail of \long\def fills in halign body with \sec args:
+%
+    \noalign{{\bbf #1}%
+      \vskip \lskip}
+    #2}}
+
+\long\def\widesec#1;#2\endsec{\vskip \secskip
+  \halign{%
+%
+% column 1 (of halign):
+%
+    \vbox{\tt
+      ##\par\vskip \lskip }\cr
+%
+% Tail of \long\def fills in halign body with \sec args:
+%
+      \noalign{{\bbf #1}\vskip 3\lskip}
+    #2}}
+
+% an alternate section format, used in some cases to make text fit better.
+
+\long\def\altsec#1;#2\endsec{\vskip \secskip
+  \halign{%
+%
+% column 1 (of halign):
+%
+    \vtop{\hsize=\altitmwid\tt
+      ##\par\vskip \lskip}\hfil
+%
+% column 2 (of halign):
+%
+    &\vtop{%
+      \hsize=\altdfnwid
+      \hangafter=1
+      \hangindent=\intersecwidth
+      \rm ##\par\vskip \lskip}\cr
+%
+% Tail of \long\def fills in halign body with \sec args:
+%
+    \noalign{{\bbf #1}\vskip \lskip}
+    #2}}
+
+% -------------------------------------
+% The actual text of the reference card
+% -------------------------------------
+
+
+{\vbbf Tela Quick Reference}\hfil{\smrm Tela Version \telaversion}\qquad
+
+
+\sec Starting Tela;
+tela            & start interactive Tela session\cr
+tela {\it file} & run Tela on commands in {\it file}\cr
+tela --help     & describe command line options\cr
+\endsec
+
+
+\sec Stopping Tela;
+quit() {\rm or} exit()  & quit Tela\cr
+TERMINATE               & ({\it e.g.} \ctl{d}) quit Tela\cr
+INTERRUPT               & ({\it e.g.} \ctl{c}) terminate current
+                          command and return to top-level prompt\cr
+\endsec
+
+\sec Getting Help;
+help                    & help on help\cr
+help {\it command} {\rm or} ?{\it command}
+                        & describe {\it command}\cr
+\endsec
+
+
+\sec Command-Line Cursor Motion;
+C-b     & move back one character\cr
+C-f     & move forward one character\cr
+C-a     & move the the start of the line\cr
+C-e     & move to the end of the line\cr
+M-f     & move forward a word\cr
+M-b     & move backward a word\cr
+C-l     & clear screen, reprinting current line at top\cr
+\endsec
+
+\sec Inserting or Changing Text;
+M-TAB   & insert a tab character\cr
+DEL     & delete character to the left of the cursor\cr
+C-d     & delete character under the cursor\cr
+C-v     & add the next character verbatim\cr
+C-t     & transpose characters at the point\cr
+M-t     & transpose words at the point\cr
+M-u     & uppercase the current word\cr
+M-l     & lowercase the current word\cr
+M-c     & capitalize the current word\cr
+\endsec
+
+\sec Killing and Yanking;
+C-k     & kill to the end of the line\cr
+C-y     & yank the most recently killed text\cr
+M-d     & kill to the end of the current word\cr
+M-DEL   & kill the word behind the cursor\cr
+M-y     & rotate the kill ring and yank the new top\cr
+\endsec
+
+\sec Command Completion and History;
+TAB     & complete a command, file, or variable name\cr
+M-?     & list possible completions\cr
+RET     & enter the current line \cr
+C-p     & move `up' through the history list\cr
+C-n     & move `down' through the history list\cr
+M-<     & move to the first line in the history\cr
+M->     & move to the last line in the history\cr
+C-r     & search backward in the history list\cr
+C-s     & search forward in the history list\cr
+\endsec
+
+
+\vfill
+\line{\smrm \opt{ } surround optional arguments
+  \hfill ... show one or more arguments}
+\vskip0.25\baselineskip
+\centerline{\smrm Copyright 2001 Christoph L. Spiel\qquad Permissions on back}
+\eject
+
+
+\sec Shell Commands;
+cd({\it dir})                   & change working directory to {\it dir}\cr
+% missing: ls \opt{{\it         options}}  & print directory listing\cr
+getenv({\it envvar})            & return value of named environment variable\cr
+putenv({\it name}, {\it val})   & set environment variable\cr
+{\it pid} = getpid()            & get id of Tela process\cr
+{\it out} = run({\it cmd}, {\it in}) & run command~{\it cmd\/} as filter on
+                                  {\it in}\cr
+{\it rv} = system({\it cmd})    & execute arbitrary shell command string;
+                                  retrieve return value~{\it rv}\cr
+!{\it cmd}                      & execute arbitrary shell command string\cr
+%                                  (interactive mode only, ``{\tt !}'' must be
+%                                  first non-white character on the line)\cr
+\endsec
+
+
+\widesec Tensors;
+\hfill\vbox{\hsize=\idnwid\rm\vskip0.25ex
+  Parenthesis, preceded by a sharp-sign delimit literal tensors.  Commas
+  separate elements along the same dimension.  Semicolons construct higher
+  order tensors out of lower order ones.  Elements of a tensor, in this
+  notation, may be arbitrary expressions, provided that all dimensions
+  agree.}\cr\cr
+\#({\it x1}, {\it x2}, ...)\cr
+\hfill\vbox{\hsize=\idnwid\rm\vskip0.25ex
+  enter a vector}\cr
+\#({\it x11}, {\it x12}; {\it x21}, {\it x22})\cr
+\hfill\vbox{\hsize=\idnwid\rm\vskip0.25ex
+  enter a $2 \times 2$ matrix}\cr
+\#(\#({\it x111}, {\it x112}; {\it x121}, {\it x122}); \#({\it x211}, {\it x212}; {\it x221}, {\it x222}))\cr
+\hfill\vbox{\hsize=\idnwid\rm\vskip0.25ex
+  enter a $2 \times 2 \times 2$ tensor}\cr
+\endsec
+
+
+\sec Ranges;
+%{\it base} : {\it limit}\cr
+{\it base} : {\it incr} : {\it limit}\cr
+\omit\hfill\vbox{\hsize=\idnwid\rm\vskip0.75ex
+  Specify a range (monotonic vector) of values beginning with {\it base\/}
+  with no elements larger than {\it limit}.  If it is omitted, the default
+  value of {\it incr\/} is 1.}\span\cr
+\endsec
+
+
+\sec Strings and Common Escape Sequences;
+\omit\vbox{\rm\vskip0.5ex
+  A {\it string constant\/} consists of a sequence of characters enclosed
+  double-quote marks.  Single characters are enclosed in single-quote
+  marks.\vskip0.75ex}\span\cr
+% Single quotes within strings are not escaped by a backslash.
+
+\char'134\char'134      & a literal backslash\cr
+\char'134 "             & a literal double-quote character\cr
+\char'134 n             & newline, ASCII code~10\cr
+\char'134 t             & horizontal tab, ASCII code~9\cr
+\endsec
+
+
+\sec Index Expressions;
+\omit\vbox{\rm\vskip0.5ex
+  The lowest index always is 1.  Square brackets denote the tensor product of
+  the index expressions.  Surrounding square brackets by angle brackets
+  applies mapped indexing.\vskip0.75ex}\span\cr
+
+{\it var}[{\it idx}]                    & select elements of a vector\cr
+{\it var}[{\it idx1}, {\it idx2}]       & select elements of a matrix\cr
+{\it var}[{\it idx1}, {\it idx2}, ..., {\it idxN}]
+                                        & select elements of a tensor\cr
+
+{\it var}<[{\it idx}]>                  & select elements of a vector\cr
+{\it var}<[{\it idx1}, {\it idx2}]>     & select elements of a matrix\cr
+{\it var}<[{\it idx1}, {\it idx2}, ..., {\it idxN}]>
+                                        & select elements of a tensor\cr
+\omit\vbox{\rm\vskip0.5ex
+  {\it idx} is one of the following:}\span\cr
+\quad {\it scalar}      & select row (column) corresponding to {\it scalar}\cr
+\quad {\it vector}      & select rows (columns) corresponding to the elements
+                          of {\it vector}\cr
+\quad {\it range}       & select rows (columns) corresponding to the elements
+                          of {\it range}\cr
+\quad :                 & select all rows (columns)\cr
+\endsec
+
+
+\vfill\eject
+
+
+\sec Modules;
+package {\it mod\_name}         & start a new package\cr
+global({\it var1, ...})         & mark variables for export\cr
+source({\it t\_file})           & load module or Tela file\cr
+\endsec
+
+
+\sec Complex Numbers;
+\omit\vbox{\rm\vskip0.5ex
+  Literal complex numbers are entered by appending a lowercase ``i'' or ``j''
+  to a real number.\vskip0.75ex}\span\cr
+
+Re({\it z})     & real part\cr
+Im({\it z})     & imaginary part\cr
+arg({\it z})    & argument, $-\pi \le {\rm arg}({\it z}) \le \pi$\cr
+conj({\it z})   & conjugate complex\cr
+\endsec
+
+\sec Selected Built-in Variables;
+Inf     & IEEE infinity\cr
+% missing: Nan
+eps     & machine precision\cr
+pi      & $\pi$\cr
+% missing: realmax & maximum representable value\cr
+% missing: realmin & minimum representable value\cr
+% intmax?
+% intmin?
+\endsec
+
+
+\sec Arithmetic and Increment Operators;
+{\it x} + {\it y}                       & addition\cr
+{\it x} - {\it y}                       & subtraction\cr
+{\it x} * {\it y}                       & element by element multiplication\cr
+{\it x} ** {\it y}                      & matrix product\cr% also: matmul
+{\it x} / {\it y}                       & element by element right division\cr
+{\it x} mod {\it y}                     & remainder of division\cr
+{\it x} \char'136{} {\it y}             & element by element power operator\cr
++{\it x}                                & unary plus (a no-operation)\cr
+-{\it x}                                & unary minus\cr
+{\it x}.'                               & transpose\cr
+{\it x}'                                & Hermitian transpose\cr
+\endsec
+
+
+\sec Assignment Expressions;
+{\it var} = {\it expr}              & assign expression to variable\cr
+{\it var}[{\it idx}] = {\it expr}   & assign expression to indexed
+                                      variable\cr
+{\it var}<[{\it idx}]> = {\it expr} & assign expression to mapped-indexed
+                                      variable\cr
+{\it x}++\quad {\rm(}{\it x}--{\rm)}& increment (decrement) {\it x},
+                                      return {\it old\/} value\cr
+\endsec
+
+
+\sec Comparison and Boolean Operators;
+\omit \vbox{\rm\vskip0.75ex
+  These operators work on an element-by-element basis.  Both arguments
+  are always evaluated.\vskip0.75ex}\span\cr
+
+{\it x} < {\it y}       & true if {\it x\/} is less than {\it y}\cr
+{\it x} <= {\it y}      & true if {\it x\/} is less than or equal to {\it y}\cr
+{\it x} == {\it y}      & true if {\it x\/} is equal to {\it y}\cr
+{\it x} >= {\it y}      & true if {\it x\/} is greater than or equal to
+                          {\it y}\cr
+{\it x} > {\it y}       & true if {\it x\/} is greater than {\it y}\cr
+{\it x} != {\it y}      & true if {\it x\/} is not equal to {\it y}\cr
+{\it x} \&\& {\it y}    & true if both {\it x\/} and {\it y\/} are true\cr
+{\it x} || {\it y}      & true if at least one of {\it x\/} or {\it y\/} is
+                          true\cr 
+!{\it bool}             & true if {\it bool\/} is false\cr
+\endsec
+
+
+\vfill\eject
+
+
+\sec Operator Precedence;
+\omit \vbox{\rm\vskip0.5ex
+  Here is a table of the operators in Tela, in order of increasing
+  precedence.\vskip0.75ex}\span\cr
+;                       & dimension separator in array construction, statement
+                          separator\cr
+,                       & element separator in array construction\cr
+=                       & assignment, groups left to right\cr
+:                       & range generation, e.g. {\tt 1:10},
+                          {\tt -5:2.3:7.1}\cr%no assoc
+||                      & logical ``or''\cr
+\&\&                    & logical ``and''\cr
+==\ \ !=                & equality and inequality\cr
+<\ \ <=\ \ >=\ \  >     & relational operators\cr
++\ \ -                  & addition and subtraction\cr
+*\ \ /\ \ mod\ \ **     & multiplication, division, modulus, and matrix
+                          multiplication\cr
++\ \ -                  & unary plus and minus\cr
+\char'136               & exponentiation\cr
+.'\ \ '                 & transpose and Hermitian transpose\cr
+!                       & logical ``not''\cr
+\omit \vbox{\rm\vskip0.5ex
+  Note that ``{\tt ++}'' and ``{\tt --}'' are statements, not
+  operators.\vskip0.75ex}\span\cr
+\endsec
+
+
+\widesec Blocks and Statements;
+\char'173\hskip0.2em\opt{{\it statement}}
+    \opt{; {\it statement}}\hskip0.2em\char'175\cr
+\hfill\vbox{\hsize=\idnwid\rm\vskip0.25ex
+  Statement block;  valid wherever a single statement is valid}\cr\cr
+%
+for(\opt{{\it init-stmt}}; {\it cont-cond-expr}; \opt{{\it upd-stmt}})
+    \opt{{\it body-stmt}}\cr
+\hfill\vbox{\hsize=\idnwid\rm\vskip0.25ex
+  Like C's {\tt for}, except that {\it init-stmt} and {\it upd-stmt} are
+  statements, not expressions}\cr\cr
+%
+repeat {\it statement-sequence} until {\it expr}\cr
+\hfill\vbox{\hsize=\idnwid\rm\vskip0.25ex
+  Execute {\it statement-sequence} until {\it expr} evaluates to
+  non-zero}\cr\cr
+%
+while ({\it expr}) {\it statement}\cr
+\hfill\vbox{\hsize=\idnwid\rm\vskip0.25ex
+  Test {\it expr}, if it is non-zero, execute {\it statement}.  Repeat until
+  {\it expr} becomes zero.}\cr\cr
+%
+if ({\it expr}) {\it if-stmt} \opt{{\tt else} {\it else-stmt}}\cr
+\hfill\vbox{\hsize=\idnwid\rm\vskip0.25ex
+  Execute {\it if-stmt} if {\it expr} is non-zero, otherwise execute {\it
+  else-stmt}.}\cr\cr
+%
+\hbox{\vtop{\hsize=\itmwid\tt return}
+  \vtop{\hsize=\dfnwid\rm return to calling function}}\cr
+%
+\hbox{\vtop{\hsize=\itmwid\tt break}
+  \vtop{\hsize=\dfnwid\rm exit innermost loop}}\cr
+%
+\hbox{\vtop{\hsize=\itmwid\tt continue}
+  \vtop{\hsize=\dfnwid\rm go to beginning of innermost loop}}\cr
+\endsec
+%--%
+%--\hbox{\vtop{\hsize=\itmwid\tt goto {\it label}}
+%--  \vtop{\hsize=\dfnwid\rm continue at {\it label}}}\cr
+%--%
+%--\hbox{\vtop{\hsize=\itmwid\tt label {\it label}}
+%--  \vtop{\hsize=\dfnwid\rm mark position with {\it label}}}\cr
+%--\endsec
+
+
+\widesec Defining Functions;
+function \opt{{\it ret-list} =} {\it function-name}
+  (\opt{\hskip0.2em{\it arg-list}\hskip0.2em})\cr
+  \quad\opt{{\it inport-export-declaration}}\cr
+  \quad\char'173\hskip0.2em{\it function-body}\hskip0.2em\char'175\cr\cr
+{\rm {\it ret-list\/} may be a single identifier or a comma-separated
+  list of identifiers delimited by square-brackets.  {\it arg-list\/} is a
+  comma-separated list of identifiers and may be empty.  If a semi-colon is
+  substituted for a comma in either {\it ret-list\/} or {\it arg-list\/} all
+  arguments before the semi-colons are mandatory, arguments after them are
+  optional.  By default all input arguments are mandatory and all output
+  arguments are optional.}\cr
+{\rm {\it inport-export-declaration} is {\tt local({\it var1, ...})},
+  {\tt global({\it var1, ...})}, or just {\tt global}.}\cr
+\endsec
+
+
+\vfill\eject
+
+
+\sec Basic Matrix Generation;
+\omit \vbox{\rm\vskip0.5ex
+  All matrix generating function take either all dimensions as separate
+  arguments (e.g. {\tt zeros(2, 3, 2)}), or as a single vector argument
+  (e.g. {\tt zeros(\#(2 , 3, 2))}).\vskip0.75ex}\span\cr
+diag ({\it v} \opt{, {\it n}})  & create diagonal matrix out of vector, or
+                                  extract diagonal of matrix.  {\it n} selects
+                                  the {\it n}-th super- or sub-diagonal.\cr
+eye({\it n}, {\it m})           & create {\it n\/} by {\it m\/} identity
+                                  matrix\cr
+ones({\it n}, ...)              & create {\it n\/} by ... tensor of ones\cr
+zeros({\it n}, ...)
+rzeros({\it n}, ...)            & create {\it n\/} by ... tensor of real
+                                  zeros\cr
+izeros({\it n}, ...)            & create {\it n\/} by ... tensor of
+                                  integer zeros\cr
+czeros({\it n}, ...)            & create {\it n\/} by ... tensor of
+                                  complex zeros\cr
+rand({\it n}, ...)              & create {\it n\/} by ... tensor of
+                                  random values\cr 
+\endsec
+
+
+\altsec Basic Matrix Manipulations;
+all({\it a})                    & check if all elements of {\it a\/}
+                                  non-zero\cr
+any({\it a})                    & check if any elements of {\it a\/}
+                                  non-zero\cr
+find({\it a})                   & return indices of non-zero elements\cr
+map({\it f}, {\it a}, {\it d})  & map function~{\it f} along dimension~{\it d}
+                                  of matrix~{\it a}\cr
+mapmax({\it a} \opt{, {\it d}}) & find maximum of {\it a} along
+                                    dimension~{\it d}\cr
+mapmin({\it a} \opt{, {\it d}}) & find minimum of {\it a} along
+                                    dimension~{\it d}\cr
+[{\it b} \opt{, {\it p}}] = sort({\it a} \opt{, {\it f}})
+                                & order elements of {\it a} according to
+                                  order function {\it f}\cr
+sum({\it a} \opt{, {\it d}})    & sum elements of {\it a}.  If {\it d} is
+                                  given, sum along dimension~{\it d}\cr
+prod({\it a} \opt{, {\it d}})   & multiply elements of {\it a}.  If {\it d}
+                                  is given, multiply along dimension~{\it d}\cr
+cumsum({\it a})                 & array of partial sums\cr
+cumprod({\it a})                & array of partial products\cr
+min({\it args})                 & find minimum values\cr
+max({\it args})                 & find maximum values\cr\cr
+reshape({\it a}, {\it m}, {\it n}, ...)
+                                & reformat {\it a} to be an {\it m} by
+                                  {\it n} by ... tensor\cr
+flatten({\it a})                & reformat {\it a} to a vector;
+                                  {\tt {\it a} = flatten()} flattens {\it a}
+                                  in place\cr
+flip({\it a} \opt{, {\it d}})   & reverse {\it a} along dimension~{\it d}
+                                  $(= 1)$\cr
+transpose({\it a}
+    \opt{, {\it perm}})         & real transposition; indices permuted
+                                  according to {\it perm}\cr
+herm({\it a}
+    \opt{, {\it perm}})         & Hermitian conjugation;  indices permuted
+                                  according to {\it perm}\cr
+\endsec
+
+
+\sec Arithmetic Functions;
+abs({\it a})                    & absolute value\cr
+abs2({\it a})                   & square of absolute value\cr
+sign({\it a})                   & sign function\cr
+HeavisideTheta({\it a})         & unit step function\cr
+floor({\it a})                  & largest integer which is smaller than
+                                  {\it a}\cr
+ceil({\it a})                   & smallest integer which is larger than
+                                  {\it a}\cr
+round({\it a})                  & round to nearest integer\cr
+\endsec
+
+
+\vfill\eject
+
+
+\sec Transcendental Functions;
+sqrt({\it a})                   & square root\cr
+exp({\it a}) log({\it a})       & exponential and logarithm\cr
+sin({\it a}) cos({\it a})
+tan({\it a}) cot({\it a})
+sec({\it a}) csc({\it a})       & trigonometric functions\cr
+asin({\it a}) acos({\it a})
+atan({\it a})                   & inverse trigonometric functions\cr
+sinh({\it a}) cosh({\it a})
+tanh({\it a})                   & hyperbolic trig functions\cr
+asinh({\it a}) acosh({\it a})
+atanh({\it a})                  & inverse hyperbolic trig functions\cr
+atan2({\it x}, {\it y})         & four-quadrant arctangent\cr
+\endsec
+
+
+\altsec Size Inquiry;
+rank({\it a})                           & rank of tensor~{\it a}\cr
+[{\it n} \opt{, ...}] = size({\it a})   & dimensions of tensor~{\it a}\cr
+{\it v} = size({\it a})                 & dimension vector of tensor~{\it a}\cr
+length({\it a})                         & total number of elements in 
+                                          {\it a}\cr
+\endsec
+
+
+\altsec Linear Algebra;
+{\it y} = axpy($\alpha$, {\it x})& $y = y + \alpha x$ for scalar $\alpha$ and
+                                  arrays {\it x} and {\it y}\cr
+matprod({\it a}, {\it b} \opt{, {\it fa} \opt{, {\it fb}}})
+                                & matrix product, {\it fa} or {\it fb} are
+                                  'n': no operation, 't': transpose, or
+                                  'h': Hermitian conjugate\cr
+{\it x} = linsolve({\it a}, {\it b})
+                                & solve linear equations $a x = b$\cr
+[{\it l}, {\it u}, {\it p}] = LU({\it a})
+                                & computes the LU factorization\cr
+[{\it lu} \opt{, {\it p}}] = LU({\it a})
+                                & LU factorization, {\it l}, {\it u} packed
+                                  into one matrix~{\it lu}\cr
+{\it x} = LUbacksubst({\it lu}, {\it p}, {\it b})
+                                & solve linear equations $p\;lu\;x = b$\cr
+chol({\it a})                   & Cholesky factorization\cr
+det({\it a})                    & compute determinant\cr
+[{\it d} \opt{, {\it v}}] = eig({\it a})   
+                                & eigenvalues~{\it d} and right
+                                  eigenvectors~{\it v}\cr
+% missing: expm({\it a})          & compute the exponential of a matrix\cr
+% missinb: hess({\it a})          & compute Hessenberg decomposition\cr
+inv({\it a})                    & invert square matrix\cr
+% missing: norm({\it a}, {\it p}) & compute the {\it p}-norm of a matrix\cr
+% missing: pinv({\it a})          & compute pseudoinverse of {\it a}\cr
+% missing: qr({\it a})            & compute the QR factorization of a matrix\cr
+% does something different in Tela: rank({\it a}) & matrix rank\cr
+% missing: schur({\it a})         & Schur decomposition of a matrix\cr
+[u, s, v] = SVD({\it a})          & singular value decomposition\cr
+s = SVD({\it a})                  & singular values\cr
+% missing: syl({\it a}, {\it b}, {\it c}) & solve the Sylvester equation\cr
+\endsec
+
+
+\sec Signal Processing;
+FFT({\it u} \opt{, {\it d}})            & fast Fourier transform along
+                                          dimension~{\it d}; default: $d =
+                                          1$\cr
+invFFT({\it u})                         & inverse fast Fourier transform\cr
+realFFT({\it u} \opt{, {\it d}})        & fast Fourier transform of real {\it
+                                          u} along dimension~{\it d}; default:
+                                          $d = 1$\cr
+invrealFFT({\it u} \opt{, {\it d} \opt{, {\it symm}}})
+                                        & inverse real fast Fourier transform
+                                          along dimension~{\it d}; default: $d
+                                          = 1$.  {\it symm} is {\tt "even"} or
+                                          {\tt "odd"}\cr
+sinFFT({\it u} \opt{, {\it d}})         & sine fast Fourier transform\cr
+invsinFFT({\it u})                      & inverse sine fast Fourier
+                                          transform\cr
+cosFFT({\it u} \opt{, {\it d}})         & cosine fast Fourier transform\cr
+invcosFFT({\it u})                      & inverse cosine fast Fourier
+                                          transform\cr
+sinqFFT({\it u} \opt{, {\it d}})        & quarter-wave sine fast Fourier
+                                          transform\cr
+invsinqFFT({\it u})                     & inverse quarter-wave sine fast
+                                          Fourier transform\cr
+cosqFFT({\it u} \opt{, {\it d}})        & quarter-wave cosine fast Fourier
+                                          transform\cr
+invcosqFFT({\it u})                     & inverse quarter-wave cosine fast
+                                          Fourier transform\cr
+\endsec
+
+
+\vfill\eject
+
+
+\altsec Strings;
+strmat({\it s1}, {\it s2}, ...) & create matrix of strings\cr
+strmat2({\it s}
+  \opt{, {\it sep}})            & create matrix from string~{\it s} with
+                                  newlines or {\it sep} separating rows\cr
+str2num({\it s})                & convert string to number\cr
+tostring({\it x})               & convert integer vector~{\it x} to string\cr
+streq({\it s1}, {\it s2})       & compare strings (full length)\cr
+strstarteq({\it s1}, {\it s2})  & compare strings (active length)\cr
+strstr({\it haystack},
+{\it needle})                   & search {\it needle} in {\it haystack}\cr
+\endsec
+
+
+\altsec C-style Input and Output;
+fopen({\it name}, {\it mode})           & open file {\it name}; {\it mode} is
+                                          ``{\tt r}'', ``{\tt w}'',
+                                          ``{\tt a}''\cr
+fclose({\it file})                      & close {\it file}\cr
+printf({\it fmt}, ...)                  & formatted output to {\tt stdout}\cr
+fprintf({\it file}, {\it fmt}, ...)     & formatted output to {\it file}\cr
+sprintf({\it fmt}, ...)                 & formatted output to string\cr
+% missing: scanf({\it fmt})&formatted input from {\tt stdin}\cr
+% missing: fscanf({\it file}, {\it fmt})&formatted input from {\it file}\cr
+% missing: sscanf({\it str}, {\it fmt})&formatted input from {\it string}\cr
+fgetc({\it file})                       & read single character from
+                                          {\it file}\cr
+%ungetc({\it ch}, {\it file})            & put back {\it ch} into {\it file}\cr
+[{\it s} \opt{, {\it tc}}]
+    = fgets({\it file})                 & read from {\it file}, return
+                                          terminal char~{\it tc} (usually:
+                                          newline)\cr
+% missing: fflush({\it file})&flush pending output to {\it file}\cr
+% missing: ftell({\it file})&return file pointer position\cr
+% missing: frewind({\it file})&move file pointer to beginning\cr
+% missing: freport&print a info for open files\cr
+fread({\it file}, {\it size}, {\it prec})       & read binary data files\cr
+% missing: fwrite({\it file}, {\it size}, {\it prec})&write binary data files\cr
+feof({\it file})                        & determine if pointer is at EOF\cr
+remove({\it name})                      & delete {\it name}\cr
+% missing:
+%\omit \vbox{\rm\vskip0.75ex
+%  A file may be referenced either by name or by the number returned
+%  from {\tt fopen}.  Three files are preconnected when Tela starts:
+%  {\tt stdin}, {\tt stdout}, and {\tt stderr}.\vskip0.75ex}\span\cr
+\endsec
+
+
+\altsec Other Input and Output functions;
+disp({\it var})                         & display value of {\it var} to
+                                          screen\cr
+format({\it fmt}, ...)                  & formatted output to stdout\cr
+fformat({\it file}, {\it fmt}, ...)     & formatted output to {\it file}\cr
+{\it s} = sformat({\it file}, {\it fmt}, ...)
+                                        & formatted output to string~{\it s}\cr
+fparse({\it file}, {\it fmt}, ...)      & read from {\it file}\cr
+save({\it file}, {\it var}, ...)        & save variables in {\it file}\cr
+load({\it file})                        & load variables from {\it file}\cr
+import({\it file} \opt{, {\it suf}})    & import HDF or MAT file, append
+                                          {\it suf} to each variable name\cr
+import1({\it file \opt{, {\it label}}}) & import HDF (SDS) tagged with
+                                          {\it label}, plain ASCII, or D-style
+                                          ASCII file\cr
+import\_CDF({\it file} \opt{, {\it vname}, ...})
+                                        & import complete CDF file or selected
+                                          {\it varname}s\cr
+import\_PBM({\it file})                 & reads PBM format image file\cr
+export\_ASCII({\it file}, {\it var})    & write {\it var} to {\it file}\cr
+export\_PBM({\it file}, {\it var})\ \
+export\_PBM({\it file}, {\it r}, {\it b}, {\it g})
+                                        & write 8-bit, or 24-bit PBM file\cr
+export\_matlab({\it file} \opt{, {\it vname}, ...})
+                                        & save all or selected variables to
+                                          {\it file}\cr
+export\_matlab2({\it file},
+    {\it var}, {\it vname}
+    \opt{, {\it var}, {\it vname}})     & save selected variables to
+                                          {\it file} while renaming them\cr
+export\_netCDF({\it file}
+               \opt{, {\it vname}, ...})& save variables in netCDF format\cr
+export\_CDF({\it file}
+            \opt{, {\it flags}
+            \opt{, {\it vname}, ...}})  & writes named global variables to
+                                          CDF file\cr
+%--export\_RIS8({\it file}, {\it var})     & write {\it var} to raster-8 file\cr
+%--export\_sound\_CDR({\it file}, 
+%--                   {\it l}, {\it r})    & write vectors~{\it l} and {\it r}
+%--                                          to raw audio-CD file\cr
+\endsec
+
+
+\vfill\eject
+
+
+\altsec Miscellaneous Functions;
+eval({\it str})                 & evaluate {\it str} as a command\cr
+{\it x} = evalexpr({\it str})   & like {\tt eval}, but return result~{\it y}\cr
+error({\it message})            & print message and return to top level\cr
+clear({\it vname} \opt{, {\it vname}})          & clear variables\cr
+hide({\it vname} \opt{, {\it vname}})           & set hidden attribute\cr
+unhide({\it vname} \opt{, {\it vname}})         & unset hidden attribute\cr
+autoglobal({\it vname} \opt{, {\it vname}})     & set autoglobal attribute\cr
+isdefined({\it vname})          & check for existence of {\it vname}\cr
+isundefined({\it vname})        & check for non-existence of {\it vname}\cr
+whos(\opt{"hidden"})            & list current variables\cr
+[{\it oldpath} \opt{, {\it maxelems}}] =
+telapath(\opt{\it newpath})     & get or set search path for Tela files\cr
+\endsec
+
+
+\widesec Basic Plotting (PlotMTV);
+plot({\rm plot-spec} \opt{, {\rm plot-spec}, ...})\cr
+\hfill\vbox{\hsize=\idnwid\rm\vskip0.25ex
+  2D plot, where plot-spec is the pair or triple {\it x}, {\it y} \opt{, {\it
+  opt}}.  {\it x} and {\it y} are vectors or matrices.  {\it opt} is a
+  comma separated list of option strings and option arguments.}\cr
+%
+plot3({\it x}, {\it y}, {\it z} \opt{, {\it opt}})\cr
+\hfill\vbox{\hsize=\idnwid\rm\vskip0.25ex
+  Plot parametric space curves.}\cr
+%
+mesh({\it z} \opt{, {\it opt}})\cr
+\hfill\vbox{\hsize=\idnwid\rm\vskip0.25ex
+  Plot matrix~{\it z} as a 3D mesh.}\cr
+%
+mesh({\it z}, "xgrid" , {\it xv}, "ygrid", {\it yv} \opt{, {\it opt}})\cr
+\hfill\vbox{\hsize=\idnwid\rm\vskip0.25ex
+  Plot matrix~{\it z} in a non-uniform 3D mesh.}\cr
+%
+contour({\it z} \opt{, {\it opt}})\cr
+\hfill\vbox{\hsize=\idnwid\rm\vskip0.25ex
+  Plot matrix~{\it z} as a filled contour plot.}\cr
+%
+contour({\it z}, "xgrid" , {\it xv}, "ygrid", {\it yv}
+        \opt{, {\it opt}})\cr
+\hfill\vbox{\hsize=\idnwid\rm\vskip0.25ex
+  Plot matrix~{\it z} as non-uniform contour plot.}\cr
+%
+contour3({\it z}, "xgrid" , {\it xv}, "ygrid" , {\it yv}, "zgrid", {\it zv}
+        \opt{, {\it opt}})\cr
+\hfill\vbox{\hsize=\idnwid\rm\vskip0.25ex
+  Plot the 3D array as a ``volume'' plot.}\cr
+%
+pcolor({\it z} \opt{, {\it opt}})\cr
+\hfill\vbox{\hsize=\idnwid\rm\vskip0.25ex
+  Plot the matrix~{\it z} as a pseudo-color density plot.}\cr
+%
+pcolor({\it z}, "xgrid" , {\it xv}, "ygrid", {\it yv}
+        \opt{, {\it opt}})\cr
+\hfill\vbox{\hsize=\idnwid\rm\vskip0.25ex
+  Plot the matrix~{\it z} as a non-uniform pseudo-color plot.}\cr
+%
+vplot({\it x}, {\it y}, {\it vx}, {\it vy} \opt{, {\it opt}})\cr
+\hfill\vbox{\hsize=\idnwid\rm\vskip0.25ex
+  Plot 2D vector plot of the vector field~({\it vy}, {\it vx}).}\cr
+%
+%--bar, hist
+\endsec
+
+
+\vfill\eject
+
+
+\altsec Plot Options (PlotMTV);
+annotate({\it key}, {\it val}
+         \opt{, ...})           & decorate graph\cr
+hold(0$|$1)                     & hold mode off$|$on\cr
+holdmode(\opt{{\tt 1}$|${\tt 2}$|${\tt 3}})
+                                & query/set hold-mode, 1: overlay, 2: paging,
+                                  3: stacking\cr
+colormap({\it r}, {\it g},
+         {\it b})               & \cr
+%-- plotopt
+%-- pixmap
+%-- figure, closefig
+%-- grid, grid3
+\omit\hfill\vbox{\hsize=\idnwid\rm\vskip0.75ex
+  The following {\it key}, {\it val} pairs are valid, where {\it str}: string,
+  {\it i}: non-negative integer, {\it x}: real, {\it b}: $0$ or $1$, {\it v}:
+  vector of reals}\span\cr
+toplabel {\it str}      & plot title\cr
+subtitle {\it str}      & plot sub-title\cr
+xlabel {\it str}        & x-axis label\cr
+ylabel {\it str}        & y-axis label\cr
+zlabel {\it str}        & z-axis label\cr
+comment {\it str}       & text on top right hand side corner\cr
+xmin\ \ xmax            & x-axis range\cr
+ymin\ \ ymax            & y-axis range\cr
+zmin\ \ zmax {\it x}    & z-axis range\cr
+xgrid\ \ ygrid {\it v}  & x/y grid points\cr
+cmin\ \ cmax {\it x}    & min/max contour value\cr
+nsteps {\it i}          & number of contours\cr
+cstep {\it x}           & contour spacing\cr
+conststyle {\it i}      & 1: contours, 2: colored, 3: 3D surface\cr
+hiddenline {\it b}      & wire-frame or surface\cr
+%--linecolor {\it i}       & color number of line\cr
+%--linewidth {\it i}       & line width\cr
+%--linestyle {\it i}       & line style number\cr
+%--markertype {\it i}      & marker type number\cr
+%--markersize {\it x}      & marker size\cr
+%--markercolor {\it i}     & color number of markers\cr
+\endsec
+
+
+\sec Getting System Information;
+tic()  toc()           & start/stop timer\cr
+meminuse()             & size of the current Tela process in bytes\cr
+info()                 & information about object sizes and counts\cr
+disasm({\it func})     & disassemble function~{\it func}\cr
+\endsec
+
+
+\sec Getting Performance Data;
+{\it p } = perf()      & fetch operation counters\cr
+cputime(\opt{{\it p}}) & time in seconds used by the current session or
+                         {\it p} (obtained with {\tt perf()})\cr
+Mflops(\opt{p})        & approximate megaflop rate of current session or
+                         {\it p} (obtained with {\tt perf()})\cr
+Mips(\opt{p})          & approximate flat-code instruction rate of current
+                         session or {\it p} (obtained with {\tt perf()})\cr
+\omit \vbox{\rm\vskip0.5ex
+  {\tt [{\it ins}, {\it ops}] = GetInstructionData({\it p}, {\it mnem})}:
+  Fetch the number of instructions~{\it ins} and number of operations~{\it
+  ops} of mnemonic operation~{\it mnem} in the performance counter data~{\it
+  p}.\vskip0.75ex}\span\cr
+\endsec
+
+
+\vskip 0pt plus 2fill
+\hrule width \hsize
+\par\vskip10pt
+{\smrm\parskip=6pt
+  Edition \refcardedition{} for Tela Version \telaversion.  Copyright~2001,
+  Christoph L.~Spiel (cspiel@hammersmith-consulting.com).  The author assumes
+  no responsibility for any errors on this card.
+
+  This card may be freely distributed under the terms of the GNU General
+  Public License.
+
+  \TeX{} Macros for this card by Roland Pesch (pesch@cygnus.com), originally
+  for the GDB reference card
+
+  Tela itself is free software; you are welcome to distribute copies of it
+  under the terms of the GNU General Public License.  There is absolutely no
+  warranty for Tela.
+}
+\end
+
+%%% Local Variables: 
+%%% mode: plain-tex
+%%% TeX-master: t
+%%% End: 

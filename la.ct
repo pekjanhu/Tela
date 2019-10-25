@@ -1,0 +1,1085 @@
+/*
+ * This file is part of tela the Tensor Language.
+ * Copyright (c) 1994-1999 Pekka Janhunen
+ */
+
+/*
+	la.ct
+	Linear algebra functions.
+	Preprocess with ctpp.
+	C-tela code is C++ equipped with []=f() style function definition.
+*/
+
+#include "lapack.H"
+
+[A] = eye(n)
+/* eye(n) returns the (integer) unit matrix of order n.
+   n must be a non-negative scalar integer.
+   eye(V) where V is a two-element integer vector with
+   both elements equal and positive works also, thus
+   you can also use eye(size(A)).
+   See also: ones, inv.
+   Error codes:
+   -1: Argument not an integer or IntArray
+   -2: Negative dimension
+   -3: IntArray rank not 1
+   -4: IntArray length not 2
+   -5: Integer vector elements are unequal
+   */
+{
+	Tint N;
+	if (n.kind() == KIntArray) {
+		if (n.rank() != 1) return -3;
+		if (n.length() != 2) return -4;
+		if (n.IntPtr()[0] != n.IntPtr()[1]) return -5;
+		N = n.IntPtr()[0];
+	} else if (n.kind() == Kint)
+		N = n.IntValue();
+	else return -1;
+	if (N<0) return -2;
+	if (N==0)
+		A.izeros(TDimPack(0));
+	else
+		A.izeros(TDimPack(N,N));
+	VECTORIZED for (Tint i=0; i<N; i++) A.IntPtr()[i*(N+1)] = 1;
+	return 0;
+}
+
+[B] = inv(A)
+/* inv(A) returns the inverse of a square matrix A.
+   A may be integer, real or complex valued.
+   A may also be a scalar, in which case its reciprocal
+   is returned.
+   See also: linsolve, LU, chol, matprod, det, eig.
+   Error codes:
+   -1: Nonnumeric input arg
+   -2: Input array is not a matrix
+   -3: Input matrix is not square
+   -4: Singular matrix
+   -5: Singular matrix */
+{
+	const Tkind k = A.kind();
+	if (A.IsScalar()) {
+		const Tobject UnitObject(1);
+		Div(B,UnitObject,A);
+		return 0;
+	}
+	if (k!=KIntArray && k!=KRealArray && k!=KComplexArray) return -1;
+	if (A.rank()!=2) return -2;
+	if (A.dims()[0]!=A.dims()[1]) return -3;
+	if (k==KIntArray)
+		Add(B,A,Tobject(0.0));
+	else
+		B = A;
+	Tint errflag;
+	const Tint n = B.dims()[0];
+	const Tint work_len = 64*n;
+	Tint* pivoting = new Tint [n];
+	if (k==KComplexArray) {
+		CATCH_INTERRUPTS(CGETRF(n,n,B.ComplexPtr(),n,pivoting,errflag));
+		if (errflag>0) {delete [] pivoting; return -4;}
+		if (errflag<0) {err<<"Internal 1 in inv()"; error();}
+		Tcomplex *work = new Tcomplex [work_len];
+		CATCH_INTERRUPTS(CGETRI(n,B.ComplexPtr(),n,pivoting,work,work_len,errflag));
+		if (errflag>0) {delete [] work; delete [] pivoting; return -5;}
+		delete [] work;
+		global::nops+= 8*n*n*n;
+	} else {		// was IntArray or RealArray ==> handle as RealArray
+		CATCH_INTERRUPTS(RGETRF(n,n,B.RealPtr(),n,pivoting,errflag));
+		if (errflag>0) {delete [] pivoting; return -4;}
+		if (errflag<0) {err<<"Internal 2 in inv()"; error();}
+		Treal *work = new Treal [work_len];
+		CATCH_INTERRUPTS(RGETRI(n,B.RealPtr(),n,pivoting,work,work_len,errflag));
+		if (errflag>0) {delete [] work; delete [] pivoting; return -5;}
+		delete [] work;
+		global::nops+= 2*n*n*n;
+	}
+	delete [] pivoting;
+	return 0;
+}
+
+extern "C" int transposefunction(const TConstObjectPtr[], const int, const TObjectPtr[], const int);
+
+[L;U,P] = LU(A)
+/* [L,U,P] = LU(A) computes the LU factorization of matrix A.
+   The factorization is A = P**L**U, where P is a permutation
+   matrix, L is lower triangular with unit diagonal and U is
+   upper triangular.
+   [lu] = LU(A) leaves the factors L and U packed in one matrix.
+   [lu,p] = LU(A) returns also the pivoting info vector p.
+   (Notice that this p is related to the permutation matrix P
+   but is not the same. You need this form of LU if you want to
+   use LUbacksubst later on.)
+   See also: LUbacksubst, linsolve, inv, chol, SVD.
+   Error codes:
+   1: Singular matrix (==> zero in U's diagonal)
+   -1: Input arg not an array
+   -2: Input arg not a rank-2 array (matrix)
+   */
+{
+	Tkind k = A.kind();
+	if (k!=KIntArray && k!=KRealArray && k!=KComplexArray) return -1;
+	if (A.rank()!=2) return -2;
+	// See DGETRF man page. Accumulate result first in L.
+	TConstObjectPtr inputs[1]; TObjectPtr outputs[1];
+	inputs[0] = &A; outputs[0] = &L;
+	transposefunction(inputs,1,outputs,1);
+	if (k==KIntArray) Add(L,L,Tobject(0.0));
+	const Tint m = L.dims()[1];	// Number of columns ==> becomes number of rows in Fortran order
+	const Tint n = L.dims()[0];	// Number of rows    ==> bemoces number of columns in Fortran order
+	const Tint mn = max(m,n);
+	Tint* pivoting = new Tint [mn];
+	Tint errflag,i,j;
+	int retval=0;
+	if (k == KComplexArray) {
+		CATCH_INTERRUPTS(CGETRF(m,n,L.ComplexPtr(),m,pivoting,errflag));
+		global::nops+= iround(2*m*n*n/3.0);
+		if (errflag) retval=1;
+		if (Nargout < 3) {	// Nargout < 3 ==> do not separate L,U
+			// Transpose L in place
+			Tobject L1;
+			L1.creserv(TDimPack(m,n));
+			for (i=0; i<m; i++) for (j=0; j<n; j++)
+				L1.ComplexPtr()[i*n+j] = L.ComplexPtr()[j*m+i];
+			L.bitwiseMoveFrom(L1);
+		} else {
+			// Transpose from L to U
+			U.creserv(TDimPack(m,n));
+			for (i=0; i<m; i++) for (j=0; j<n; j++)
+				U.ComplexPtr()[i*n+j] = L.ComplexPtr()[j*m+i];
+			L = U;
+			for (i=0; i<m; i++) for (j=0; j<n; j++) {
+				if (i > j)
+					U.ComplexPtr()[i*n+j] = Tcomplex(0.0,0.0);
+				else if (i < j)
+					L.ComplexPtr()[i*n+j] = Tcomplex(0.0,0.0);
+				else
+					L.ComplexPtr()[i*n+j] = Tcomplex(1.0,0.0);
+			}
+			if (m > n) {	// m>n ==> truncate (make square) U
+				Tobject U1;
+				U1.creserv(TDimPack(n,n));
+				memcpy(U1.ComplexPtr(),U.ComplexPtr(),n*n*sizeof(Tcomplex));
+				U.bitwiseMoveFrom(U1);
+			} else if (m < n) {	// m<n ==> truncate L
+				Tobject L1;
+				L1.creserv(TDimPack(m,m));
+				for (i=0; i<m; i++) memcpy(L1.ComplexPtr()+i*m,L.ComplexPtr()+i*n,m*sizeof(Tcomplex));
+				L.bitwiseMoveFrom(L1);
+			}
+		}
+	} else {
+		CATCH_INTERRUPTS(RGETRF(m,n,L.RealPtr(),m,pivoting,errflag));
+		global::nops+= iround(2*m*n*n/3.0);
+		if (errflag) retval=1;
+		if (Nargout < 3) {	// Nargout < 3 ==> do not separate L,U
+			// Transpose L in place
+			Tobject L1;
+			L1.rreserv(TDimPack(m,n));
+			for (i=0; i<m; i++) VECTORIZED for (j=0; j<n; j++)
+				L1.RealPtr()[i*n+j] = L.RealPtr()[j*m+i];
+			L.bitwiseMoveFrom(L1);
+		} else {
+			// Transpose from L to U
+			U.rreserv(TDimPack(m,n));
+			for (i=0; i<m; i++) VECTORIZED for (j=0; j<n; j++)
+				U.RealPtr()[i*n+j] = L.RealPtr()[j*m+i];
+			L = U;
+			for (i=0; i<m; i++) VECTORIZED for (j=0; j<n; j++) {
+				if (i > j)
+					U.RealPtr()[i*n+j] = 0.0;
+				else if (i < j)
+					L.RealPtr()[i*n+j] = 0.0;
+				else
+					L.RealPtr()[i*n+j] = 1.0;
+			}
+			if (m > n) {	// m>n ==> truncate (make square) U
+				Tobject U1;
+				U1.rreserv(TDimPack(n,n));
+				memcpy(U1.RealPtr(),U.RealPtr(),n*n*sizeof(Treal));
+				U.bitwiseMoveFrom(U1);
+			} else if (m < n) {	// m<n ==> truncate L
+				Tobject L1;
+				L1.rreserv(TDimPack(m,m));
+				for (i=0; i<m; i++) memcpy(L1.RealPtr()+i*m,L.RealPtr()+i*n,m*sizeof(Treal));
+				L.bitwiseMoveFrom(L1);
+			}
+		}
+	}
+	// P1 points to the 'effective' P.
+	// *P1==P if Nargout==1 or 3, but U if Nargout==2.
+	TObjectPtr P1 = (Nargout==2) ? &U : &P;
+	if (Nargout == 3) {
+		// Create permutation vector
+		Tint* perm = new Tint [max(n,m)];
+		VECTORIZED for (i=0; i<m; i++) perm[i] = i;
+		for (j=0; j<min(n,m); j++) {
+			Tint tmp = perm[j];
+			perm[j] = perm[pivoting[j]-1];
+			perm[pivoting[j]-1] = tmp;
+		}
+		P1->izeros(TDimPack(m,m));
+		for (i=0; i<m; i++) P1->IntPtr()[perm[i]*m+i] = 1;
+		delete [] perm;
+	} else if (Nargout==2) {		// now Nargout == 2 ==> return pivoting vector in P1
+		P1->ireserv(TDimPack(m));
+		memcpy(P1->IntPtr(),pivoting,sizeof(Tint)*m);
+	}
+	delete [] pivoting;
+	return retval;
+}
+
+[x] = LUbacksubst(lu,p,b)
+/* LUbacksubst(lu,p,b) solves the linear system A**x == b,
+   where A has been previously LU-decomposed using LU:
+   [lu,p] = LU(A).
+   See also: linsolve, LU.
+   Error codes:
+   -1: First input arg is not an array
+   -2: First input arg is not a square matrix
+   -3: Second input arg is not an integer vector
+   -4: Third input arg is not an array
+   -5: Third input arg is not a vector or matrix
+   -6: Incompatible dimensions in first/third args
+   -7: Singular matrix
+   -8: Incompatible dimensions in first/second args
+   -9: Internal error
+*/
+{
+	Tint Nrhs=1, i, j, q, errflag;
+	const Tkind k = lu.kind();
+	if (!lu.IsNumericalArray()) return -1;
+	if (lu.rank()!=2) return -2;
+	const Tint n = lu.dims()[0];
+	if (lu.dims()[1] != n) return -2;
+	if (p.kind()!=KIntArray || p.rank()!=1) return -3;
+	if (p.length()!=n) return -8;
+	if (!b.IsNumericalArray()) return -4;
+	if (b.rank()!=1 && b.rank()!=2) return -5;
+	if (n != b.dims()[0]) return -6;
+	const Tkind xkind = Tkind(max(int(KRealArray),max(int(k),int(b.kind()))));
+	if (b.rank()==2) Nrhs = b.dims()[1];
+	if (xkind == KRealArray) {
+		global::nops+= n*n*Nrhs;
+		Treal* luF = new Treal [n*n];
+		Treal* xF  = new Treal [n*Nrhs];
+		if (k == KIntArray) {
+			for (i=0; i<n; i++) {VECTORIZED for (j=0; j<n; j++)
+				luF[j*n+i] = lu.IntPtr()[i*n+j];
+			}
+		} else {
+			for (i=0; i<n; i++) {VECTORIZED for (j=0; j<n; j++)
+				luF[j*n+i] = lu.RealPtr()[i*n+j];
+			}
+		}
+		if (b.kind() == KIntArray) {
+			for (q=0; q<Nrhs; q++) {VECTORIZED for (i=0; i<n; i++)
+				xF[q*n+i] = b.IntPtr()[i*Nrhs+q];
+			}
+		} else {
+			for (q=0; q<Nrhs; q++) {VECTORIZED for (i=0; i<n; i++)
+				xF[q*n+i] = b.RealPtr()[i*Nrhs+q];
+			}
+		}
+		CATCH_INTERRUPTS(RGETRS("N",n,Nrhs, luF,n, p.IntPtr(), xF,n, errflag));
+		if (errflag < 0) return -9;
+		if (errflag > 0) {delete[]xF; delete[]luF; return -7;}
+		if (Nrhs == 1) {
+			x.rreserv(n);
+			memcpy(x.RealPtr(),xF,n*sizeof(Treal));
+		} else {
+			x.rreserv(TDimPack(n,Nrhs));
+			for (q=0; q<Nrhs; q++) for (j=0; j<n; j++)
+				x.RealPtr()[j*Nrhs+q] = xF[q*n+j];
+		}
+		delete [] xF;
+		delete [] luF;
+	} else {
+		global::nops+= 4*n*n*Nrhs;
+		global::nops+= n*n*Nrhs;
+		Tcomplex* luF = new Tcomplex [n*n];
+		Tcomplex* xF  = new Tcomplex [n*Nrhs];
+		if (k == KIntArray) {
+			for (i=0; i<n; i++) {VECTORIZED for (j=0; j<n; j++)
+				luF[j*n+i] = Tcomplex(lu.IntPtr()[i*n+j],0.0);
+			}
+		} else if (k == KRealArray) {
+			for (i=0; i<n; i++) {VECTORIZED for (j=0; j<n; j++)
+				luF[j*n+i] = Tcomplex(lu.RealPtr()[i*n+j],0.0);
+			}
+		} else {
+			for (i=0; i<n; i++) {VECTORIZED for (j=0; j<n; j++)
+				luF[j*n+i] = lu.ComplexPtr()[i*n+j];
+			}
+		}
+		if (b.kind() == KIntArray) {
+			for (q=0; q<Nrhs; q++) {VECTORIZED for (i=0; i<n; i++)
+				xF[q*n+i] = Tcomplex(b.IntPtr()[i*Nrhs+q],0.0);
+			}
+		} else if (b.kind() == KRealArray) {
+			for (q=0; q<Nrhs; q++) {VECTORIZED for (i=0; i<n; i++)
+				xF[q*n+i] = Tcomplex(b.RealPtr()[i*Nrhs+q],0.0);
+			}
+		} else {
+			for (q=0; q<Nrhs; q++) {VECTORIZED for (i=0; i<n; i++)
+				xF[q*n+i] = b.ComplexPtr()[i*Nrhs+q];
+			}
+		}
+		CATCH_INTERRUPTS(CGETRS("N",n,Nrhs, luF,n, p.IntPtr(), xF,n, errflag));
+		if (errflag < 0) return -9;
+		if (errflag > 0) {delete[]xF; delete[]luF; return -7;}
+		if (Nrhs == 1) {
+			x.creserv(n);
+			memcpy(x.ComplexPtr(),xF,n*sizeof(Tcomplex));
+		} else {
+			x.creserv(TDimPack(n,Nrhs));
+			for (q=0; q<Nrhs; q++) {VECTORIZED for (j=0; j<n; j++)
+				x.ComplexPtr()[j*Nrhs+q] = xF[q*n+j];
+			}
+		}
+		delete [] xF;
+		delete [] luF;
+	}
+	return 0;
+}
+	
+
+[x] = linsolve(A,b)
+/* linsolve(A,b) solves the linear system A**x == b.
+   If A is square, the result x is roughly the same as
+   computing inv(A)**b (however, using linsolve is
+   faster and numerically more accurate). If A is not
+   square, a least-square problem is solved. If the system
+   is overdetermined, the solution x minimizes the quantity
+   |A**x - b|. If the system is underdetermined, the
+   solution x minimizes |x| among all x that satisfy
+   A**x==b.
+   The second argument may be a vector or a matrix.
+   If it is a matrix, several linear systems are effectively
+   solved simultaneously.
+   See also: inv, LU, eig, SVD.
+   Error codes:
+   -1: First input arg is not an array
+   -2: First input arg is not a matrix
+   -3: Second input arg is not an array
+   -4: Second input arg is not a vector or matrix
+   -5: Incompatible dimensions in first/second args
+   -6: Matrix must be square
+   -7: Singular matrix
+   -8: Internal error
+   */
+{
+	Tkind k = A.kind();
+	if (k!=KIntArray && k!=KRealArray && k!=KComplexArray) return -1;
+	if (A.rank()!=2) return -2;
+	if (b.kind()!=KIntArray && b.kind()!=KRealArray && b.kind()!=KComplexArray) return -3;
+	if (b.rank()!=1 && b.rank()!=2) return -4;
+	Tint imax=A.dims()[0], jmax=A.dims()[1];
+	if (imax != b.dims()[0]) return -5;
+	Tkind xkind = Tkind(max(int(KRealArray),max(int(k),int(b.kind()))));
+	Tint Nrhs=1, i, j, p, errflag;
+	if (b.rank()==2) Nrhs = b.dims()[1];
+	Tint* IPIV = new Tint [imax];
+	const Tint mn = max(imax,jmax);
+	if (xkind == KRealArray) {
+		Treal* AF = new Treal [imax*jmax];
+		Treal* xF = new Treal [mn*Nrhs];
+		if (k == KIntArray) {
+			for (i=0; i<imax; i++) {VECTORIZED for (j=0; j<jmax; j++)
+				AF[j*imax+i] = A.IntPtr()[i*jmax+j];
+			}
+		} else {
+			for (i=0; i<imax; i++) {VECTORIZED for (j=0; j<jmax; j++)
+				AF[j*imax+i] = A.RealPtr()[i*jmax+j];
+			}
+		}
+		if (b.kind() == KIntArray) {
+			for (p=0; p<Nrhs; p++) {VECTORIZED for (i=0; i<mn; i++)
+				xF[p*mn+i] = b.IntPtr()[i*Nrhs+p];
+			}
+		} else {
+			for (p=0; p<Nrhs; p++) {VECTORIZED for (i=0; i<mn; i++)
+				xF[p*mn+i] = b.RealPtr()[i*Nrhs+p];
+			}
+		}
+		if (imax == jmax) {
+			CATCH_INTERRUPTS(RGESV(imax,Nrhs, AF, imax, IPIV, xF, imax, errflag));
+		} else {
+			const Tint NB = 8;	// "Optimum block size", whatever that means...
+			const Tint workLength = min(imax,jmax) + max(max(1,imax),max(jmax,Nrhs)) * NB;
+			Treal* work = new Treal [workLength];
+			CATCH_INTERRUPTS(RGELS("N", imax, jmax, Nrhs, AF, imax, xF, mn, work, workLength, errflag));
+			delete [] work;
+		}
+		if (errflag < 0) return -8;
+		if (errflag > 0) {delete[]IPIV; delete[]xF; delete[]AF; return -7;}
+		if (Nrhs == 1) {
+			x.rreserv(jmax);
+			memcpy(x.RealPtr(),xF,jmax*sizeof(Treal));
+		} else {
+			x.rreserv(TDimPack(jmax,Nrhs));
+			for (p=0; p<Nrhs; p++) {VECTORIZED for (j=0; j<jmax; j++)
+				x.RealPtr()[j*Nrhs+p] = xF[p*mn+j];
+			}
+		}
+		delete [] xF;
+		delete [] AF;
+	} else {
+		Tcomplex* AF = new Tcomplex [imax*imax];
+		Tcomplex* xF = new Tcomplex [mn*Nrhs];
+		if (k == KIntArray) {
+			for (i=0; i<imax; i++) {VECTORIZED for (j=0; j<jmax; j++)
+				AF[j*imax+i] = Tcomplex(A.IntPtr()[i*jmax+j],0.0);
+			}
+		} else if (k == KRealArray) {
+			for (i=0; i<imax; i++) {VECTORIZED for (j=0; j<jmax; j++)
+				AF[j*imax+i] = Tcomplex(A.RealPtr()[i*jmax+j],0.0);
+			}
+		} else {
+			for (i=0; i<imax; i++) {VECTORIZED for (j=0; j<jmax; j++)
+				AF[j*imax+i] = A.ComplexPtr()[i*jmax+j];
+			}
+		}
+		if (b.kind() == KIntArray)
+			for (p=0; p<Nrhs; p++) for (i=0; i<mn; i++)
+				xF[p*mn+i] = Tcomplex(b.IntPtr()[i*Nrhs+p],0.0);
+		else if (b.kind() == KRealArray)
+			for (p=0; p<Nrhs; p++) for (i=0; i<mn; i++)
+				xF[p*mn+i] = Tcomplex(b.RealPtr()[i*Nrhs+p],0.0);
+		else
+			for (p=0; p<Nrhs; p++) for (i=0; i<mn; i++)
+				xF[p*mn+i] = b.ComplexPtr()[i*Nrhs+p];
+		if (imax == jmax) {
+			CATCH_INTERRUPTS(CGESV(imax,Nrhs, AF, imax, IPIV, xF, imax, errflag));
+		} else {
+			const Tint NB = 8;	// "Optimum block size", whatever that means...
+			const Tint workLength = min(imax,jmax) + max(max(1,imax),max(jmax,Nrhs)) * NB;
+			Tcomplex* work = new Tcomplex [workLength];
+			CATCH_INTERRUPTS(CGELS("N", imax, jmax, Nrhs, AF, imax, xF, mn, work, workLength, errflag));
+			delete [] work;
+		}
+		if (errflag < 0) return -8;
+		if (errflag > 0) {delete[]IPIV; delete[]xF; delete[]AF; return -7;}
+		if (Nrhs == 1) {
+			x.creserv(jmax);
+			memcpy(x.ComplexPtr(),xF,jmax*sizeof(Tcomplex));
+		} else {
+			x.creserv(b.dims());
+			for (p=0; p<Nrhs; p++) for (j=0; j<jmax; j++)
+				x.ComplexPtr()[j*Nrhs+p] = xF[p*mn+j];
+		}
+		delete [] xF;
+		delete [] AF;
+	}
+	delete [] IPIV;
+	return 0;
+}
+
+[D;V] = eig(A)
+/* eig(A) returns the eigenvalues of a square matrix A.
+   [D,V] = eig(A) returns the eigenvalues in D and the
+   right eigenvectors as columns of V. The eigenvectors
+   satisfy A**V == D*V.
+   See also: inv, LU.
+   Error codes:
+   1: Failed to converge
+   -1: Input arg is not an array
+   -2: Input array is not a matrix
+   -3: Input matrix is not square
+   -4: Internal error
+   */
+{
+	Tkind k = A.kind();
+	if (k!=KIntArray && k!=KRealArray && k!=KComplexArray) return -1;
+	if (A.rank()!=2) return -2;
+	const Tint n = A.dims()[0];
+	if (A.dims()[1] != n) return -3;
+	Tint i,j,errflag;
+	D.creserv(n);
+	const Tint workLength = 8*n;
+	int retval = 0;
+	if (k==KIntArray || k==KRealArray) {
+		Treal* AF = new Treal [n*n];
+		Treal* WR = new Treal [n];
+		Treal* WI = new Treal [n];
+		Treal* VR = new Treal [n*n];
+		Treal* work = new Treal [workLength];
+		if (k==KIntArray) {
+			for (i=0; i<n; i++) for (j=0; j<n; j++)
+				AF[i*n+j] = A.IntPtr()[j*n+i];
+		} else {
+			for (i=0; i<n; i++) for (j=0; j<n; j++)
+				AF[i*n+j] = A.RealPtr()[j*n+i];
+		}
+		CATCH_INTERRUPTS(RGEEV("N",(Nargout==2)?"V":"N", n, AF, n, WR, WI, VR, n, VR, n,
+							   work, workLength, errflag));
+		if (errflag < 0) return -4;
+		if (errflag > 0) retval = 1;
+		for (i=0; i<n; i++) D.ComplexPtr()[i] = Tcomplex(WR[i],WI[i]);
+		if (Nargout==2) {
+			V.creserv(TDimPack(n,n));
+			for (j=0; j<n; j++) {
+				if (WI[j]!=0.0) {
+					for (i=0; i<n; i++) {
+						V.ComplexPtr()[i*n+j] = Tcomplex(VR[j*n+i],VR[(j+1)*n+i]);
+						V.ComplexPtr()[i*n+j+1] = Tcomplex(VR[j*n+i],-VR[(j+1)*n+i]);
+					}
+					j++;
+				} else {
+					for (i=0; i<n; i++)
+						V.ComplexPtr()[i*n+j] = Tcomplex(VR[j*n+i],0.0);
+				}
+			}
+		}
+		delete [] work;
+		delete [] VR;
+		delete [] WI;
+		delete [] WR;
+		delete [] AF;
+	} else {	// Complex matrix case
+		Tcomplex* AF = new Tcomplex [n*n];
+		Tcomplex* VR = new Tcomplex [n*n];
+		Tcomplex* work = new Tcomplex [workLength];
+		Treal* rwork = new Treal [2*n];
+		for (i=0; i<n; i++) for (j=0; j<n; j++)
+			AF[i*n+j] = A.ComplexPtr()[j*n+i];
+		CATCH_INTERRUPTS(CGEEV("N",(Nargout==2)?"V":"N", n, AF, n, D.ComplexPtr(), VR, n, VR, n,
+							   work, workLength, rwork, errflag));
+		if (errflag < 0) return -4;
+		if (errflag > 0) retval = 1;
+		if (Nargout==2) {
+			V.creserv(TDimPack(n,n));
+			for (i=0; i<n; i++) for (j=0; j<n; j++)
+				V.ComplexPtr()[i*n+j] = VR[j*n+i];
+		}
+		delete [] rwork;
+		delete [] work;
+		delete [] VR;
+		delete [] AF;
+	}
+	return retval;
+}
+
+[U;S,V] = SVD(A)
+/* [U,S,V] = SVD(A) computes the singular value
+   decomposition of matrix A: A = U**S**V'.
+   U and V are unitary and S is diagonal.
+   SVD(A) as such returns the vector of singular values.
+   See also: LU, chol.
+   Error codes:
+   1: No convergence
+   -1: Input arg not an array
+   -2: Input array is not a matrix
+   -3: Internal error
+   -4: Two output arg case not supported (must be 1 or 3)
+   */
+{
+	const Tkind k = A.kind();
+	if (Nargout==2) return -4;
+	if (k!=KIntArray && k!=KRealArray && k!=KComplexArray) return -1;
+	if (A.rank()!=2) return -2;
+	const Tint imax=A.dims()[0], jmax=A.dims()[1];
+	const Tint ijmin=min(imax,jmax), ijmax=max(imax,jmax);
+	Tint i,j,errflag;
+	const Tint workLength = 9*ijmax;
+	int retval = 0;
+	if (k == KIntArray || k == KRealArray) {
+		Treal* AF = new Treal [imax*jmax];
+		if (k == KIntArray)
+			for (i=0; i<imax; i++) for (j=0; j<jmax; j++)
+				AF[j*imax+i] = A.IntPtr()[i*jmax+j];
+		else
+			for (i=0; i<imax; i++) for (j=0; j<jmax; j++)
+				AF[j*imax+i] = A.RealPtr()[i*jmax+j];
+		Treal* work = new Treal [workLength];
+		if (Nargout == 1) {	// Do not compute U,V, just singular value vector "U"
+			U.rreserv(ijmin);
+			CATCH_INTERRUPTS(RGESVD("N","N", imax,jmax, AF,imax, U.RealPtr(), 0,imax,0,jmax,
+									work,workLength,errflag));
+			if (errflag < 0) return -3;
+			if (errflag > 0) retval = 1;
+		} else {	// Compute U,V
+			Treal* SF = new Treal [ijmin];
+			Treal* UF = new Treal [imax*imax];
+			// Since RGESVD returns V.', not V, we can assign directly to Tela variable V
+			// (the C-Fortran transpose and V.' <-> V transpose cancel each other)
+			V.rreserv(TDimPack(jmax,jmax));
+			CATCH_INTERRUPTS(RGESVD("A","A", imax,jmax, AF,imax, SF, UF,imax, V.RealPtr(),jmax,
+									work,workLength,errflag));
+			if (errflag < 0) return -3;
+			if (errflag > 0) retval = 1;
+			U.rreserv(TDimPack(imax,imax));
+			S.rzeros(TDimPack(imax,jmax));
+			for (i=0; i<imax; i++) for (j=0; j<imax; j++)
+				U.RealPtr()[i*imax+j] = UF[j*imax+i];
+			for (i=0; i<ijmin; i++) S.RealPtr()[i*jmax+i] = SF[i];
+			delete [] UF;
+			delete [] SF;
+		}
+		delete [] work;
+		delete [] AF;
+	} else {	// Complex case
+		Tcomplex* AF = new Tcomplex [imax*jmax];
+		for (i=0; i<imax; i++) for (j=0; j<jmax; j++)
+			AF[j*imax+i] = A.ComplexPtr()[i*jmax+j];
+		Tcomplex* work = new Tcomplex [workLength];
+		Treal* rwork = new Treal [5*ijmax];
+		if (Nargout == 1) {		// Do not compute U,V; just the singular value vector "U"
+			U.rreserv(ijmin);
+			CATCH_INTERRUPTS(CGESVD("N","N", imax,jmax,AF,imax,U.RealPtr(), 0,imax,0,jmax,
+									work,workLength, rwork,errflag));
+			if (errflag < 0) return -3;
+			if (errflag > 0) retval = 1;
+		} else {	// Compute U,V
+			Treal* SF = new Treal [ijmin];
+			Tcomplex* UF = new Tcomplex [imax*imax];
+			// Since CGESVD returns V', not V, we can assign directly to Tela variable V
+			// (the C-Fortran transpose and V.' <-> V transpose cancel each other)
+			// But we have to complex-conjugate V.
+			V.creserv(TDimPack(jmax,jmax));
+			CATCH_INTERRUPTS(CGESVD("A","A", imax,jmax, AF,imax, SF, UF,imax, V.ComplexPtr(),jmax,
+									work,workLength, rwork,errflag));
+			if (errflag < 0) return -3;
+			if (errflag > 0) retval = 1;
+			U.creserv(TDimPack(imax,imax));
+			S.rzeros(TDimPack(imax,jmax));
+			for (i=0; i<imax; i++) for (j=0; j<imax; j++)
+				U.ComplexPtr()[i*imax+j] = UF[j*imax+i];
+			for (i=0; i<ijmin; i++) S.RealPtr()[i*jmax+i] = SF[i];
+			// Complex-conjugate V
+			for (i=0; i<jmax*jmax; i++) V.ComplexPtr()[i] = conj(V.ComplexPtr()[i]);
+			delete [] UF;
+			delete [] SF;
+		}
+		delete [] rwork;
+		delete [] work;
+		delete [] AF;
+	}
+	return retval;
+}
+
+#if 0
+/*[x] = Tr(A)*/
+/* Tr(A) computes the trace of a square array A,
+   that is, the sum of A[i,i,...]. If A is scalar,
+   it is returned as is.
+   See also: det.
+   Error codes:
+   -1: Nonnumeric input arg
+   -2: Array rank is less than 2
+   -3: Input array is not square */
+{
+	if (A.IsScalar()) {x=A; return 0;}
+	if (!A.IsArray() || A.kind()==KObjectArray) return -1;
+	//i*n*n + i*n + i = i*(n*n+n+1) = i*(n*(n+1)+1)
+	//i*(n*n*n + n*n + n + 1) = i*( n*(n*n+n+1) + 1 )
+	if (A.rank()<2) return -2;
+	const Tint n = A.dims()[0];
+	const int D = A.rank();
+	for (int d=1; d<D; d++) if (A.dims()[d]!=n) return -3;
+	Tint offset = 1;
+	for (d=1; d<D; d++) offset = n*offset + 1;
+	switch (A.kind()) {
+	case KIntArray:
+		{
+			Tint *const ip = A.IntPtr();
+			Tint result = 0;
+			for (Tint i=0; i<A.length(); i+=offset) result+= ip[i];
+			x = result;
+		}
+		break;
+	case KRealArray:
+		{
+			Treal *const xp = A.RealPtr();
+			Treal result = 0;
+			for (Tint i=0; i<A.length(); i+=offset) result+= xp[i];
+			x = result;
+		}
+		break;
+	case KComplexArray:
+		{
+			Tcomplex *const cp = A.ComplexPtr();
+			Tcomplex result = 0;
+			for (Tint i=0; i<A.length(); i+=offset) result+= cp[i];
+			x = result;
+		}
+		break;
+	default:;
+	}
+	return 0;
+}
+#endif
+
+[d] = det(A)
+/* det(A) returns the determinant of a square matrix A.
+   A may be integer, real or complex valued.
+   If A is scalar, it is returned as such.
+   Error codes:
+   -1: Nonnumeric input arg
+   -2: Input array is not a matrix
+   -3: Input matrix is not square
+   -4: Singular matrix */
+{
+	const Tkind k = A.kind();
+	if (A.IsScalar()) {d = A; return 0;}
+	if (k!=KIntArray && k!=KRealArray && k!=KComplexArray) return -1;
+	if (A.rank()!=2) return -2;
+	if (A.dims()[0]!=A.dims()[1]) return -3;
+	if (k==KIntArray)
+		Add(d,A,Tobject(0.0));
+	else
+		d = A;
+	Tint errflag;
+	const Tint n = d.dims()[0];
+	Tint* pivoting = new Tint [n];
+	if (k==KComplexArray) {
+		CATCH_INTERRUPTS(CGETRF(n,n,d.ComplexPtr(),n,pivoting,errflag));
+		if (errflag>0) {delete [] pivoting; d=Tobject(0.0); return 0;}
+		if (errflag<0) {delete [] pivoting; err<<"Internal 1 in det()"; error();}
+		Tcomplex determinant(1.0, 0.0);
+		for (int i=0; i<n; i++) {
+			if (pivoting[i] != i+1) determinant = -determinant;
+			determinant*= d.ComplexPtr()[i*(n+1)];
+			if (determinant == 0) break;
+		}
+		d = determinant;
+		global::nops+= 8*n*n*n/3;
+	} else {		// was IntArray or RealArray ==> handle as RealArray
+		CATCH_INTERRUPTS(RGETRF(n,n,d.RealPtr(),n,pivoting,errflag));
+		if (errflag>0) {delete [] pivoting; d=Tobject(0.0); return 0;}
+		if (errflag<0) {delete [] pivoting; err<<"Internal 2 in det()"; error();}
+		Treal mant=1,exponent=0;
+		for (int i=0; i<n; i++) {
+			if (pivoting[i] != i+1) mant = -mant;
+			mant*= d.RealPtr()[i*(n+1)];
+			if (mant == 0) break;
+			while (fabs(mant) < 1) {
+				mant*= 10;
+				exponent-= 1;
+			}
+			while (fabs(mant) >= 10) {
+				mant*= 0.1;
+				exponent+= 1;
+			}
+		}
+		d = Treal(mant*pow(10,exponent));
+		global::nops+= 2*n*n*n/3;
+	}
+	delete [] pivoting;
+	return 0;
+}
+
+[B] = chol(A)
+/* B=chol(A) returns the Cholesky decomposition of a
+   positive definite square matrix A: B'**B == A.
+   A may be integer, real or complex valued.
+   Only the upper half of A is referenced, the lower half
+   is assumed to be Hermitian symmetric.
+   See also: linsolve, LU, matprod, det, eig, inv.
+   Error codes:
+   -1: Input arg is not a matrix
+   -2: Input matrix is not square
+   -3: Input matrix is not positive definite */
+{
+	const Tkind k = A.kind();
+	if (k!=KIntArray && k!=KRealArray && k!=KComplexArray) return -1;
+	if (A.rank()!=2) return -1;
+	if (A.dims()[0]!=A.dims()[1]) return -2;
+	if (k==KIntArray)
+		Add(B,A,Tobject(0.0));
+	else
+		B = A;
+	Tint errflag,i,j;
+	const Tint n = B.dims()[0];
+	int retval = 0;
+	if (k==KComplexArray) {
+		CATCH_INTERRUPTS(CPOTRF("L",n,B.ComplexPtr(),n,errflag));
+		if (errflag>0) return -3;
+		if (errflag<0) {err<<"Internal 1 in chol()"; error();}
+		// In C layout we now zero the lower part of B
+		for (i=0; i<n; i++) for (j=0; j<i; j++)
+			B.ComplexPtr()[i*n+j] = Tcomplex(0.0,0.0);
+		global::nops+= 4*n*n*n/3;
+	} else {		// was IntArray or RealArray ==> handle as RealArray
+		CATCH_INTERRUPTS(RPOTRF("L",n,B.RealPtr(),n,errflag));
+		if (errflag>0) return -3;
+		if (errflag<0) {err<<"Internal 1 in chol()"; error();}
+		// In C layout we now zero the lower part of B
+		for (i=0; i<n; i++) for (j=0; j<i; j++)
+			B.RealPtr()[i*n+j] = 0.0;
+		global::nops+= n*n*n/3;
+	}
+	return retval;
+}
+
+
+// Use C-tela functions 'herm' and 'transpose' from std.ct
+extern "C" int hermfunction(const TConstObjectPtr[], const int, const TObjectPtr[], const int);
+extern "C" int transposefunction(const TConstObjectPtr[], const int, const TObjectPtr[], const int);
+
+[C] = matprod(A,B; Aflag,Bflag)
+/* matprod(A,B) returns the matrix product of A and B.
+   If at least one of A and B is scalar, matprod(A,B) is the
+   same as their ordinary product A*B. If both A and B
+   are arrays, their "inner" dimensions must agree.
+   That is, the last dimension of A must equal the first
+   dimension of B.
+   You can abbreviate matprod(A,B) as A**B.
+
+   Optional args: matprod(A,B,aflag,bflag) can be used to
+   transpose or Hermitian-conjugate the factors before the
+   product. 'n' means no operation, 't' means transpose and
+   'h' means Hermitian conjugate. For example,
+
+   matprod(A,B,'h') = A'**B = herm(A)**B
+   matprod(A,B,'n','t') = A**B.' = A**transpose(B)
+
+   Normally you need not use matprod explicitly, but you
+   can use the operator **, which is internally translated
+   to matprod. Hermitian conjugates and transposes in
+   connection with ** produce the corresponding 'h' and
+   't' options in matprod. For example,
+
+   A'**B        generates       matprod(A,B,'h')
+   A.'**B'      generates       matprod(A,B,'t','h')
+   A**B.'       generates       matprod(A,B,'n','t')
+
+   and so on. The runtime is optimal for all these operations.
+
+   See also: inv.
+   
+   Error codes:
+   -1: Inner dimensions do not agree
+   -2: Resulting array would have too high rank
+   -3: Third arg not one of 'n', 't', 'h'
+   -4: Fourth arg not one of 'n', 't', 'h'
+   */
+{
+	char AFlag='N', BFlag='N';
+	// Notice that AFlag,BFlag are 'N','T','C' as required by LAPACK
+	// although the user gives 'n','t', or 'h'.
+	if (Nargin >= 3) {
+		if (Aflag.kind()!=Kint) return -3;
+		char ch = Aflag.IntValue();
+		if (ch == 'n')
+			AFlag = 'N';
+		else if (ch == 't')
+			AFlag = 'T';
+		else if (ch == 'h')
+			AFlag = 'C';
+		else return -3;
+		if (Nargin == 4) {
+			if (Bflag.kind()!=Kint) return -4;
+			ch = Bflag.IntValue();
+			if (ch == 'n')
+				BFlag = 'N';
+			else if (ch == 't')
+				BFlag = 'T';
+			else if (ch == 'h')
+				BFlag = 'C';
+			else return -4;
+		}
+	}
+	if (!A.IsArray() || !B.IsArray()) {
+		Tobject A1,B1;
+		TConstObjectPtr inputs[1]; TObjectPtr outputs[1];
+		if (AFlag == 'T') {
+			inputs[0] = &A;
+			outputs[0] = &A1;
+			transposefunction(inputs,1,outputs,1);
+		} else if (AFlag == 'C') {
+			inputs[0] = &A;
+			outputs[0] = &A1;
+			hermfunction(inputs,1,outputs,1);
+		} else A1 = A;
+		if (BFlag == 'T') {
+			inputs[0] = &B;
+			outputs[0] = &B1;
+			transposefunction(inputs,1,outputs,1);
+		} else if (BFlag == 'C') {
+			inputs[0] = &B;
+			outputs[0] = &B1;
+			hermfunction(inputs,1,outputs,1);
+		} else B1 = B;
+		Mul(C,A1,B1);
+		return 0;
+	}
+	Tkind Ckind = (Tkind)max(int(KRealArray),max(int(A.kind()),int(B.kind())));
+	if (A.rank()==1 && B.rank()==1 && A.kind()==B.kind() && A.kind()!=KIntArray) {
+		// Faster branch for both A and B vectors,
+		// and either both are complex are both are real,
+		Tint N = A.length();
+		if (B.length()!=N) return -1;
+		if (A.kind()==KRealArray) {		// A and B are real vectors
+			C = RDOT(N,B.RealPtr(),1,A.RealPtr(),1);
+			global::nops+= 2*N;
+		} else if (A.ComplexPtr()==B.ComplexPtr() && (AFlag=='C' || BFlag=='C') && AFlag!=BFlag) {
+			// the case A==B, sum(abs(A[i])^2)
+			// Notice that the result is purely real in this case, and the number of operations is
+			// only 4*N
+			C = RDOT(2*N,B.RealPtr(),1,A.RealPtr(),1);
+			global::nops+= 4*N;
+		} else {	// now both A and B are complex vectors
+			Tint i;
+			Tcomplex result(0.0, 0.0);
+			Tcomplex *Aptr = A.ComplexPtr(), *Bptr = B.ComplexPtr();
+			if (AFlag == 'C') {
+				if (BFlag == 'C')
+					for (i=0; i<N; i++)
+						result+= conj(Aptr[i]*Bptr[i]);
+				else
+					for (i=0; i<N; i++)
+						result+= conj(Aptr[i])*Bptr[i];
+			} else {
+				if (BFlag == 'C')
+					for (i=0; i<N; i++)
+						result+= Aptr[i]*conj(Bptr[i]);
+				else
+					for (i=0; i<N; i++)
+						result+= Aptr[i]*Bptr[i];
+			}
+			C = result;
+			global::nops+= 8*N;
+		}
+		return 0;
+	}
+	// Separate branch for both A and B zero-length vectors (RGEMM/CGEMM would not tolerate it)
+	if (A.rank()==1 && B.rank()==1 && A.length()==0) {
+		if (B.length()!=0) return -1;
+		C = 0;
+		return 0;
+	}
+	Tint Cdims[MAXRANK];
+	Tint K = B.dims()[BFlag!='N' ? B.rank()-1 : 0];
+	if (A.dims()[AFlag!='N' ? 0 : A.rank()-1] != K) return -1;
+	const int rankC = A.rank() + B.rank() - 2;
+	if (rankC < 0 || rankC > MAXRANK) return -2;
+    int d;
+	for (d=0; d<A.rank()-1; d++)
+		Cdims[d] = A.dims()[AFlag!='N' ? (A.rank()-1-d) : d];
+	for (d=A.rank()-1; d<rankC; d++)
+		Cdims[d] = B.dims()[BFlag!='N' ? (B.rank()-1-(1+d-(A.rank()-1))) : (1+d-(A.rank()-1))];
+	Tint M = 1;
+	if (AFlag!='N')
+		for (d=1; d<A.rank(); d++) M*= A.dims()[d];
+	else
+		for (d=0; d<A.rank()-1; d++) M*= A.dims()[d];
+	Tint N = 1;
+	if (BFlag!='N')
+		for (d=0; d<B.rank()-1; d++) N*= B.dims()[d];
+	else
+		for (d=1; d<B.rank(); d++) N*= B.dims()[d];
+	Tint i;
+	if (Ckind == KRealArray) {
+		Treal *Aptr, *Bptr;
+		int DeleteAptr=0, DeleteBptr=0;
+		if (A.kind()==KRealArray)
+			Aptr = A.RealPtr();
+		else {	// A.kind() must be KIntArray 
+			Aptr = new Treal [A.length()];
+			DeleteAptr = 1;
+			for (i=0; i<A.length(); i++) Aptr[i] = Treal(A.IntPtr()[i]);
+		}
+		if (B.kind()==KRealArray)
+			Bptr = B.RealPtr();
+		else {	// B.kind() must be KIntArray 
+			Bptr = new Treal [B.length()];
+			DeleteBptr = 1;
+			for (i=0; i<B.length(); i++) Bptr[i] = Treal(B.IntPtr()[i]);
+		}
+		C.rreserv(TDimPack(Cdims,rankC));
+		Tint LDB = N, LDA = K;
+		if (BFlag!='N') LDB = K;
+		if (AFlag!='N') LDA = M;
+		CATCH_INTERRUPTS(RGEMM(&BFlag,&AFlag,N,M,K,1.0,Bptr,LDB,Aptr,LDA,0.0,C.RealPtr(),N));
+		if (DeleteAptr) delete [] Aptr;
+		if (DeleteBptr) delete [] Bptr;
+		if (rankC==0) C = C.RealPtr()[0];
+		global::nops+= 2*N*M*K;
+	} else {	// C.kind() must be KComplexArray
+		Tcomplex *Aptr, *Bptr;
+		int DeleteAptr=0, DeleteBptr=0;
+		if (A.kind()==KComplexArray)
+			Aptr = A.ComplexPtr();
+		else if (A.kind()==KRealArray) {
+			Aptr = new Tcomplex [A.length()];
+			DeleteAptr = 1;
+			for (i=0; i<A.length(); i++) Aptr[i] = Tcomplex(A.RealPtr()[i],0.0);
+		} else {	// A.kind() must be KIntArray 
+			Aptr = new Tcomplex [A.length()];
+			DeleteAptr = 1;
+			for (i=0; i<A.length(); i++) Aptr[i] = Tcomplex(A.IntPtr()[i],0.0);
+		}
+		if (B.kind()==KComplexArray)
+			Bptr = B.ComplexPtr();
+		else if (B.kind()==KRealArray) {
+			Bptr = new Tcomplex [B.length()];
+			DeleteBptr = 1;
+			for (i=0; i<B.length(); i++) Bptr[i] = Tcomplex(B.RealPtr()[i],0.0);
+		} else {	// B.kind() must be KIntArray 
+			Bptr = new Tcomplex [B.length()];
+			DeleteBptr = 1;
+			for (i=0; i<B.length(); i++) Bptr[i] = Tcomplex(B.IntPtr()[i],0.0);
+		}
+		C.creserv(TDimPack(Cdims,rankC));
+		Tint LDB = N, LDA = K;
+		if (AFlag!='N') LDA = M;
+		if (BFlag!='N') LDB = K;
+		CATCH_INTERRUPTS(CGEMM(&BFlag,&AFlag,N,M,K,Tcomplex(1.0,0.0),Bptr,LDB,Aptr,LDA,Tcomplex(0.0,0.0),C.ComplexPtr(),N));
+		if (DeleteAptr) delete [] Aptr;
+		if (DeleteBptr) delete [] Bptr;
+		if (rankC==0) {Tcomplex tmp = C.ComplexPtr()[0]; C = tmp;}
+		global::nops+= 8*N*M*K;
+	}
+	return 0;
+}
+
+
+
+[y] = axpy(a,x)
+/* [y] = axpy(a,x) is the equivalent of y = y + a*x
+   for scalar a and (real or complex) arrays x and y.
+   axpy calls a fast BLAS-1 routine if available.
+   Error codes:
+   -1: Input/output arg y is not real/complex array
+   -2: First input arg a is not a scalar
+   -3: Second input arg x is not real/complex array
+   -4: Second input arg x has size incompatible with y
+   -5: If y is real a and x must also be real
+   -6: If y is complex x must also be complex
+*/
+{
+	const Tkind yk = y.kind();
+	if (yk!=KRealArray && yk!=KComplexArray) return -1;
+	const Tkind xk = x.kind();
+	if (xk!=KRealArray && xk!=KComplexArray) return -3;
+	const Tkind ak = a.kind();
+	if (!a.IsScalar()) return -2;
+	if (y.dims() != x.dims()) return -4;
+	const int N = y.length();
+	if (yk == KComplexArray) {
+		if (xk != KComplexArray) return -6;
+		Tcomplex A;
+		if (ak == Kreal)
+			A = Tcomplex(a.RealValue(),0.0);
+		else if (ak == Kcomplex)
+			A = a.ComplexValue();
+		else
+			A = Tcomplex(a.IntValue(),0.0);
+		CAXPY(N,A, x.ComplexPtr(),1, y.ComplexPtr(),1);
+		global::nops+= 8*N;
+	} else {
+		if (xk != KRealArray) return -5;
+		Treal A;
+		if (ak == Kreal)
+			A = a.RealValue();
+		else if (ak == Kcomplex)
+			return -5;
+		else
+			A = a.IntValue();
+		RAXPY(N,A, x.RealPtr(),1, y.RealPtr(),1);
+		global::nops+= 2*N;
+	}
+	return 0;
+}			
+

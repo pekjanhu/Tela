@@ -1,0 +1,218 @@
+<title>Tela Frequently Asked Questions</title>
+<h1>Tela Installation Frequencly Asked Questions For 1.22</h1>
+<h4></h4>
+<h2>GENERAL
+</h2><a href="#Q1.1">Q1.1: What do I need to install Tela?</a><p>
+<a href="#Q1.2">Q1.2: Where to obtain more information?</a><p>
+<h2>COMPILATION
+</h2><a href="#Q2.1">Q2.1: The compilation stops in files.ct in HDF include files with many errors.</a><p>
+<a href="#Q2.2">Q2.2: I have problems with the Makefile on IRIS system?</a><p>
+<a href="#Q2.3">Q2.3: It doesn't find some include files.</a><p>
+<a href="#Q2.4">Q2.4: It complains about multiply defined outputters e.g. in codegen.C.</a><p>
+<a href="#Q2.5">Q2.5: The compiler gets stuck in objarithm.C.</a><p>
+<a href="#Q2.6">Q2.6: The compiler runs out of memory.</a><p>
+<a href="#Q2.7">Q2.7: The compiler crashes in fftpack.C.</a><p>
+<a href="#Q2.8">Q2.8: flex++ complains about bad options!</a><p>
+<h2>LINKING
+</h2><a href="#Q3.1">Q3.1: All LAPACK functions seem to be undefined in linking phase.</a><p>
+<a href="#Q3.2">Q3.2: tputs or something similar seems to be undefined.</a><p>
+<a href="#Q3.3">Q3.3: alloca is undefined.</a><p>
+<a href="#Q3.4">Q3.4: Some Fortran-specific stuff seems to be undefined.</a><p>
+<h2>INSTALLATION
+</h2><a href="#Q4.1">Q4.1: install.sh seems to install only part of the files.</a><p>
+<h2>RUNTIME ERRORS
+</h2><a href="#Q5.1">Q5.1: The linear algebra functions seem to produce garbage results.</a><p>
+<a href="#Q5.2">Q5.2: The FFT routines produce garbage.</a><p>
+<a href="#Q5.3">Q5.3: Sometimes I see weird hex numbers where I expect to see a string in output?</a><p>
+<h2>PROBLEMS ON SPECIFIC MACHINES
+</h2><a href="#Q6.1">Q6.1: Problems on Cray UNICOS 8.0.3 using scc4.0 and C++1.0?</a><p>
+<hr><h1>Answers</h1>
+<h2>GENERAL
+</h2>
+<p><a name="Q1.1"> <h0>Q1.1: What do I need to install Tela?</h0></a>
+<blockquote><code><pre>First and foremost you need a working C++ compiler.
+For example, g++ or Cfront can be used.
+
+LAPACK and BLAS libraries, GNU Readline library, HDF library
+plus include files. PlotMTV1.4.1t or later for graphics.
+In addition you may find it convenient to have bison++ and
+flex++ parser generators installed. A Fortran compiler is
+not strictly necessary if you have precomplied LAPACK/BLAS
+libraries, but the necessary Fortran runtime libraries must
+be there.
+
+<a name="Q1.2"> <h0>Q1.2: Where to obtain more information?</h0></a>
+<blockquote><code><pre>Read the file INSTALL in the main source directory.
+
+
+<h2>COMPILATION
+</h2>
+<a name="Q2.1"> <h0>Q2.1: The compilation stops in files.ct in HDF include files with many errors.</h0></a>
+<blockquote><code><pre>The HDF library include files expect one of the HDF-specific machine
+names to be defined. For a list see ls MAKEFILE* in the HDF source
+directory. If your machine is not directly supported, you can usually
+do rather well by using an alternative. For example on HPUX HDF library
+compiles with -DSUN or -DIRIS. Just be aware that byte ordering is
+significant, therefore on Linux you should use SUN386. Of course you
+want to use the same -D macro when compiling libdf.a and Tela.
+
+<a name="Q2.2"> <h0>Q2.2: I have problems with the Makefile on IRIS system?</h0></a>
+<blockquote><code><pre>Some IRIX versions have a buggy make. At least 5.2 has this problem.
+Use GNU make to avoid problems (this is a good hint for all other
+software packages too).
+
+<a name="Q2.3"> <h0>Q2.3: It doesn't find some include files.</h0></a>
+<blockquote><code><pre>Check variables containing INCLUDE in makeinc and Makefile.
+Do grep INCLUDE makeinc Makefile.
+
+<a name="Q2.4"> <h0>Q2.4: It complains about multiply defined outputters e.g. in codegen.C.</h0></a>
+<blockquote><code><pre>There are two possibilities. 1) BROKEN_UCHAR_OUTPUTTER has been defined
+wrong in makeinc. 2) your C++ compiler is buggy and is unwilling to
+compile it for you. In the latter case the only fix is to manually insert
+(char*) type casts in source code in appropriate places.
+
+<a name="Q2.5"> <h0>Q2.5: The compiler gets stuck in objarithm.C.</h0></a>
+<blockquote><code><pre>On some systems, for example IRIX6.x in 64-bit mode, it takes very long
+time to compile objarithm.C using the -O3 optimization. Can't help it,
+the compiler just spends that time optimizating the thing. Just wait.
+
+<a name="Q2.6"> <h0>Q2.6: The compiler runs out of memory.</h0></a>
+<blockquote><code><pre>This may happen under AIX if you use -O3. Buy more memory, try to reconfigure
+your virtual memory (hope you can find someone who knows how), or reduce
+optimization level to -O2.
+
+<a name="Q2.7"> <h0>Q2.7: The compiler crashes in fftpack.C.</h0></a>
+<blockquote><code><pre>This may happen under AIX if you use -O3. Use -O2 for that file.
+
+<a name="Q2.8"> <h0>Q2.8: flex++ complains about bad options!</h0></a>
+<blockquote><code><pre>Your flex++ probably is not the flex++ Tela wants. Sometimes the
+ordinary GNU flex installer does ln -s flex flex++ because flex
+has some C++ features. Get the real flex++ from
+ftp.funet.fi:/pub/sci/math/tela/needed/, or define FLEX++ = true
+in makeinc.
+
+
+<h2>LINKING
+</h2>
+<a name="Q3.1"> <h0>Q3.1: All LAPACK functions seem to be undefined in linking phase.</h0></a>
+<blockquote><code><pre>The Fortran compiler encodes the external names for the linker.
+Among the used practices for Fortran subroutine foo are:
+
+    foo         (no encoding) HPUX, AIX
+    foo_        Most other Unix systems and f2c
+    FOO         Cray UNICOS
+
+(On AIX this can be changed by the user.)
+Tela C++ code must conform to the practice used by the Fortran compiler.
+The file affected is lapack.H. A mismatch in NO_UNDERSCORE_IN_FORTRAN_NAMES
+shows up in linking phase as an army of undefined symbols.
+</pre></code></blockquote>
+<p><a name="Q3.2"> <h0>Q3.2: tputs or something similar seems to be undefined.</h0></a>
+<blockquote><code><pre>You probably forgot to insert -ltermcap to READLINELIB.
+
+</pre></code></blockquote><a name="Q3.3"> <h0>Q3.3: alloca is undefined.</h0></a>
+<blockquote><code><pre>Your C++ system may not support alloca, or has a buggy support
+that configure has rejected. This is the case if C_ALLOCA is defined
+in makeinc. Compile alloca.c by cc -c alloca.c by hand and ensure
+that alloca.o is among the linked-in files.
+
+</pre></code></blockquote><a name="Q3.4"> <h0>Q3.4: Some Fortran-specific stuff seems to be undefined.</h0></a>
+<blockquote><code><pre>The Fortran runtime support are found in many libraries on different
+systems. Try -lF77, -lU77, -lI77, -lisam. If you compiled using F-90
+compiler the library names are probably different (probably not -lF90
+though, that would evidently make life too dull). A useful trick
+in looking for undefined symbols is to write (in C-shell)
+
+cd /usr/lib      # or whatever
+foreach i (lib*.a)
+echo $i
+nm $i | grep UNDEFINED_SYMBOL
+end
+</pre></code></blockquote>
+<p>
+<p><h2>INSTALLATION
+</h2>
+<p><a name="Q4.1"> <h0>Q4.1: install.sh seems to install only part of the files.</h0></a>
+<blockquote><code><pre>Yes. I know. install.sh actually does not work properly.
+I should write a better one. Meanwhile, get and install (!) GNU install.
+
+</pre></code></blockquote>
+<p><h2>RUNTIME ERRORS
+</h2>
+<p><a name="Q5.1"> <h0>Q5.1: The linear algebra functions seem to produce garbage results.</h0></a>
+<blockquote><code><pre>Check that the floating point precision of your LAPACK/BLAS routines
+matches Treal and Tint in Tela (in def.H). By default Treal is defined
+to be double and Tint is defined to be int.
+
+</pre></code></blockquote><a name="Q5.2"> <h0>Q5.2: The FFT routines produce garbage.</h0></a>
+<blockquote><code><pre>This should no longer occur if you are using Tela version 1.21 or later.
+On earlier versions this is probably because you failed to compile FFTPACK
+with -r8 or equivalent switch. FFTPACK is formally single precision (REAL)
+while Tela expects double precision (C type double), therefore the Fortran
+compiler must be forced to promote REALs to DOUBLE PRECISION using a command
+line switch. On Tela&gt;=1.21 this no longer happens because fftpack has been
+translated in C++.
+
+</pre></code></blockquote><a name="Q5.3"> <h0>Q5.3: Sometimes I see weird hex numbers where I expect to see a string in output?</h0></a>
+<blockquote><code><pre>Some C++ systems handle iostream unsigned char* outputting incorrectly,
+i.e. they output not a string but the pointer in hex. The configure
+script tries to recognize this but the check has been somehow fooled
+in your case. Set BROKEN_UCHAR_OUTPUTTER to 1 in makeinc.
+
+</pre></code></blockquote>
+<p><h2>PROBLEMS ON SPECIFIC MACHINES
+</h2>
+<p><a name="Q6.1"> <h0>Q6.1: Problems on Cray UNICOS 8.0.3 using scc4.0 and C++1.0?</h0></a>
+<blockquote><code><pre>
+- The compiler sometimes crashes on the VECTORIZE macro.
+  By replacing every occurrence of VECTORIZE by the corresponding
+  pragma should help. I used the following small filter program
+  to do the job:
+
+#include &lt;stdio.h&gt;
+#include &lt;string.h&gt;
+
+#define MAXLINE 1024
+
+int main()
+{
+        char s[MAXLINE+1];
+        char *pos;
+        int i;
+        while (1) {
+                fgets(s,MAXLINE,stdin);
+                if (feof(stdin)) break;
+                pos = strstr(s,"VECTORIZED");
+                if (pos) {
+                        for (i=0; s[i] && (&s[i]) != pos; i++) putchar(s[i]);
+                        printf("\n#pragma _CRI ivdep\n");
+                        i+= strlen("VECTORIZED");
+                        for (; s[i]; i++) putchar(s[i]);
+                } else {
+                        fputs(s,stdout);
+                }
+        }
+        return 0;
+}
+
+I filtered gatscat.C and object.C through this.
+
+- I could not get the readline library working, thus
+  noreadline.c was used instead.
+
+- The bison++ parser generator compiles out of box but
+  produces incorrect results! The resulting parser 
+  would give syntax error at every ';', for example.
+
+- Some of the elementary functions give floating point exceptions
+  on some bad input arguments because the IEEE arithmetic is not
+  in use on Cray.
+
+- The -haggress option produces "out of memory during compilation"
+  style messages on objarithm.C. It compiled, nevertheless, but
+  some of the loops are probably not vectorized.
+
+- The WHEN_COMPILED string must be made simpler in Makefile
+<hr>
+<address>tela-bugs@fmi.fi</address><p>
+<a href="http://www.geo.fmi.fi/prog/tela.html">Back to Tela home page</a>

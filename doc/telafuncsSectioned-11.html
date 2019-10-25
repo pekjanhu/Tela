@@ -1,0 +1,240 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="LinuxDoc-Tools 0.9.21">
+ <TITLE>Builtin Tela functions: numerics.ct</TITLE>
+ <LINK HREF="telafuncsSectioned-12.html" REL=next>
+ <LINK HREF="telafuncsSectioned-10.html" REL=previous>
+ <LINK HREF="telafuncsSectioned.html#toc11" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="telafuncsSectioned-12.html">Next</A>
+<A HREF="telafuncsSectioned-10.html">Previous</A>
+<A HREF="telafuncsSectioned.html#toc11">Contents</A>
+<HR>
+<H2><A NAME="s11">11.</A> <A HREF="telafuncsSectioned.html#toc11">numerics.ct</A></H2>
+
+<P>This section describes functions from file numerics.ct.</P>
+
+<H2><A NAME="Lomb"></A> <A NAME="ss11.1">11.1</A> <A HREF="telafuncsSectioned.html#toc11.1">Lomb</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[freq,ampl;normalization,prob] = Lomb(x,y; dx,oversampling)
+   [freq,ampl] = Lomb(t,u)
+   The Lomb periodogram is power spectrum analysis of unevenly sampled data.
+   The argument t must be monotonically increasing "time" axis and u the
+   corresponding real data vector. The output freq is the frequency axis and
+   ampl the normalized Lomb power spectrum. The result is normalized so that
+   sum(ampl)*(freq[2]-freq[1]) approximates the mean squared signal mean(u^2)
+   and in case of evently spaced t, ampl is close to the FFT power spectrum P:
+   P=2*(t[2]-t[1])*abs2(realFFT(u))/length(u); P[length(P)]*= 0.5; P[1]*= 0.5.
+
+     [freq,ampl] = Lomb(t,u,dt,oversampling)
+   sets the finest wanted t resolution dt (default is min(diff(dt))) and the
+   oversampling factor (default 4.0).
+
+     [freq,ampl,normalization,prob] = Lomb(...)
+   returns also normalized and prob, where normalization is a scalar which is
+   such that normalization*ampl gives the dimensionless Lomb spectrogram
+   conforming to Numerical Recipes convention. The fourth output arg 'prob' is
+   the probability that the spectral power would occur by chance under the
+   assumption of Gaussian noise; if 'prob' is small at obtained peak, the peak
+   is statistically significant. Lomb uses a fast n*log(n) algorithm due to
+   Press and Rybicki. The implementation is loosely based on the Numerical
+   Recipes book. Lomb returns also zero frequency and the corresponding
+   amplitude which is related to mean(u) while the N.R. routine does not return
+   the zero frequency part.
+   Example:
+      n = 100; t = sort(n*rand(n)); u = 2*sin(128*pi*t/n);
+      [f,a,norm,prob] = Lomb(t,u,0.25); plot(f,a);
+   The spectral peak is clear, although not easily seen plot(t,u). The
+   probability that the peak occurs by chance is seen from plot(f,prob); it is
+   about 1e-18 in this case.
+</PRE>
+
+See also: 
+<A HREF="telafuncsSectioned-7.html#FFT">FFT</A>, 
+<A HREF="telafuncsSectioned-7.html#realFFT">realFFT</A>.
+<PRE>
+   Error codes:
+   -1: First input arg t is not real vector of length at least 2
+   -2: Second input arg u is not real vector
+   -3: Lengths of input vectors are different
+   -4: Third input arg 'dt' is not positive real scalar
+   -5: Fourth input arg 'oversampling' is not positive real scalar
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="accum"></A> <A NAME="ss11.2">11.2</A> <A HREF="telafuncsSectioned.html#toc11.2">accum</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[u] = accum(...)
+ [u] = accum(i,j,...,v)
+   is the same as u&lt;[i,j,...]>+= v
+   except that repeated indices are handled by sequential
+   increments rather than the last assignment only being effective
+   as in u&lt;[i,j,...]>+= v. Notice that the v argument must be
+   an array of same size as i,j,..., a scalar v is not accepted.
+   (Hint: to promote scalar into array, add zeros array to it.)
+   Error codes:
+   -30: Too few input args to accum (min is 2)
+   -1: I/O arg u (left-hand-side) is non-numeric
+   -2: I/O arg u is scalar but last input arg is not
+   -3: I/O arg u is scalar but one of the indices is not 1, : or #(1)
+   -4: Mismatch between rank of I/O arg u and number of indices
+   -5: Scalar index out of range
+   -6: Invalid IntArray used as index, should be one-dimensional
+   -7: Vector index out of range
+   -8: Invalid index, should be integer or IntArray
+   -9: Accumulating non-integer into integer array
+   -10: Accumulating non-real into real array
+   -11: Accumulating non-scalar into complex array
+   -12: Too large dimensional accum, not yet implemented (internal error)
+   -14: Type mismatch
+   -22: Index vector length disagrees with 'RHS' length
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="applyfilter"></A> <A NAME="ss11.3">11.3</A> <A HREF="telafuncsSectioned.html#toc11.3">applyfilter</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[U] = applyfilter(u,c,d)
+ U = applyfilter(u,c,d)
+   applies a IIR (Infinite Impulse Response) digital filter
+   to time series real vector u, producing another vector U.
+   The filter coefficients c,d must be real vectors.
+   The filter formulas is
+     U[n] = c**u[n-k] + d**U[n-j]
+   where k=0:length(c)-1, j=1:length(d)
+   and starts effects are handled by repeating the first
+   component backwards.
+   Error codes:
+   -1: First input arg must be real vector
+   -2: Second input arg must be real vector
+   -3: Third input arg must be real vector
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="bsearch"></A> <A NAME="ss11.4">11.4</A> <A HREF="telafuncsSectioned.html#toc11.4">bsearch</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[i] = bsearch(x,X)
+ i = bsearch(x,X)
+   binary-searches for value X in ordered vector x and returns index i
+   such that x[i] &lt;= X &lt;= x[i+1] if x is monotonically increasing,
+   or x[i] >= X >= x[i+1] if x is monotonically decreasing.
+   The first argument x must be monotonic int or real vector,
+   and second argument X can be either int or real scalar or array.
+   The result value i is integer-valued, and of the same size as X.
+   It satisfies 1&lt;=i&lt;=N-1 where N=length(x) in cases where X is
+   in the range min(x[1],x[N])..max(x[1],x[N]), and zero otherwise
+   (point out of range).
+   The execution time of bsearch is O(log(length(x))*length(X)).
+</PRE>
+
+See also: 
+<@@ref>interpinterp</A>.
+<PRE>
+   Error codes:
+   -1: First arg not int or real vector
+   -2: Second arg not int or real
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="intpol"></A> <A NAME="ss11.5">11.5</A> <A HREF="telafuncsSectioned.html#toc11.5">intpol</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[y] = intpol(A...)
+ intpol(A,index1,index2...) is a general interpolation
+   function. A must be an array from which values are interpolated.
+   The rank of A must equal the number of index arguments.
+   Each index argument may be a real scalar or real array.
+   All index arguments must mutually agree in type and rank.
+   The array A may also be complex. The result y is of same
+   rank and size as each of the index arguments.
+
+   intpol(A,i,j,...) is a generalization of mapped indexing
+   A&lt;[i,j,...]> for non-integral indices. The function benefits
+   from vectorization even more than most other Tela functions.
+
+   Currently intpol uses linear interpolation.
+   Error codes:
+   -1: First arg not a numerical array
+   -2: Rank of first arg does not match number of index args
+   -3: Non-real index arg
+   -4: Dissimilar index args
+   -6: Range overflow
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="poissonrand"></A> <A NAME="ss11.6">11.6</A> <A HREF="telafuncsSectioned.html#toc11.6">poissonrand</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[y] = poissonrand(x)
+ poissonrand(x) returns a Poisson-distributed random integer
+   whose expectation value is x (x >= 0). The probability that
+   the result is n (n>=0) is x^n*exp(-x)/n!.
+   If (x &lt; 0) the result is always 0.
+   If x is an array, the result is the same shape as x.
+   The result is always integer-valued.
+</PRE>
+
+See also: 
+<A HREF="telafuncsSectioned-2.html#rand">rand</A>, 
+<A HREF="telafuncsSectioned-2.html#srand">srand</A>, 
+<A HREF="telafuncsSectioned-2.html#gaussrand">gaussrand</A>.
+<PRE>
+   Error codes:
+   -1: Argument not real scalar or array
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="stencil2d_4"></A> <A NAME="ss11.7">11.7</A> <A HREF="telafuncsSectioned.html#toc11.7">stencil2d_4</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[Lu] = stencil2d_4(u,ap0,am0,a0p,a0m)
+ stencil2d_4(u,ap0,am0,a0p,a0m) computes the two-dimensional
+   five-point "molecule" where the coefficient of the central
+   term is unity:
+
+   Lu = u[i,j]
+      + ap0*u[i+1,j] + am0*u[i-1,j]
+          + a0p*u[i,j+1] + a0m*u[i,j-1];
+
+   where the indices i and j run from 2..nx and 2..ny where
+   [nx,ny] = size(u). The size of ap0,am0,a0p,a0m must be two
+   less than the size of u in both directions.
+   Error codes:
+   -1: One of the arguments is not a real matrix
+   -2: One of the coefficient args has bad size
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+
+<HR>
+<A HREF="telafuncsSectioned-12.html">Next</A>
+<A HREF="telafuncsSectioned-10.html">Previous</A>
+<A HREF="telafuncsSectioned.html#toc11">Contents</A>
+</BODY>
+</HTML>

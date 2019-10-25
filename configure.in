@@ -1,0 +1,574 @@
+dnl Process this file with autoconf to produce a configure script
+dnl =============================================================
+dnl
+AC_INIT(tela.C)
+AC_PREREQ(1.8)
+dnl
+dnl Try to determine system we are running on (shell var system)
+dnl ------------------------------------------------------------
+dnl
+AC_CHECKING(for system type)
+UNAME_SYSTEM=`(uname -s) 2>/dev/null` ||'unknown'
+UNAME_RELEASE=`(uname -r) 2>/dev/null` ||'unknown'
+UNAME_MACHINE=`(uname -m) 2>/dev/null` || 'unknown'
+system='unknown'
+case "${UNAME_SYSTEM}:${UNAME_RELEASE}:${UNAME_MACHINE}" in
+	SunOS:5.*)
+		AC_DEFINE(SUN) system='Solaris2';;
+	Linux:*)
+		AC_DEFINE(LINUX) system='Linux' ;;
+	HP-UX:*)
+		AC_DEFINE(HPUX) system='HPUX' ;;
+	IRIX64:6.*)
+        AC_DEFINE(IRIS4) system='Irix6' ;;
+	IRIX:5.*)
+        AC_DEFINE(IRIS4) system='Irix5' ;;
+    IRIX:4.*)
+		AC_DEFINE(IRIS4) system='Irix4' ;;
+	CONVEX:*)
+		AC_DEFINE(CONVEX) system='Convex' ;;
+	*CRAY*|*Cray*)
+		AC_DEFINE(UNICOS) system='UNICOS' ;;
+	AIX:*)
+		AC_DEFINE(_AIX) AC_DEFINE(IBM6000) system='AIX' ;;
+	OSF1:*)
+		AC_DEFINE(OSF1) system='OSF1' ;;
+esac
+if test $system = 'unknown'; then
+	AC_MSG_RESULT(- System type is unknown:)
+	echo '  '"${UNAME_SYSTEM}:${UNAME_RELEASE}:${UNAME_MACHINE}"
+else
+	AC_MSG_RESULT(System type is ${system}.)
+fi
+dnl
+dnl Set installation prefixes
+dnl -------------------------
+if test "x$prefix" = "x" ; then prefix=/usr/local ; fi
+if test "x$exec_prefix" = "x" ; then exec_prefix="$prefix" ; fi
+if test "$prefix" = "NONE" ; then prefix=/usr/local ; fi
+if test "$exec_prefix" = "NONE" ; then exec_prefix="$prefix" ; fi
+INSTALLATION_PREFIX=$prefix/lib/tela
+AC_SUBST(INSTALLATION_PREFIX)
+dnl ARCHDEP_INSTALLATION_PREFIX should be $exec_prefix/bin
+dnl The current setting is for compatability with older versions. - cls
+ARCHDEP_INSTALLATION_PREFIX=$exec_prefix/lib/tela
+AC_SUBST(ARCHDEP_INSTALLATION_PREFIX)
+dnl
+dnl Determine C and C++ compilers to use
+dnl ------------------------------------
+if test ".$system" = ".AIX"; then
+	CC=xlC
+	CXX='xlC -+'
+	CFLAGS='$CFLAGS -O3 -qstrict -qinlglue -Q -qarch=com -qtune=pwrx -qlist -qlistopt'
+dnl The option -twolink was removed
+    UNROLL_FLAGS='-qunroll=8'
+else
+
+AC_PROG_CC
+AC_PROG_CXX
+AC_PROG_F77
+dnl these looked primarily for gcc/g++
+isgcc=false
+if test ".$CC" = ".gcc"; then
+	case ".$CXX" in
+		.c++|.g++|.gcc) isgcc=true;;
+		.*) ;;
+	esac
+fi
+dnl if isgcc is true, then AC_PROG_CC, AC_PROG_CXX found gcc/g++
+dnl in this case, look also for cc/CC and ask user whether he
+dnl wants to use gcc/g++ or cc/CC combination ..
+if test ".$isgcc" = '.true'; then
+	AC_PROGRAM_CHECK(hascc,cc,true,false)
+	AC_PROGRAM_CHECK(hasCC,CC,true,false)
+	if test ".$hascc" = '.true' && test ".$hasCC" = '.true'; then
+		echo 'System has gcc/g++ but it also has cc/CC.'
+		echo 'Do you still want to compile with GNU (y) ?'
+		read ans
+		if test ".$ans" = '.n'; then
+			CC='cc'
+			CXX='CC'
+			GCC=0
+			isgcc='false'
+		fi
+	fi
+fi
+CXXFLAGS=""
+CFLAGS=""
+if test ".$isgcc" = '.true'; then
+dnl	CFLAGS="$CFLAGS -O2 -Wall -Wno-unused -Wuninitialized -felide-constructors"
+	CFLAGS="-O2 -Wall -Wno-unused -Wuninitialized"
+	UNROLL_FLAGS="-funroll-loops"
+else
+	if test ".$system" = ".HPUX"; then
+		CFLAGS="$CFLAGS +a1 +O3"
+	elif test ".$system" = ".UNICOS"; then
+		CFLAGS="$CFLAGS -hvector2,scalar1,report=vistf"
+	else
+		CFLAGS="$CFLAGS -O"
+	fi
+	if test ".$system" = ".Irix6"; then
+		UNROLL_FLAGS="-O3 -OPT:alias=unnamed:const_copy_limit=15000:Olimit=0"
+		CFLAGS="-O -woff 1155,1110 -OPT:const_copy_limit=15000:Olimit=0"
+		CXXFLAGS=""
+		AC_DEFINE(TELASPECIFIC_NEWDELETE)
+dnl		NEWDEL_O=newdel.o
+	else
+		UNROLL_FLAGS=""
+	fi
+fi
+AC_SUBST(NEWDEL_O)
+
+fi	# end of AIX-if
+
+AC_LANG_CPLUSPLUS
+AC_AIX
+AC_ISC_POSIX
+dnl
+dnl Try to find libfftpack.a, if it is there, ask user if he wants to
+dnl use it or the bundled version
+dnl -----------------------------------------------------------------
+dnl AC_LANG_SAVE
+dnl AC_LANG_C
+dnl AC_CHECK_LIB(fftpack,main,[
+dnl echo 'System seems to have libfftpack.a in a public lib directory.'
+dnl echo 'This Tela distribution contains a bundled version, but if you'
+dnl echo 'know that the public version is compatible with Tela, you as use it'
+dnl echo 'to save compilation time.'
+dnl echo 'Do you want to use it (Return; y), or the bundled version (n) ?'
+dnl read ans
+dnl if test ".$ans" = "."; then
+dnl     ans='y'
+dnl fi
+dnl if test ".$ans" = ".y"; then
+dnl 	LIBS="$LIBS -lfftpack"
+dnl 	external_fftpacklib=true
+dnl else
+dnl     external_fftpacklib=false
+dnl fi    
+dnl ])
+dnl AC_LANG_RESTORE
+dnl
+echo 'The rest of the script runs automatically.'
+dnl
+AC_SUBST(CFLAGS)
+AC_SUBST(UNROLL_FLAGS)
+AC_PROG_RANLIB
+AC_PROG_INSTALL
+AC_PROGRAM_CHECK(true,true,true,:)
+dnl AC_PROGRAM_CHECK(FLEXXX,flex++,flex++,touch d.l.c d.l.h;$true)
+AC_PROGRAM_CHECK(BISONXX,bison++,bison++,touch d.y.c d.y.h;$true)
+AC_SET_MAKE
+dnl
+dnl Headers etc.
+dnl ------------
+AC_STDC_HEADERS
+dnl --- RETSIGTYPE may work incorrectly if language is C++
+dnl --- therefore switch temporarily to plain C
+AC_LANG_SAVE
+AC_LANG_C
+AC_RETSIGTYPE
+AC_LANG_RESTORE
+dnl --- now we are back in C++ mode
+AC_HAVE_HEADERS(alloca.h string.h memory.h dlfcn.h unistd.h dld.h sys/rusage.h sys/procfs.h ieeefp.h time.h sys/types.h sys/wait.h sys/ioctl.h istream)
+dnl --- check presence of macro CLOCKS_PER_SEC in time.h
+AC_MSG_CHECKING([macro CLOCKS_PER_SEC in time.h])
+AC_TRY_COMPILE([#include <time.h>],
+               [CLOCKS_PER_SEC; ],
+               AC_DEFINE(HAVE_CLOCKS_PER_SEC) AC_MSG_RESULT(yes),
+               AC_MSG_RESULT(no))
+AC_CHECK_HEADERS(ieee754.h)
+dnl
+AC_FUNC_ALLOCA
+AC_PATH_XTRA
+dnl
+dnl Check presence of tv_usec/tv_nsec in struct timeval
+dnl ---------------------------------------------------
+AC_MSG_CHECKING([tv_usec in struct timeval in sys/time.h])
+AC_TRY_COMPILE([
+#include <sys/time.h>],
+[struct timeval t; t.tv_usec; ],
+AC_DEFINE(TIMEVAL_HAS_USEC) AC_MSG_RESULT(yes),AC_MSG_RESULT(no))
+dnl
+AC_MSG_CHECKING([tv_nsec in struct timeval in sys/time.h])
+AC_TRY_COMPILE([
+#include <sys/time.h>],
+[struct timeval t; t.tv_nsec; ],
+AC_DEFINE(TIMEVAL_HAS_NSEC) AC_MSG_RESULT(yes),AC_MSG_RESULT(no))
+dnl
+dnl Check presence of function popen
+dnl --------------------------------
+AC_MSG_CHECKING(for popen)
+AC_TRY_COMPILE([
+#include <stdio.h>
+], [popen("file","r"); ],
+AC_DEFINE(HAVE_POPEN) AC_MSG_RESULT(yes),AC_MSG_RESULT(no))
+dnl
+dnl Check presence of function drand48
+dnl ----------------------------------
+AC_MSG_CHECKING(for drand48)
+AC_TRY_COMPILE([
+#include <stdio.h>
+#include <math.h>
+extern "C" double drand48();
+], [drand48(); ],
+AC_DEFINE(HAVE_DRAND48) AC_MSG_RESULT(yes),AC_MSG_RESULT(no))
+dnl
+dnl Check presence of function getrusage
+dnl ------------------------------------
+dnl
+AC_MSG_CHECKING(for getrusage)
+AC_TRY_COMPILE([
+extern "C" {
+#include <sys/time.h>
+#include <sys/resource.h>
+#if HAVE_UNISTD_H
+#  include <unistd.h>
+#endif
+#if HAVE_SYS_RUSAGE_H
+#  include <sys/rusage.h>
+#else
+#  ifndef __linux
+   extern "C" int getrusage(int, struct rusage *);
+#  endif
+#endif
+}
+#ifndef RUSAGE_SELF
+#  define RUSAGE_SELF 0
+#endif
+], [
+struct rusage struct_ru;
+getrusage(RUSAGE_SELF,&struct_ru);
+],
+[AC_DEFINE(HAVE_RUSAGE) AC_MSG_RESULT(yes)],[AC_MSG_RESULT(no)])
+dnl
+dnl Check presence of function sysconf
+dnl ----------------------------------
+dnl
+AC_MSG_CHECKING(for sysconf)
+AC_TRY_COMPILE([
+extern "C" {
+#include <unistd.h>
+}
+], [
+long maxfiles = sysconf(_SC_OPEN_MAX);
+],
+[AC_DEFINE(HAVE_SYSCONF) AC_MSG_RESULT(yes)],[AC_MSG_RESULT(no)])
+dnl
+dnl Check that printing unsigned char* produces string not hex address
+dnl ------------------------------------------------------------------
+dnl
+AC_MSG_CHECKING([for working unsigned char* outputter])
+AC_TRY_RUN([
+#include <fstream.h>
+#include <stdlib.h>
+#include <stdio.h>
+int main()
+{
+	unsigned char* str = (unsigned char *)"hello";
+	ofstream o("dummy");
+	o << str << "\n";
+	o.close();
+	FILE *fp = fopen("dummy","r");
+	char s[80];
+	fgets(s,77,fp);
+	int retval = !(s[0] == 'h' && s[1] == 'e' && s[2] == 'l');
+	fclose(fp);
+	remove("dummy");
+	return retval;
+}],
+AC_MSG_RESULT(yes),
+AC_DEFINE(BROKEN_UCHAR_OUTPUTTER) AC_MSG_RESULT([broken but we can fix that]))
+dnl
+dnl Define LONG_POINTERS if sizeof(pointer) == sizeof(long int) > sizeof(int)
+dnl Define LONGLONG_POINTERS if sizeof(pointer) == sizeof(long long int) > sizeof(long int)
+dnl ---------------------------------------------------------------------------------------
+AC_MSG_CHECKING([whether pointers are long])
+AC_TRY_RUN([
+int main()
+{
+    int sz = sizeof(char*);
+	if (sizeof(void*) > sz) sz = sizeof(void*);
+	return !(sz == sizeof(long int) && sz > sizeof(int));
+}],
+AC_DEFINE(LONG_POINTERS) AC_MSG_RESULT(yes),
+AC_MSG_RESULT([no they are int or long long])
+AC_MSG_CHECKING([whether pointers are long long])
+AC_TRY_RUN([
+int main()
+{
+    int sz = sizeof(char*);
+	if (sizeof(void*) > sz) sz = sizeof(void*);
+	return !(sz == sizeof(long long int) && sz > sizeof(int));
+}],
+AC_DEFINE(LONGLONG_POINTERS) AC_MSG_RESULT(yes), AC_MSG_RESULT(no they must be int)))
+AC_C_CHAR_UNSIGNED
+dnl
+dnl Check presence of Matlab and its includes & libraries
+dnl -----------------------------------------------------
+AC_PROGRAM_CHECK(hasmatlab,matlab,true,false)
+MATLABDIR=''
+MATLABENG_O=''
+MATLABINCLUDE=''
+MATLABLIB=''
+if test "$hasmatlab" = 'true'; then
+	if test -d /usr/local/matlab/extern/include; then
+        MATLABDIR='/usr/local/matlab'
+        MATLABINCLUDE="${MATLABDIR}/extern/include"
+        MATLABLIB="${MATLABDIR}/extern/lib/*/libmat.a"
+		MATLABLIB=`echo ${MATLABLIB}`	# expand wildcard
+        MATLABENG_O='matlabeng.o'
+    fi
+fi
+AC_SUBST(MATLABDIR)
+AC_SUBST(MATLABENG_O)
+AC_SUBST(MATLABINCLUDE)
+AC_SUBST(MATLABLIB)
+dnl
+dnl Check presence of CDF include and library
+dnl -----------------------------------------
+
+dnl AC_ARG_WITH(cdf_lib, [  --with-cdf-lib          use CDF library [yes]],
+dnl             with_cdf_lib=$withval, with_cdf_lib=yes)
+dnl if test "$with_cdf_lib" = "no" ; then
+dnl         CDFLIB=''
+dnl         CDF_O=''
+dnl elif test "$with_cdf_lib" != "yes" ; then
+dnl         # user specified a CDF library to try on the command line
+dnl         AC_CHECK_LIB($with_cdf_lib, CDFlib, 
+dnl                      [CDFLIB="-l$with_cdf_lib" CDF_O=CDF.o])
+dnl         AC_DEFINE(HAVE_CDF)
+dnl else
+dnl         AC_CHECK_LIB(cdf, CDFlib, [CDFLIB=-lcdf CDF_O=CDF.o])
+dnl         AC_DEFINE(HAVE_CDF)
+dnl fi
+
+CDFLIB='unknown'
+CDF_O='CDF.o'
+AC_CHECK_LIB(cdf, CDFlib, [CDFLIB=-lcdf])
+AC_DEFINE(HAVE_CDF)
+AC_SUBST(CDF_O)
+AC_SUBST(CDFLIB)
+dnl
+dnl Check presence of libraries: READLINELIB, BLASLIB, LAPACKLIB, DLDLIB.
+dnl ---------------------------------------------------------------------
+READLINELIB='unknown'
+BLASLIB='unknown'
+LAPACKLIB='unknown'
+DLDLIB='-ldl'
+AC_LANG_SAVE
+AC_LANG_C
+AC_CHECK_LIB(readline,completion_matches,[READLINELIB='-lreadline -ltermcap'],[],-ltermcap)
+dnl AC_CHECK_LIB(termcap,tgetstr,READLINELIB="$READLINELIB -ltermcap")
+if test "$system" = 'Irix5' -o "$system" = 'Irix6'; then
+	sgimath=false
+	if test -f /usr/lib/libcomplib.sgimath.a || test -f /usr/lib/libcomplib.sgimath.so; then
+		sgimath=true
+	else
+		AC_WARN(system type is Irix5 but libcomplib.sgimath.a not found)
+	fi
+dnl Pitfall: Cannot use AC_CHECK_LIB because complib.sgimath contains a period, which is no-good
+dnl for shell variable name. This is a "feature" in autoconf2.1.
+dnl	AC_CHECK_LIB([complib.sgimath],dgesv_,sgimath=true,AC_WARN(system type is Irix5 but libcomplib.sgimath.a not found))
+	if test "$sgimath" = 'true'; then
+		BLASLIB=''
+		AC_MSG_RESULT([On Irix5 BLAS and LAPACK are in libcomplib.sgimath.a])
+		LAPACKLIB='-lcomplib.sgimath'
+	else
+        AC_LANG_SAVE
+        AC_LANG(Fortran 77)
+		AC_CHECK_LIB(blas,dgemm,[BLASLIB='-lblas'])
+		AC_CHECK_LIB(lapack,dgesv,[LAPACKLIB='-llapack'])
+        AC_LANG_RESTORE
+	fi
+    if test ".$isgcc" = '.false'; then
+	EXTRALIBS="$EXTRALIBS -lC -lmalloc"
+    fi
+elif test "$system" = 'UNICOS'; then
+	BLASLIB='-lsci'
+	AC_MSG_RESULT(On UNICOS BLAS and part of LAPACK is in SCILIB)
+elif test "$system" = 'AIX'; then
+	BLASLIB='-lessl'
+	AC_MSG_RESULT(On AIX BLAS is in ESSLLIB)
+	AC_CHECK_LIB(lapack,dgesv,LAPACKLIB='-llapack')
+elif test "$system" = 'HPUX'; then
+	BLASLIB='-lblas'
+	AC_MSG_RESULT(On HPUX, BLAS is in libblas.a)
+	LIBS="$LIBS -lcur_colr"
+	AC_CHECK_LIB(lapack,main,[LAPACKLIB='-llapack'])
+else
+	AC_CHECK_LIB(atlas,main,[BLASLIB='-latlas'])
+    if test ".$BLASLIB" = "."; then
+	    AC_CHECK_LIB(blas,main,[BLASLIB='-lblas'])
+    fi
+	AC_CHECK_LIB(lapack,main,[LAPACKLIB='-llapack'])
+fi
+AC_LANG_RESTORE
+dnl
+dnl Try to guess proper Fortran libraries (FLIBS) and F77 compiler
+dnl --------------------------------------------------------------
+FLIBS=''
+dnl FFTPACKLIB='fftpack/libfftpack.a'
+FFLAGS='-O'
+R8FLAG='-r8'
+TCOMPLEX_O='Tcomplex.o'
+VRANF_O=''
+vectormachine=false
+case "$system" in
+	Irix5)
+		FLIBS='-lF77 -lI77 -lisam -lU77'
+		HDFDEF='-DIRIS4=1 -D__STDC__'
+		;;
+	Irix6)
+dnl		FLIBS='-lF77 -lI77 -lisam -lU77'
+		FLIBS='-lftn'
+		R8FLAG='-r8 -i4'
+		HDFDEF='-DIRIS4=1 -D__STDC__'
+		vectormachine=false
+		;;
+	Solaris2)
+		FLIBS='-L/opt/SUNWspro/SC2.0.1 -lM77 -lF77 -ldl'
+dnl Sun Fortran requires that we set Vax compatibility with -xl flag,
+dnl otherwise the SAVE statement does not seem to work
+dnl (Olaf Amm, <amm@geophys.nat.tu-bs.de>)
+		FFLAGS='-O -xl'
+		HDFDEF='-DSUN=1 -D__STDC__'
+		;;
+	Convex)
+		FLIBS='-lF77 -lI77 -lU77 -lmathC2'
+		HDFDEF='-DCONVEX=1 -D__STDC__'
+		vectormachine=true
+	        DLDLIB=''
+		;;
+	UNICOS)
+		HDFDEF='-DUNICOS=1'
+		AC_DEFINE(OLD_ATT)
+		VRANF_O='vranf.o'
+		EXTRA_TARGETS=complisting
+		NOVECTORALIASES='-hrestrict=a'
+		STRONGVECTOR='-hvector3'
+		AGGRESS='-haggress'
+		vectormachine=true
+	        DLDLIB=''
+		;;
+	AIX)
+		FLIBS='-lxlf90'
+		R8FLAG='-qautodbl=dbl -qextname'
+		HDFDEF='-DIBM6000=1'
+		;;
+	HPUX)
+		FLIBS='-lU77 -lcl'
+		R8FLAG='-R8 +autodblpad'
+dnl		LIBS="$LIBS alloca.o"
+		HDFDEF='-DHP=1 -D__STDC__'
+		echo 'extern "C" void*alloca(int);' >${srcdir}/alloca.h
+		AC_MSG_RESULT(Using C-alloca. Created alloca.h in source directory)
+		;;
+	OSF1)
+		FLIBS='-lfor -lots'
+		;;
+	Linux|*)
+		AC_F77_LIBRARY_LDFLAGS
+dnl		FLIBS='-lg2c -ldl'
+dnl		LDFLAGS="$LDFLAGS -rdynamic"
+		R8FLAG=''
+dnl		HDFDEF='-DSUN386=1'
+        READLINELIB='-lreadline -lncurses'
+dnl     LAPACKLIB='-llapack'
+dnl        BLASLIB='-lblas'
+		;;
+esac
+if test "$vectormachine" = "true"; then
+	AC_DEFINE(VECTOR_MACHINE)
+	VECFFTPACK_O="vecfftpack.o"
+fi
+AC_SUBST(VECFFTPACK_O)
+AC_SUBST(VRANF_O)
+AC_SUBST(FFLAGS)
+AC_SUBST(NOVECTORALIASES)
+AC_SUBST(STRONGVECTOR)
+AC_SUBST(AGGRESS)
+AC_SUBST(R8FLAG)
+dnl
+dnl Check presence of HDF include and library
+dnl -----------------------------------------
+HDFINCLUDE='unknown'
+if test -f /usr/include/hdf/mfhdf.h; then
+	HDFINCLUDE='-I/usr/include/hdf'
+elif test -f /usr/include/mfhdf.h; then
+	HDFINCLUDE=''
+elif test -f /usr/local/include/mfhdf.h; then
+	HDFINCLUDE='-I/usr/local/include'
+elif test -f /usr/local/hdf/include/mfhdf.h; then
+	HDFINCLUDE='-I/usr/local/hdf/include'
+elif test -f /usr/local/include/hdf/mfhdf.h; then
+	HDFINCLUDE='-I/usr/local/include/hdf'
+fi
+AC_LANG_SAVE
+HDFLIBS='unknown'
+ZLIB='unknown'
+JPEGLIB='unknown'
+AC_LANG_C
+AC_CHECK_LIB(z,compress,[ZLIB='-lz'])
+AC_CHECK_LIB(jpeg,jpeg_set_quality,[JPEGLIB='-ljpeg'])
+AC_CHECK_LIB(mfhdf,SDreaddata,HDFLIBS='-lmfhdf -ldf',[],-ldf -lz -ljpeg)
+AC_LANG_RESTORE
+AC_SUBST(ZLIB)
+AC_SUBST(JPEGLIB)
+AC_SUBST(HDFINCLUDE)
+AC_SUBST(HDFDEF)
+AC_SUBST(READLINELIB)
+AC_SUBST(BLASLIB)
+AC_SUBST(LAPACKLIB)
+AC_SUBST(DLDLIB)
+AC_SUBST(HDFLIBS)
+AC_SUBST(FLIBS)
+AC_SUBST(EXTRALIBS)
+AC_SUBST(ALLOCA)
+AC_SUBST(TCOMPLEX_O)
+AC_SUBST(EXTRA_TARGETS)
+dnl
+dnl Check FFTW library
+dnl ------------------
+FFTWLIB='unknown'
+RFFTWLIB='unknown'
+AC_CHECK_LIB(fftw,fftw_create_plan,[FFTWLIB='-lfftw'])
+AC_CHECK_LIB(rfftw,rfftwnd_create_plan,[RFFTWLIB='-lrfftw'],[],-lfftw)
+AC_SUBST(FFTWLIB)
+AC_SUBST(RFFTWLIB)
+dnl
+dnl
+dnl Check presence of X libraries
+dnl -----------------------------
+if test ".$no_x" = ".true"
+then AC_MSG_RESULT([- did not find X libraries, cannot support figure() in Tela])
+else
+	LIBS="$LIBS $X_PRE_LIBS -lX11 $X_EXTRA_LIBS"
+fi
+dnl
+dnl Configure Matlab to Tela Translator
+dnl -----------------------------------
+dnl (
+dnl    AC_MSG_RESULT([Entering m2t])
+dnl    cd m2t && ./configure
+dnl    AC_MSG_RESULT([Leaving m2t])
+dnl )
+dnl
+dnl Create output file makeinc
+dnl --------------------------
+AC_OUTPUT(makeinc)
+if test "$system" = "HPUX"; then
+	echo 'AR = ar' >>${srcdir}/makeinc
+	echo 'F77 = f77' >>${srcdir}/makeinc
+	AC_MSG_RESULT(Added definition of AR and F77 for HPUX in makeinc)
+fi
+echo '- Configure ready. Now edit makeinc, redefining at least all "unknown".'
+echo '  Then type make.'
+if test "$system" = "UNICOS"; then
+	echo ''
+	echo ''
+	echo 'IMPORTANT:'
+	echo '- Run the cray_fix.sh script before doing make !'
+	echo ''
+fi
+

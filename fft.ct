@@ -1,0 +1,919 @@
+/*
+ * This file is part of tela the Tensor Language.
+ * Copyright (c) 1994-2002 Pekka Janhunen
+ */
+
+/*
+	fft.ct
+	Fast Fourier Transform functions using FFTPACK library. (Currently only sine/cosine transforms.)
+	Preprocess with ctpp.
+	C-tela code is C++ equipped with []=f() style function definition.
+*/
+
+/*
+   If VECTOR_MACHINE is defined, vecfftpack.C is used for multiple
+   FFTs. (Currently, for all FFTs.)
+   Otherwise fftpack.C is used.
+*/
+
+//#define NO_SCALAR
+/* Even when VECTOR_MACHINE is defined, single FFTs are performed by
+   calls to scalar FFT routines, unless NO_SCALAR is defined.
+   You might want to define NO_SCALAR if you want to reduce object code
+   size at the expense of making single FFTs run more slowly.
+   However the size penalty of including the scalar FFTs is not very
+   large, only a few tens of kilobytes on most machines. */
+
+#ifdef VECTOR_MACHINE
+
+#include "vecfftpack.H"
+// Routine table, pointers to routines. Indexed by RoutineIndex in 0..4.
+static struct {
+	void (*forward) (Tint, Treal[], Treal[], Tint lot, Tint step, Tint jump);
+	void (*backward)(Tint, Treal[], Treal[], Tint lot, Tint step, Tint jump);
+	void (*initializer)(Tint, Treal[], Tint lot, Tint step, Tint jump);
+	Tint nconst; Tint addconst;
+} VecRealRoutineArray[5] = {
+	{VECRFFTF, VECRFFTB, VECRFFTI, 1,0},	// normalization 1/N
+	{VECSINT, VECSINT, VECSINTI, 2,2},		// normalization 1/(2*N + 2)
+	{VECCOST, VECCOST, VECCOSTI, 2,-2},		// normalization 1/(2*N - 2)
+	{VECSINQF, VECSINQB, VECSINQI, 4,0},	// normalization 1/(4*N)
+	{VECCOSQF, VECCOSQB, VECCOSQI, 4,0}		// normalization 1/(4*N)
+};
+
+#endif
+
+#ifndef NO_SCALAR
+
+#include "fftpack.H"
+// Routine table, pointers to routines. Indexed by RoutineIndex in 0..4.
+static struct {
+	void (*forward) (Tint, Treal[], const Treal[]);
+	void (*backward)(Tint, Treal[], const Treal[]);
+	void (*initializer)(Tint, Treal[]);
+	Tint nconst; Tint addconst;
+} RealRoutineArray[5] = {
+	{RFFTF, RFFTB, RFFTI, 1,0},		// normalization 1/N
+	{SINT, SINT, SINTI, 2,2},		// normalization 1/(2*N + 2)
+	{COST, COST, COSTI, 2,-2},		// normalization 1/(2*N - 2)
+	{SINQF, SINQB, SINQI, 4,0},		// normalization 1/(4*N)
+	{COSQF, COSQB, COSQI, 4,0}		// normalization 1/(4*N)
+};
+
+#endif
+
+#ifdef VECTOR_MACHINE
+
+// This is INLINE because it is called only once
+INLINE void ManyOneDimensionalFFTs(Tcomplex data[], int isign, int N, int incr, int M, int jump)
+// Performs M transforms, each of length N. First data element is at data[0].
+// Each data vector has increment 'incr'. The corresponding elements of two
+// subsequent data vectors are separated to 'jump' complex numbers.
+// The case M=1, incr=1 is treated separately by scalar FFTs
+// unless NO_SCALAR is defined.
+{
+	Tint n,m;
+#ifndef NO_SCALAR
+	if (M==1 && incr==1) {
+		static Treal *wrk = 0;
+		static int oldN = -1;
+		if (N != oldN) {
+			delete [] wrk;
+			wrk = new Treal [6*N+30];
+			CFFTI(N,wrk);
+			oldN = N;
+		}
+		if (isign < 0)
+			CFFTF(N,data,wrk);
+		else {
+			CFFTB(N,data,wrk);
+			const Treal normalizer = 1.0/N;
+			for (n=0; n<N; n++) data[n] *= normalizer;
+		}
+		return;
+	}
+#endif
+	const Tint len = (M-1)*jump + N*incr;
+	Treal *wrk = new Treal [2*(len+N) + 30];
+	VECCFFTI(N,wrk,M,incr,jump);
+	if (isign < 0)
+		VECCFFTF(N,data,wrk,M,incr,jump);
+	else {
+		VECCFFTB(N,data,wrk,M,incr,jump);
+		const Treal normalizer = 1.0/N;
+		for (m=0; m<M; m++) for (n=0; n<N; n++) data[n*incr + m*jump] *= normalizer;
+	}
+	delete [] wrk;
+}
+
+#else /* no VECTOR_MACHINE */
+
+// This is INLINE because it is called only once
+INLINE void ManyOneDimensionalFFTs(Tcomplex data[], int isign, int N, int incr, int M, int jump)
+// Performs M transforms, each of length N. First data element is at data[0].
+// Each data vector has increment 'incr'. The corresponding elements of two
+// subsequent data vectors are separated to 'jump' complex numbers.
+// The most usual case may be incr=1, M=N
+{
+	//cerr << "many(isign=" << isign << ", N=" << N << ", incr=" << incr << ", M=" << M << ", jump=" << jump << "\n";
+	static Treal *wrk = 0;				// CFFT workspace
+	static int oldN = -1;
+	if (N != oldN) {
+		delete [] wrk;
+		wrk = new Treal [6*N+30];
+		CFFTI(N,wrk);
+	}
+	Tcomplex *buf = (Tcomplex*)(wrk + 4*N + 30);	// temporary 1D buffer
+	//CATCH_INTERRUPTS(
+	for (int m=0; m<M; m++) {
+        int n;
+		for (n=0; n<N; n++) buf[n] = data[n*incr + m*jump];
+		if (isign<0) CFFTF(N,buf,wrk); else CFFTB(N,buf,wrk);
+		Treal normalizer = (isign>0) ? 1.0/N : 1.0;
+		for (n=0; n<N; n++) data[n*incr + m*jump] = normalizer*buf[n];
+	}
+	//);
+	oldN = N;
+}
+
+#endif
+
+#ifdef VECTOR_MACHINE
+
+// This is INLINE because it is called only once
+INLINE void ManyOneDimensionalRealFFTs(Treal data[], int isign, int N, int incr, int M, int jump, int RoutineIndex)
+// Performs M transforms, each of length N. First data element is at data[0].
+// Each data vector has increment 'incr'. The corresponding elements of two
+// subsequent data vectors are separated to 'jump' real numbers.
+// The case incr==1, M==1 is treated separately, unless NO_SCALAR is defined.
+{
+	Tint n,m;
+#ifndef NO_SCALAR
+	if (incr==1 && M==1) {
+		static Treal *wrk = 0;				// workspace
+		static int oldN = -1;
+		if (N != oldN) {
+			delete [] wrk;
+			wrk = new Treal [4*N+30];
+			oldN = N;
+		}
+		Treal *buf = (wrk + 3*N + 30);		// temporary 1D buffer
+		(*RealRoutineArray[RoutineIndex].initializer)(N,wrk);
+		if (isign < 0)
+			(*RealRoutineArray[RoutineIndex].forward)(N,data,wrk);
+		else {
+			const Treal normalizer =
+				1.0/(VecRealRoutineArray[RoutineIndex].nconst*N + VecRealRoutineArray[RoutineIndex].addconst);
+			(*RealRoutineArray[RoutineIndex].backward)(N,data,wrk);
+			for (n=0; n<N; n++) data[n*incr]*= normalizer;
+		}
+		return;
+	}
+#endif
+	const Tint len = (M-1)*jump + (N+1)*incr;
+	Treal *wrk = new Treal [2*len + + N + N/2 + 2 + 30];
+	(*VecRealRoutineArray[RoutineIndex].initializer)(N,wrk,M,incr,jump);
+	if (isign < 0)
+		(*VecRealRoutineArray[RoutineIndex].forward)(N,data,wrk,M,incr,jump);
+	else {
+		const Treal normalizer =
+			1.0/(VecRealRoutineArray[RoutineIndex].nconst*N + VecRealRoutineArray[RoutineIndex].addconst);
+		(*VecRealRoutineArray[RoutineIndex].backward)(N,data,wrk,M,incr,jump);
+		for (m=0; m<M; m++) for (n=0; n<N; n++) data[n*incr + m*jump]*= normalizer;
+	}
+	delete [] wrk;
+}
+
+#else	/* no VECTOR_MACHINE */
+
+// This is INLINE because it is called only once
+INLINE void ManyOneDimensionalRealFFTs(Treal data[], int isign, int N, int incr, int M, int jump, int RoutineIndex)
+// Performs M transforms, each of length N. First data element is at data[0].
+// Each data vector has increment 'incr'. The corresponding elements of two
+// subsequent data vectors are separated to 'jump' real numbers.
+// The most usual case may be incr=1, M=N
+{
+	static Treal *wrk = 0;				// workspace
+	static int oldN = -1;
+	if (N != oldN) {
+		delete [] wrk;
+		wrk = new Treal [4*N+30];
+	}
+	Treal *buf = (wrk + 3*N + 30);		// temporary 1D buffer
+	(*RealRoutineArray[RoutineIndex].initializer)(N,wrk);
+	Treal normalizer =
+		(isign > 0)
+			? 1.0/(RealRoutineArray[RoutineIndex].nconst*N + RealRoutineArray[RoutineIndex].addconst)
+			: 1.0;
+	//CATCH_INTERRUPTS(
+	for (int m=0; m<M; m++) {
+        int n;
+		for (n=0; n<N; n++) buf[n] = data[n*incr + m*jump];
+		if (isign < 0)
+			(*RealRoutineArray[RoutineIndex].forward)(N,buf,wrk);
+		else
+			(*RealRoutineArray[RoutineIndex].backward)(N,buf,wrk);
+		for (n=0; n<N; n++) data[n*incr + m*jump] = normalizer*buf[n];
+	}
+	//);
+	oldN = N;
+}
+
+#endif
+
+/*
+  i*jmax*kmax*lmax + j*kmax*lmax + k*lmax + l
+  dim=1:	incr=jmax*kmax*lmax		jump=1, VL=jmax*kmax*lmax		step=0, Niter=1
+  dim=2:	incr=kmax*lmax			jump=1, VL=kmax*lmax			step=jmax*kmax*lmax, Niter=imax
+  dim=3:	incr=lmax				jump=1, VL=lmax					step=kmax*lmax, Niter=imax*jmax
+  dim=4:	incr=1					jump=lmax, VL=imax*jmax*kmax	step=0, Niter=1
+
+*/
+
+static void fft(Tobject& data, int isign, int dim)
+// data must be ComplexArray
+// dim must be in range 1..D where D=rank(data)
+// isign must be +1 or -1
+{
+	//cerr << "fft : input data = " << data << "\n";
+	Tint incr=1;
+	const int D=data.rank();
+    int d;
+	for (d=dim; d<D; d++) incr*= data.dims()[d];
+	Tint jump;
+	if (dim==D) jump=data.dims()[D-1]; else jump=1;
+	Tint VL;
+	if (dim==D) {
+		VL = 1;
+		NOVECTOR for (d=0; d<D-1; d++) VL*= data.dims()[d];
+	} else
+		VL = incr;
+	Tint step, Niter;
+	if (dim==1 || dim==D) {
+		step = 0;
+		Niter = 1;
+	} else {
+		step = 1;
+		NOVECTOR for (d=dim-1; d<D; d++) step*= data.dims()[d];
+		Niter = data.length() / step;
+	}
+	// Now the dirty work
+	//cerr << "incr=" << incr << ", jump=" << jump << ", VL=" << VL << ", step=" << step << ", Niter=" << Niter << "\n";
+	const Tint N = data.dims()[dim-1];
+	for (int i=0; i<Niter; i++)
+		ManyOneDimensionalFFTs(data.ComplexPtr()+i*step, isign, N, incr, VL, jump);
+	// Approximate operation count of a single complex FFT is 5*log2(N)*N
+	global::nops+= iround(7.213*log(double(N))*N*VL*Niter);
+	//cerr << "fft : output data = " << data << "\n";
+}
+
+static void rfft(Tobject& data, int isign, int dim, int RoutineIndex)
+// Real version of the above function fft.
+// data must be RealArray
+// dim must be in range 1..D where D=rank(data)
+// isign must be +1 or -1
+// RoutineIndex must be in 0..4 for the following encoding:
+//   0: real transform, 1: sine tf., 2: cos tf., 3: quarter-sine tf, 4: quarter-cos tf.
+{
+	Tint incr=1;
+	const int D=data.rank();
+    int d;
+	for (d=dim; d<D; d++) incr*= data.dims()[d];
+	Tint jump;
+	if (dim==D) jump=data.dims()[D-1]; else jump=1;
+	Tint VL;
+	if (dim==D) {
+		VL = 1;
+		NOVECTOR for (d=0; d<D-1; d++) VL*= data.dims()[d];
+	} else
+		VL = incr;
+	Tint step, Niter;
+	if (dim==1 || dim==D) {
+		step = 0;
+		Niter = 1;
+	} else {
+		step = 1;
+		NOVECTOR for (d=dim-1; d<D; d++) step*= data.dims()[d];
+		Niter = data.length() / step;
+	}
+	// Now the dirty work
+	const Tint N = data.dims()[dim-1];
+	for (int i=0; i<Niter; i++)
+		ManyOneDimensionalRealFFTs(data.RealPtr()+i*step, isign, N, incr, VL, jump, RoutineIndex);
+	// Approximate operation count of a single real FFT is (5/2)*log2(N)*N
+	global::nops+= iround(3.607*log(double(N))*N*VL*Niter);
+}
+
+#if 0
+/*[f] = FFT(u; dim)*/
+/* FFT(u) gives the complex Fast Fourier Transform of u.
+   If u's rank is more than one, the transform is computed
+   only along the first dimension (many independent 1D
+   transforms).
+
+   FFT(u,dim) computes the FFT along the specified dimension.
+   The first dimension is labeled 1 and so on.
+
+   For vector u, f=FFT(u) is equivalent with
+
+   n = length(u); f = czeros(n);
+   for (j=1; j<=n; j++)
+       f[j] = sum(u*exp(-(j-1)*(0:n-1)*2i*pi/n));
+
+   All Fourier transform functions in Tela can take the transform
+   along any dimension in a multidimensional array, and the transform
+   length is not restricted. The function FFT should be used only in
+   case of complex input data. Use realFFT for real input array.
+
+   Functions FFT, realFFT, sinqFFT, cosqFFT and their inverses
+   are the most efficient when the transform length n is a product
+   of small primes.
+
+   Functions sinFFT and invsinFFT are efficient when n+1 is
+   a product of small primes
+	   
+   Functions cosFFT and invcosFFT are efficient when n-1 is
+   a product of small primes
+	   
+   See also: invFFT, realFFT, sinFFT, cosFFT, sinqFFT, cosqFFT.
+   Error codes:
+   -1: First argument not a numeric array
+   -2: Second argument not integer
+   -3: Second argument out of range
+   */
+{
+	if (!u.IsNumericalArray()) return -1;
+	if (u.kind()==KIntArray || u.kind()==KRealArray)
+		Add(f,u,Tobject(0.0,0.0));
+	else if (u.kind()==KComplexArray)
+		f = u;
+	else
+		return -1;
+	if (u.length()==0) return 0;
+	const int D = u.rank();
+	int d=1;
+	if (Nargin==2) {
+		if (dim.kind()!=Kint) return -2;
+		d = dim.IntValue();
+		if (d<1 || d>D) return -3;
+	}
+	fft(f,-1,d);
+	return 0;
+}
+#endif
+
+
+#if 0
+/*[f] = invFFT(u; dim)*/
+/* invFFT() is the inverse of FFT().
+   For vector f, u=invFFT(f) is equivalent with
+
+   n = length(f); u = czeros(n);
+   for (j=1; j<=n; j++)
+       u[j] = (1/n)*sum(f*exp((j-1)*(0:n-1)*2i*pi/n));
+
+   Differences with FFT: sign of i is plus, scale factor 1/n.
+   
+   See also: FFT.
+   Error codes:
+   -1: First argument not a numeric array
+   -2: Second argument not integer
+   -3: Second argument out of range
+   */
+{
+	if (!u.IsNumericalArray()) return -1;
+	if (u.kind()==KIntArray || u.kind()==KRealArray)
+		Add(f,u,Tobject(0.0,0.0));
+	else if (u.kind()==KComplexArray)
+		f = u;
+	else
+		return -1;
+	if (u.length()==0) return 0;
+	const int D = u.rank();
+	int d=1;
+	if (Nargin==2) {
+		if (dim.kind()!=Kint) return -2;
+		d = dim.IntValue();
+		if (d<1 || d>D) return -3;
+	}
+	fft(f,+1,d);
+	return 0;
+}
+#endif
+
+#if 0
+/*[f] = realFFT(u; dim)*/
+/* realFFT(u) gives the Fast Fourier Transform of real array u.
+   If u's rank is more than one, the transform is computed
+   only along the first dimension (many independent 1D
+   transforms).
+
+   realFFT(u,dim) computes the FFT along the specified dimension.
+   The first dimension is labeled 1 and so on.
+
+   The result of realFFT() is the same as FFT() except that only
+   nonnegative frequency components are returned. The result is
+   always complex array. The first component (0 frequency) has always
+   zero imaginary part. If the transform length is even, the last
+   component has zero imaginary part as well. Notice that these
+   conventions are different from some generally used C and Fortran
+   library routines, which return a real array force-fitted
+   in the same space as the input array by not storing the zero
+   imaginary parts. The Tela convention allows you to manipulate the
+   result in k-space more easily because it is already complex.
+
+   realFFT is the most efficient when the transform length is
+   a product of small primes.
+   
+   See also: invrealFFT, FFT, sinFFT, cosFFT, sinqFFT, cosqFFT.
+   Error codes:
+   -1: First argument not a real array
+   -2: Second argument not integer
+   -3: Second argument out of range
+   */
+{
+	if (!u.IsNumericalArray()) return -1;
+	if (u.kind()==KComplexArray) return -1;
+	if (u.kind()==KIntArray)
+		Add(f,u,Tobject(0.0));
+	else
+		f = u;
+	const int D = u.rank();
+	int d=ArrayBase;
+	if (Nargin==2) {
+		if (dim.kind()!=Kint) return -2;
+		d = dim.IntValue();
+		if (d<ArrayBase || d>=D+ArrayBase) return -3;
+	}
+	d-= ArrayBase;
+	const Tint jmax = f.dims()[d];
+	if (jmax < 2) return 0;		// Return f=u if length is one to avoid problems in rfft
+	rfft(f,-1,d+ArrayBase, 0);
+	// Postprocess f to complex array.
+	Tint imax, kmax;
+	imax = 1;
+    int d1;
+	NOVECTOR for (d1=0; d1<d; d1++) imax*= f.dims()[d1];
+	kmax = f.length()/(imax*jmax);
+	Tobject fc;
+	Tint fcdims[MAXRANK];
+	NOVECTOR for (d1=0; d1<D; d1++) fcdims[d1] = f.dims()[d1];
+	Tint i,j,k;
+	if (jmax % 2 == 0) {
+		fcdims[d]+= 2;		// Increased d'th dimension by two
+		fcdims[d]/= 2;		// Divide by two because it's complex
+		fc.creserv(TDimPack(fcdims,D));
+		Treal *fcp = fc.RealPtr();		// *** Assume that (void*)RealPtr() == (void*)ComplexPtr() always
+		Treal *fp = f.RealPtr();
+		for (i=0; i<imax; i++) for (k=0; k<kmax; k++) {
+			VECTORIZED for (j=1; j<=jmax-3; j+=2) {
+				fcp[i*(jmax+2)*kmax + 2*k + (j+1)*kmax] = fp[i*jmax*kmax + j*kmax + k];
+				fcp[i*(jmax+2)*kmax + 2*k + (j+1)*kmax + 1] = fp[i*jmax*kmax + (j+1)*kmax + k];
+			}
+			fcp[i*(jmax+2)*kmax + 2*k + (0)*kmax] = fp[i*jmax*kmax + 0*kmax + k];	// Re-part of first element
+			fcp[i*(jmax+2)*kmax + 2*k + (0)*kmax + 1] = 0;							// Im-part of first element is zero
+			fcp[i*(jmax+2)*kmax + 2*k + (jmax)*kmax] = fp[i*jmax*kmax + (jmax-1)*kmax + k];
+			fcp[i*(jmax+2)*kmax + 2*k + (jmax)*kmax + 1] = 0;		// Im-part of last element is zero
+		}
+	} else {
+		fcdims[d]++;		// Increased d'th dimension by one
+		fcdims[d]/= 2;		// Divide by two because it's complex
+		fc.creserv(TDimPack(fcdims,D));
+		Treal *fcp = fc.RealPtr();		// *** Assume that (void*)RealPtr() == (void*)ComplexPtr() always
+		Treal *fp = f.RealPtr();
+		for (i=0; i<imax; i++) for (k=0; k<kmax; k++) {
+			VECTORIZED for (j=1; j<=jmax-2; j+=2) {
+				fcp[i*(jmax+1)*kmax + 2*k + (j+1)*kmax] = fp[i*jmax*kmax + j*kmax + k];
+				fcp[i*(jmax+1)*kmax + 2*k + (j+1)*kmax + 1] = fp[i*jmax*kmax + (j+1)*kmax + k];
+			}
+			fcp[i*(jmax+1)*kmax + 2*k + (0)*kmax] = fp[i*jmax*kmax + 0*kmax + k];
+			fcp[i*(jmax+1)*kmax + 2*k + (0)*kmax + 1] = 0;
+		}
+	}
+	f.bitwiseMoveFrom(fc);
+	return 0;
+}
+#endif
+
+#if 0
+/*[f] = invrealFFT(u; dim,oddevenspec)*/
+/* invrealFFT() is the inverse of realFFT().
+   invrealFFT(u,dim,"even") and invrealFFT(u,dim,"odd") specifies
+   even or odd transform length, respectively.
+   invrealFFT(u,dim,N) uses the same evenness as the integer N has.
+
+   If the evenness is not specified explicitly, the imaginary parts
+   of the highest frequency components are tested. If they are all zero
+   the transform length is even, otherwise odd. However, this automatic
+   method will fail if the imaginary parts are not EXACTLY zero. If you
+   use multiple FFTs to solve a PDE, for example, you should probably
+   specify the evenness explicitly.
+
+   See also: realFFT.
+   Error codes:
+   -1: First argument not a complex array
+   -2: Second argument not integer
+   -3: Second argument out of range
+   -4: Third argument not "even", "odd" or an integer
+   */
+{
+	if (u.kind()!=KComplexArray) return -1;
+	const int D = u.rank();
+	int d=ArrayBase;
+	if (Nargin>=2) {
+		if (dim.kind()!=Kint) return -2;
+		d = dim.IntValue();
+		if (d<ArrayBase || d>=D+ArrayBase) return -3;
+	}
+	int isodd = -1;
+	if (Nargin==3) {
+		if (oddevenspec.kind() == Kint)
+			isodd = (oddevenspec.IntValue() % 2 == 1);
+		else if (oddevenspec.IsString()) {
+			Tstring SPEC = oddevenspec;
+			if (!strcmp("even",(char*)SPEC))
+				isodd = 0;
+			else if (!strcmp("odd",(char*)SPEC))
+				isodd = 1;
+			else
+				return -4;
+		} else
+			return -4;
+	}
+	// Preprocess u to be a real array f
+	d-= ArrayBase;
+	Tint jmax = u.dims()[d];
+	if (jmax < 2) {f=u; return 0;}		// Return f=u if length is one to avoid problems in rfft
+	Tint imax, kmax;
+	imax = 1;
+    int d1;
+	NOVECTOR for (d1=0; d1<d; d1++) imax*= u.dims()[d1];
+	kmax = u.length()/(imax*jmax);
+	Tint frdims[MAXRANK];
+	NOVECTOR for (d1=0; d1<D; d1++) frdims[d1] = u.dims()[d1];
+	Tint i,j,k;
+	if (isodd == -1) {		// isodd not determined by 3rd argument, study Im(highest frequency)
+		isodd = 0;
+		for (i=0; i<imax; i++) {VECTORIZED for (k=0; k<kmax; k++)
+			if (imag(u.ComplexPtr()[i*jmax*kmax + (jmax-1)*kmax + k]) != 0.) {
+				isodd = 1;
+				break;
+			}
+		}
+	}
+	Treal *up = u.RealPtr();
+	if (isodd) {
+		jmax = 2*jmax-1;
+		frdims[d] = jmax;
+		f.rreserv(TDimPack(frdims,D));
+		Treal *frp = f.RealPtr();		// *** Assume that (void*)RealPtr() == (void*)ComplexPtr() always
+		for (i=0; i<imax; i++) for (k=0; k<kmax; k++) {
+			VECTORIZED for (j=1; j<=jmax-2; j+=2) {
+				frp[i*jmax*kmax + j*kmax + k] = up[i*(jmax+1)*kmax + 2*k + (j+1)*kmax];
+				frp[i*jmax*kmax + (j+1)*kmax + k] = up[i*(jmax+1)*kmax + 2*k + (j+1)*kmax + 1];
+			}
+			frp[i*jmax*kmax + 0*kmax + k] = up[i*(jmax+1)*kmax + 2*k + (0)*kmax];
+		}
+	} else {
+		jmax = 2*jmax-2;
+		frdims[d] = jmax;
+		f.rreserv(TDimPack(frdims,D));
+		Treal *frp = f.RealPtr();		// *** Assume that (void*)RealPtr() == (void*)ComplexPtr() always
+		for (i=0; i<imax; i++) for (k=0; k<kmax; k++) {
+			VECTORIZED for (j=1; j<=jmax-3; j+=2) {
+				frp[i*jmax*kmax + j*kmax + k] = up[i*(jmax+2)*kmax + 2*k + (j+1)*kmax];
+				frp[i*jmax*kmax + (j+1)*kmax + k] = up[i*(jmax+2)*kmax + 2*k + (j+1)*kmax + 1];
+			}
+			frp[i*jmax*kmax + 0*kmax + k] = up[i*(jmax+2)*kmax + 2*k + (0)*kmax];
+			frp[i*jmax*kmax + (jmax-1)*kmax + k] = up[i*(jmax+2)*kmax + 2*k + (jmax)*kmax];
+		}
+	}
+	d+= ArrayBase;
+	rfft(f,+1,d,0);
+	return 0;
+}
+#endif
+
+// Use C-tela functions 'Re' and 'Im' from std.ct
+extern "C" int Refunction(const TConstObjectPtr[], const int, const TObjectPtr[], const int);
+extern "C" int Imfunction(const TConstObjectPtr[], const int, const TObjectPtr[], const int);
+
+static void rfft_possibly_complex(Tobject& f, int isign, int d, int RoutineIndex)
+// Same as rfft(f,isign,d,RoutineIndex), but handles complex f case
+// by calling rfft separately for real and imaginary parts.
+{
+	if (f.kind()==KComplexArray) {
+		Tobject Ref, Imf;
+		TConstObjectPtr inputs[1]; TObjectPtr outputs[1];
+		inputs[0] = &f;
+		outputs[0] = &Ref;
+		Refunction(inputs,1,outputs,1);
+		outputs[0] = &Imf;
+		Imfunction(inputs,1,outputs,1);
+		rfft(Ref,isign,d,RoutineIndex);
+		rfft(Imf,isign,d,RoutineIndex);
+		Mul(Imf,Tobject(0.0,1.0));
+		Add(f,Ref,Imf);
+	} else
+		rfft(f,isign,d, RoutineIndex);
+}
+
+[f] = sinFFT(u; dim)
+/* sinFFT(u) gives the sine Fast Fourier Transform of array u.
+   If u's rank is more than one, the transform is computed
+   only along the first dimension (many independent 1D
+   transforms).
+
+   sinFFT(u,dim) computes the FFT along the specified dimension.
+   The first dimension is labeled 1 and so on.
+
+   For vector u, f=sinFFT(u) is equivalent with
+
+   n = length(u); f = zeros(n);
+   for (j=1; j<=n; j++)
+       f[j] = 2*sum(u*sin((1:n)*j*pi/(n+1)));
+
+   Note that sinFFT is the most efficient when n+1 is a product of
+   small primes, where n is the transform length.
+	   
+   See also: invsinFFT, cosFFT, sinqFFT, cosqFFT, realFFT, FFT.
+   Error codes:
+   -1: First argument not a real array
+   -2: Second argument not integer
+   -3: Second argument out of range
+   */
+{
+	if (!u.IsNumericalArray()) return -1;
+	if (u.kind()==KIntArray)
+		Add(f,u,Tobject(0.0));
+	else
+		f = u;
+	if (u.length()==0) return 0;
+	const int D = u.rank();
+	int d=1;
+	if (Nargin==2) {
+		if (dim.kind()!=Kint) return -2;
+		d = dim.IntValue();
+		if (d<1 || d>D) return -3;
+	}
+	rfft_possibly_complex(f,-1,d,1);
+	return 0;
+}
+
+[f] = invsinFFT(u; dim)
+/* invsinFFT() is the inverse of sinFFT().
+   Actually invsinFFT differs from sinFFT only by normalization,
+   but it is provided as a separate function for convenience.
+   
+   For vector f, u=invsinFFT(f) is equivalent with
+
+   n = length(f); u = zeros(n);
+   for (j=1; j<=n; j++)
+       u[j] = (1/(n+1))*sum(f*sin((1:n)*j*pi/(n+1)));
+   
+   See also: sinFFT.
+   Error codes:
+   -1: First argument not a real array
+   -2: Second argument not integer
+   -3: Second argument out of range
+   */
+{
+	if (!u.IsNumericalArray()) return -1;
+	if (u.kind()==KIntArray)
+		Add(f,u,Tobject(0.0));
+	else
+		f = u;
+	if (u.length()==0) return 0;
+	const int D = u.rank();
+	int d=1;
+	if (Nargin==2) {
+		if (dim.kind()!=Kint) return -2;
+		d = dim.IntValue();
+		if (d<1 || d>D) return -3;
+	}
+	rfft_possibly_complex(f,+1,d, 1);
+	return 0;
+}
+
+
+[f] = cosFFT(u; dim)
+/* cosFFT(u) gives the cosine Fast Fourier Transform of array u.
+   If u's rank is more than one, the transform is computed
+   only along the first dimension (many independent 1D
+   transforms).
+
+   cosFFT(u,dim) computes the FFT along the specified dimension.
+   The first dimension is labeled 1 and so on.
+
+   For vector u, f=cosFFT(u) is equivalent with
+
+   n = length(u); f = zeros(n);
+   for (j=1; j<=n; j++)
+       f[j] = u[1] - (-1)^j*u[n] + 2*sum(u[2:n-1]*cos((1:n-2)*(j-1)*pi/(n-1)));
+
+   Note that cosFFT is most efficient when n-1 is a product of small
+   primes, where n is the transform length.
+	   
+   See also: invcosFFT, sinFFT, cosqFFT, sinqFFT, realFFT, FFT.
+   Error codes:
+   -1: First argument not a real array
+   -2: Second argument not integer
+   -3: Second argument out of range
+   */
+{
+	if (!u.IsNumericalArray()) return -1;
+	if (u.kind()==KIntArray)
+		Add(f,u,Tobject(0.0));
+	else
+		f = u;
+	if (u.length()==0) return 0;
+	const int D = u.rank();
+	int d=1;
+	if (Nargin==2) {
+		if (dim.kind()!=Kint) return -2;
+		d = dim.IntValue();
+		if (d<1 || d>D) return -3;
+	}
+	rfft_possibly_complex(f,-1,d, 2);
+	return 0;
+}
+
+[f] = invcosFFT(u; dim)
+/* invcosFFT() is the inverse of cosFFT().
+   Actually invcosFFT differs from cosFFT only by normalization,
+   but it is provided as a separate function for convenience.
+   
+   For vector f, u=invcosFFT(f) is equivalent with
+
+   n = length(f); u = zeros(n);
+   for (j=1; j<=n; j++)
+       u[j] = (f[1] - (-1)^j*f[n] + 2*sum(f[2:n-1]*cos((1:n-2)*(j-1)*pi/(n-1))))/(2*n-2)
+   
+   See also: cosFFT.
+   Error codes:
+   -1: First argument not a real array
+   -2: Second argument not integer
+   -3: Second argument out of range
+   */
+{
+	if (!u.IsNumericalArray()) return -1;
+	if (u.kind()==KIntArray)
+		Add(f,u,Tobject(0.0));
+	else
+		f = u;
+	if (u.length()==0) return 0;
+	const int D = u.rank();
+	int d=1;
+	if (Nargin==2) {
+		if (dim.kind()!=Kint) return -2;
+		d = dim.IntValue();
+		if (d<1 || d>D) return -3;
+	}
+	rfft_possibly_complex(f,+1,d, 2);
+	return 0;
+}
+
+
+[f] = sinqFFT(u; dim)
+/* sinqFFT computes the quarter-wave sine Fourier transform of array u.
+   Except for the quarter-wave sine character, it works similarly to sinFFT.
+   
+   For vector u, f=sinqFFT(u) is equivalent with
+
+   n = length(u); f = zeros(n);
+   for (j=1; j<=n; j++)
+       f[j] = (-1)^(j-1)*u[n] + 2*sum(u[1:n-1]*sin((2*j-1)*(1:n-1)*pi/(2*n)));
+
+   sinqFFT is most efficient when the transform length is a product
+   of small primes.
+	   
+   See also: invsinqFFT, realFFT, cosqFFT, FFT.
+   Error codes:
+   -1: First argument not a real array
+   -2: Second argument not integer
+   -3: Second argument out of range
+   */
+{
+	if (!u.IsNumericalArray()) return -1;
+	if (u.kind()==KIntArray)
+		Add(f,u,Tobject(0.0));
+	else
+		f = u;
+	if (u.length()==0) return 0;
+	const int D = u.rank();
+	int d=1;
+	if (Nargin==2) {
+		if (dim.kind()!=Kint) return -2;
+		d = dim.IntValue();
+		if (d<1 || d>D) return -3;
+	}
+	rfft_possibly_complex(f,-1,d, 3);
+	return 0;
+}
+
+[f] = invsinqFFT(u; dim)
+/* invsinqFFT() is the inverse of sinqFFT()
+   (inverse quarter-wave sine Fourier transform).
+   
+   For vector f, u=invsinqFFT(f) is equivalent with
+
+   n = length(f); u = zeros(n);
+   for (j=1; j<=n; j++)
+       u[j] = (1/n)*sum(f*sin((2*(1:n)-1)*j*pi/(2*n)));
+   
+   See also: sinqFFT.
+   Error codes:
+   -1: First argument not a real array
+   -2: Second argument not integer
+   -3: Second argument out of range
+   */
+{
+	if (!u.IsNumericalArray()) return -1;
+	if (u.kind()==KIntArray)
+		Add(f,u,Tobject(0.0));
+	else
+		f = u;
+	if (u.length()==0) return 0;
+	const int D = u.rank();
+	int d=1;
+	if (Nargin==2) {
+		if (dim.kind()!=Kint) return -2;
+		d = dim.IntValue();
+		if (d<1 || d>D) return -3;
+	}
+	rfft_possibly_complex(f,+1,d,3);
+	return 0;
+}
+
+
+[f] = cosqFFT(u; dim)
+/* cosqFFT computes the quarter-wave cosine Fourier transform.
+   Except for the quarter-wave cosine character, it works similarly to cosFFT.
+   
+   For vector u, f=cosqFFT(u) is equivalent with
+
+   n = length(u); f = zeros(n);
+   for (j=1; j<=n; j++)
+       f[j] = u[1] + 2*sum(u[2:n]*cos((2*j-1)*(1:n-1)*pi/(2*n)));
+   
+   cosqFFT is most efficient when the transform length is a product
+   of small primes.
+	   
+   See also: invcosqFFT, realFFT, sinqFFT, FFT.
+   Error codes:
+   -1: First argument not a real array
+   -2: Second argument not integer
+   -3: Second argument out of range
+   */
+{
+	if (!u.IsNumericalArray()) return -1;
+	if (u.kind()==KIntArray)
+		Add(f,u,Tobject(0.0));
+	else
+		f = u;
+	if (u.length()==0) return 0;
+	const int D = u.rank();
+	int d=1;
+	if (Nargin==2) {
+		if (dim.kind()!=Kint) return -2;
+		d = dim.IntValue();
+		if (d<1 || d>D) return -3;
+	}
+	rfft_possibly_complex(f,-1,d, 4);
+	return 0;
+}
+
+[f] = invcosqFFT(u; dim)
+/* invcosqFFT() is the inverse of cosqFFT()
+   (inverse quarter-wave cosine Fourier transform).
+   
+   For vector f, u=invcosqFFT(f) is equivalent with
+
+   n = length(f); u = zeros(n);
+   for (j=1; j<=n; j++)
+       u[j] = (1/n)*sum(f*cos((2*(1:n)-1)*(j-1)*pi/(2*n)));
+   
+   See also: cosqFFT.
+   Error codes:
+   -1: First argument not a real array
+   -2: Second argument not integer
+   -3: Second argument out of range
+   */
+{
+	if (!u.IsNumericalArray()) return -1;
+	if (u.kind()==KIntArray)
+		Add(f,u,Tobject(0.0));
+	else
+		f = u;
+	if (u.length()==0) return 0;
+	const int D = u.rank();
+	int d=1;
+	if (Nargin==2) {
+		if (dim.kind()!=Kint) return -2;
+		d = dim.IntValue();
+		if (d<1 || d>D) return -3;
+	}
+	rfft_possibly_complex(f,+1,d,4);
+	return 0;
+}
+

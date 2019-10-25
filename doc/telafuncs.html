@@ -1,0 +1,266 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="LinuxDoc-Tools 0.9.21">
+ <TITLE>Builtin Tela functions</TITLE>
+ <LINK HREF="telafuncs-1.html" REL=next>
+
+
+</HEAD>
+<BODY>
+<A HREF="telafuncs-1.html">Next</A>
+Previous
+Contents
+<HR>
+<H1>Builtin Tela functions</H1>
+
+<H2>Pekka Janhunen, <CODE>Pekka.Janhunen@fmi.fi</CODE></H2>Version 2.02, Fri May 20 13:29:56 EEST 2005
+<HR>
+<EM>This document has been automatically generated from the online
+help messages of builtin Tela functions.</EM>
+<HR>
+<P>
+<H2><A NAME="toc1">1.</A> <A HREF="telafuncs-1.html">INTRODUCTION</A></H2>
+
+<UL>
+<LI><A NAME="toc1.1">1.1</A> <A HREF="telafuncs-1.html#ss1.1">BatchMode</A>
+<LI><A NAME="toc1.2">1.2</A> <A HREF="telafuncs-1.html#ss1.2">ChebyshevT</A>
+<LI><A NAME="toc1.3">1.3</A> <A HREF="telafuncs-1.html#ss1.3">CheckReadOnlyMode</A>
+<LI><A NAME="toc1.4">1.4</A> <A HREF="telafuncs-1.html#ss1.4">DebugQueryMode</A>
+<LI><A NAME="toc1.5">1.5</A> <A HREF="telafuncs-1.html#ss1.5">EPOCHbreakdown</A>
+<LI><A NAME="toc1.6">1.6</A> <A HREF="telafuncs-1.html#ss1.6">FFT</A>
+<LI><A NAME="toc1.7">1.7</A> <A HREF="telafuncs-1.html#ss1.7">Gauss2F1</A>
+<LI><A NAME="toc1.8">1.8</A> <A HREF="telafuncs-1.html#ss1.8">GetInstructionData</A>
+<LI><A NAME="toc1.9">1.9</A> <A HREF="telafuncs-1.html#ss1.9">HDFNewMode</A>
+<LI><A NAME="toc1.10">1.10</A> <A HREF="telafuncs-1.html#ss1.10">HeavisideTheta</A>
+<LI><A NAME="toc1.11">1.11</A> <A HREF="telafuncs-1.html#ss1.11">Im</A>
+<LI><A NAME="toc1.12">1.12</A> <A HREF="telafuncs-1.html#ss1.12">IncompleteGammaP</A>
+<LI><A NAME="toc1.13">1.13</A> <A HREF="telafuncs-1.html#ss1.13">IncompleteGammaQ</A>
+<LI><A NAME="toc1.14">1.14</A> <A HREF="telafuncs-1.html#ss1.14">Kummer1F1</A>
+<LI><A NAME="toc1.15">1.15</A> <A HREF="telafuncs-1.html#ss1.15">Kummer1F1Regularized</A>
+<LI><A NAME="toc1.16">1.16</A> <A HREF="telafuncs-1.html#ss1.16">LU</A>
+<LI><A NAME="toc1.17">1.17</A> <A HREF="telafuncs-1.html#ss1.17">LUbacksubst</A>
+<LI><A NAME="toc1.18">1.18</A> <A HREF="telafuncs-1.html#ss1.18">LegendreP</A>
+<LI><A NAME="toc1.19">1.19</A> <A HREF="telafuncs-1.html#ss1.19">Lomb</A>
+<LI><A NAME="toc1.20">1.20</A> <A HREF="telafuncs-1.html#ss1.20">NewHDFSupported</A>
+<LI><A NAME="toc1.21">1.21</A> <A HREF="telafuncs-1.html#ss1.21">Re</A>
+<LI><A NAME="toc1.22">1.22</A> <A HREF="telafuncs-1.html#ss1.22">SVD</A>
+<LI><A NAME="toc1.23">1.23</A> <A HREF="telafuncs-1.html#ss1.23">SilentMode</A>
+<LI><A NAME="toc1.24">1.24</A> <A HREF="telafuncs-1.html#ss1.24">UsingReadline</A>
+<LI><A NAME="toc1.25">1.25</A> <A HREF="telafuncs-1.html#ss1.25">VerboseMode</A>
+<LI><A NAME="toc1.26">1.26</A> <A HREF="telafuncs-1.html#ss1.26">abs2</A>
+<LI><A NAME="toc1.27">1.27</A> <A HREF="telafuncs-1.html#ss1.27">accum</A>
+<LI><A NAME="toc1.28">1.28</A> <A HREF="telafuncs-1.html#ss1.28">acos</A>
+<LI><A NAME="toc1.29">1.29</A> <A HREF="telafuncs-1.html#ss1.29">all</A>
+<LI><A NAME="toc1.30">1.30</A> <A HREF="telafuncs-1.html#ss1.30">aniclose</A>
+<LI><A NAME="toc1.31">1.31</A> <A HREF="telafuncs-1.html#ss1.31">aniopen</A>
+<LI><A NAME="toc1.32">1.32</A> <A HREF="telafuncs-1.html#ss1.32">aniput</A>
+<LI><A NAME="toc1.33">1.33</A> <A HREF="telafuncs-1.html#ss1.33">annotate</A>
+<LI><A NAME="toc1.34">1.34</A> <A HREF="telafuncs-1.html#ss1.34">any</A>
+<LI><A NAME="toc1.35">1.35</A> <A HREF="telafuncs-1.html#ss1.35">applyfilter</A>
+<LI><A NAME="toc1.36">1.36</A> <A HREF="telafuncs-1.html#ss1.36">arg</A>
+<LI><A NAME="toc1.37">1.37</A> <A HREF="telafuncs-1.html#ss1.37">asin</A>
+<LI><A NAME="toc1.38">1.38</A> <A HREF="telafuncs-1.html#ss1.38">atan</A>
+<LI><A NAME="toc1.39">1.39</A> <A HREF="telafuncs-1.html#ss1.39">atan2</A>
+<LI><A NAME="toc1.40">1.40</A> <A HREF="telafuncs-1.html#ss1.40">autoglobal</A>
+<LI><A NAME="toc1.41">1.41</A> <A HREF="telafuncs-1.html#ss1.41">autosource</A>
+<LI><A NAME="toc1.42">1.42</A> <A HREF="telafuncs-1.html#ss1.42">avoid_constructors</A>
+<LI><A NAME="toc1.43">1.43</A> <A HREF="telafuncs-1.html#ss1.43">axpy</A>
+<LI><A NAME="toc1.44">1.44</A> <A HREF="telafuncs-1.html#ss1.44">bar</A>
+<LI><A NAME="toc1.45">1.45</A> <A HREF="telafuncs-1.html#ss1.45">bsearch</A>
+<LI><A NAME="toc1.46">1.46</A> <A HREF="telafuncs-1.html#ss1.46">cd</A>
+<LI><A NAME="toc1.47">1.47</A> <A HREF="telafuncs-1.html#ss1.47">ceil</A>
+<LI><A NAME="toc1.48">1.48</A> <A HREF="telafuncs-1.html#ss1.48">chol</A>
+<LI><A NAME="toc1.49">1.49</A> <A HREF="telafuncs-1.html#ss1.49">clear</A>
+<LI><A NAME="toc1.50">1.50</A> <A HREF="telafuncs-1.html#ss1.50">closefig</A>
+<LI><A NAME="toc1.51">1.51</A> <A HREF="telafuncs-1.html#ss1.51">colormap</A>
+<LI><A NAME="toc1.52">1.52</A> <A HREF="telafuncs-1.html#ss1.52">computeEPOCH</A>
+<LI><A NAME="toc1.53">1.53</A> <A HREF="telafuncs-1.html#ss1.53">conj</A>
+<LI><A NAME="toc1.54">1.54</A> <A HREF="telafuncs-1.html#ss1.54">contour</A>
+<LI><A NAME="toc1.55">1.55</A> <A HREF="telafuncs-1.html#ss1.55">contour3</A>
+<LI><A NAME="toc1.56">1.56</A> <A HREF="telafuncs-1.html#ss1.56">cos</A>
+<LI><A NAME="toc1.57">1.57</A> <A HREF="telafuncs-1.html#ss1.57">cosFFT</A>
+<LI><A NAME="toc1.58">1.58</A> <A HREF="telafuncs-1.html#ss1.58">cosh</A>
+<LI><A NAME="toc1.59">1.59</A> <A HREF="telafuncs-1.html#ss1.59">cosqFFT</A>
+<LI><A NAME="toc1.60">1.60</A> <A HREF="telafuncs-1.html#ss1.60">cot</A>
+<LI><A NAME="toc1.61">1.61</A> <A HREF="telafuncs-1.html#ss1.61">cputime</A>
+<LI><A NAME="toc1.62">1.62</A> <A HREF="telafuncs-1.html#ss1.62">csc</A>
+<LI><A NAME="toc1.63">1.63</A> <A HREF="telafuncs-1.html#ss1.63">cumprod</A>
+<LI><A NAME="toc1.64">1.64</A> <A HREF="telafuncs-1.html#ss1.64">cumsum</A>
+<LI><A NAME="toc1.65">1.65</A> <A HREF="telafuncs-1.html#ss1.65">curve</A>
+<LI><A NAME="toc1.66">1.66</A> <A HREF="telafuncs-1.html#ss1.66">det</A>
+<LI><A NAME="toc1.67">1.67</A> <A HREF="telafuncs-1.html#ss1.67">diag</A>
+<LI><A NAME="toc1.68">1.68</A> <A HREF="telafuncs-1.html#ss1.68">disasm</A>
+<LI><A NAME="toc1.69">1.69</A> <A HREF="telafuncs-1.html#ss1.69">eig</A>
+<LI><A NAME="toc1.70">1.70</A> <A HREF="telafuncs-1.html#ss1.70">encodeEPOCH</A>
+<LI><A NAME="toc1.71">1.71</A> <A HREF="telafuncs-1.html#ss1.71">endpanels</A>
+<LI><A NAME="toc1.72">1.72</A> <A HREF="telafuncs-1.html#ss1.72">error</A>
+<LI><A NAME="toc1.73">1.73</A> <A HREF="telafuncs-1.html#ss1.73">eval</A>
+<LI><A NAME="toc1.74">1.74</A> <A HREF="telafuncs-1.html#ss1.74">evalexpr</A>
+<LI><A NAME="toc1.75">1.75</A> <A HREF="telafuncs-1.html#ss1.75">exit</A>
+<LI><A NAME="toc1.76">1.76</A> <A HREF="telafuncs-1.html#ss1.76">exp</A>
+<LI><A NAME="toc1.77">1.77</A> <A HREF="telafuncs-1.html#ss1.77">export_CDF</A>
+<LI><A NAME="toc1.78">1.78</A> <A HREF="telafuncs-1.html#ss1.78">export_PNG</A>
+<LI><A NAME="toc1.79">1.79</A> <A HREF="telafuncs-1.html#ss1.79">export_PNM</A>
+<LI><A NAME="toc1.80">1.80</A> <A HREF="telafuncs-1.html#ss1.80">export_RIS8</A>
+<LI><A NAME="toc1.81">1.81</A> <A HREF="telafuncs-1.html#ss1.81">export_matlab</A>
+<LI><A NAME="toc1.82">1.82</A> <A HREF="telafuncs-1.html#ss1.82">export_matlab2</A>
+<LI><A NAME="toc1.83">1.83</A> <A HREF="telafuncs-1.html#ss1.83">export_netCDF</A>
+<LI><A NAME="toc1.84">1.84</A> <A HREF="telafuncs-1.html#ss1.84">export_sound_CDR</A>
+<LI><A NAME="toc1.85">1.85</A> <A HREF="telafuncs-1.html#ss1.85">eye</A>
+<LI><A NAME="toc1.86">1.86</A> <A HREF="telafuncs-1.html#ss1.86">fclose</A>
+<LI><A NAME="toc1.87">1.87</A> <A HREF="telafuncs-1.html#ss1.87">feof</A>
+<LI><A NAME="toc1.88">1.88</A> <A HREF="telafuncs-1.html#ss1.88">fformat</A>
+<LI><A NAME="toc1.89">1.89</A> <A HREF="telafuncs-1.html#ss1.89">fgetc</A>
+<LI><A NAME="toc1.90">1.90</A> <A HREF="telafuncs-1.html#ss1.90">fgets</A>
+<LI><A NAME="toc1.91">1.91</A> <A HREF="telafuncs-1.html#ss1.91">figure</A>
+<LI><A NAME="toc1.92">1.92</A> <A HREF="telafuncs-1.html#ss1.92">find</A>
+<LI><A NAME="toc1.93">1.93</A> <A HREF="telafuncs-1.html#ss1.93">flatten</A>
+<LI><A NAME="toc1.94">1.94</A> <A HREF="telafuncs-1.html#ss1.94">flip</A>
+<LI><A NAME="toc1.95">1.95</A> <A HREF="telafuncs-1.html#ss1.95">floor</A>
+<LI><A NAME="toc1.96">1.96</A> <A HREF="telafuncs-1.html#ss1.96">fopen</A>
+<LI><A NAME="toc1.97">1.97</A> <A HREF="telafuncs-1.html#ss1.97">format</A>
+<LI><A NAME="toc1.98">1.98</A> <A HREF="telafuncs-1.html#ss1.98">fparse</A>
+<LI><A NAME="toc1.99">1.99</A> <A HREF="telafuncs-1.html#ss1.99">fprintf</A>
+<LI><A NAME="toc1.100">1.100</A> <A HREF="telafuncs-1.html#ss1.100">fread</A>
+<LI><A NAME="toc1.101">1.101</A> <A HREF="telafuncs-1.html#ss1.101">fwrite</A>
+<LI><A NAME="toc1.102">1.102</A> <A HREF="telafuncs-1.html#ss1.102">gaussrand</A>
+<LI><A NAME="toc1.103">1.103</A> <A HREF="telafuncs-1.html#ss1.103">geopack_coordtrans</A>
+<LI><A NAME="toc1.104">1.104</A> <A HREF="telafuncs-1.html#ss1.104">geopack_model</A>
+<LI><A NAME="toc1.105">1.105</A> <A HREF="telafuncs-1.html#ss1.105">geopack_trace</A>
+<LI><A NAME="toc1.106">1.106</A> <A HREF="telafuncs-1.html#ss1.106">getenv</A>
+<LI><A NAME="toc1.107">1.107</A> <A HREF="telafuncs-1.html#ss1.107">getpid</A>
+<LI><A NAME="toc1.108">1.108</A> <A HREF="telafuncs-1.html#ss1.108">grid</A>
+<LI><A NAME="toc1.109">1.109</A> <A HREF="telafuncs-1.html#ss1.109">grid3</A>
+<LI><A NAME="toc1.110">1.110</A> <A HREF="telafuncs-1.html#ss1.110">help</A>
+<LI><A NAME="toc1.111">1.111</A> <A HREF="telafuncs-1.html#ss1.111">herm</A>
+<LI><A NAME="toc1.112">1.112</A> <A HREF="telafuncs-1.html#ss1.112">hide</A>
+<LI><A NAME="toc1.113">1.113</A> <A HREF="telafuncs-1.html#ss1.113">hist</A>
+<LI><A NAME="toc1.114">1.114</A> <A HREF="telafuncs-1.html#ss1.114">hold</A>
+<LI><A NAME="toc1.115">1.115</A> <A HREF="telafuncs-1.html#ss1.115">holdmode</A>
+<LI><A NAME="toc1.116">1.116</A> <A HREF="telafuncs-1.html#ss1.116">import</A>
+<LI><A NAME="toc1.117">1.117</A> <A HREF="telafuncs-1.html#ss1.117">import1</A>
+<LI><A NAME="toc1.118">1.118</A> <A HREF="telafuncs-1.html#ss1.118">import_CDF</A>
+<LI><A NAME="toc1.119">1.119</A> <A HREF="telafuncs-1.html#ss1.119">import_PNG</A>
+<LI><A NAME="toc1.120">1.120</A> <A HREF="telafuncs-1.html#ss1.120">import_PNM</A>
+<LI><A NAME="toc1.121">1.121</A> <A HREF="telafuncs-1.html#ss1.121">info</A>
+<LI><A NAME="toc1.122">1.122</A> <A HREF="telafuncs-1.html#ss1.122">input_string</A>
+<LI><A NAME="toc1.123">1.123</A> <A HREF="telafuncs-1.html#ss1.123">intpol</A>
+<LI><A NAME="toc1.124">1.124</A> <A HREF="telafuncs-1.html#ss1.124">inv</A>
+<LI><A NAME="toc1.125">1.125</A> <A HREF="telafuncs-1.html#ss1.125">invFFT</A>
+<LI><A NAME="toc1.126">1.126</A> <A HREF="telafuncs-1.html#ss1.126">invcosFFT</A>
+<LI><A NAME="toc1.127">1.127</A> <A HREF="telafuncs-1.html#ss1.127">invcosqFFT</A>
+<LI><A NAME="toc1.128">1.128</A> <A HREF="telafuncs-1.html#ss1.128">invrealFFT</A>
+<LI><A NAME="toc1.129">1.129</A> <A HREF="telafuncs-1.html#ss1.129">invsinFFT</A>
+<LI><A NAME="toc1.130">1.130</A> <A HREF="telafuncs-1.html#ss1.130">invsinqFFT</A>
+<LI><A NAME="toc1.131">1.131</A> <A HREF="telafuncs-1.html#ss1.131">isCfunction</A>
+<LI><A NAME="toc1.132">1.132</A> <A HREF="telafuncs-1.html#ss1.132">isTfunction</A>
+<LI><A NAME="toc1.133">1.133</A> <A HREF="telafuncs-1.html#ss1.133">isarray</A>
+<LI><A NAME="toc1.134">1.134</A> <A HREF="telafuncs-1.html#ss1.134">ischar</A>
+<LI><A NAME="toc1.135">1.135</A> <A HREF="telafuncs-1.html#ss1.135">iscomplex</A>
+<LI><A NAME="toc1.136">1.136</A> <A HREF="telafuncs-1.html#ss1.136">isdefined</A>
+<LI><A NAME="toc1.137">1.137</A> <A HREF="telafuncs-1.html#ss1.137">isfinite</A>
+<LI><A NAME="toc1.138">1.138</A> <A HREF="telafuncs-1.html#ss1.138">isfloat</A>
+<LI><A NAME="toc1.139">1.139</A> <A HREF="telafuncs-1.html#ss1.139">isfunction</A>
+<LI><A NAME="toc1.140">1.140</A> <A HREF="telafuncs-1.html#ss1.140">isint</A>
+<LI><A NAME="toc1.141">1.141</A> <A HREF="telafuncs-1.html#ss1.141">islist</A>
+<LI><A NAME="toc1.142">1.142</A> <A HREF="telafuncs-1.html#ss1.142">ismatrix</A>
+<LI><A NAME="toc1.143">1.143</A> <A HREF="telafuncs-1.html#ss1.143">isreal</A>
+<LI><A NAME="toc1.144">1.144</A> <A HREF="telafuncs-1.html#ss1.144">isscalar</A>
+<LI><A NAME="toc1.145">1.145</A> <A HREF="telafuncs-1.html#ss1.145">isstr</A>
+<LI><A NAME="toc1.146">1.146</A> <A HREF="telafuncs-1.html#ss1.146">isstring</A>
+<LI><A NAME="toc1.147">1.147</A> <A HREF="telafuncs-1.html#ss1.147">isundefined</A>
+<LI><A NAME="toc1.148">1.148</A> <A HREF="telafuncs-1.html#ss1.148">isvector</A>
+<LI><A NAME="toc1.149">1.149</A> <A HREF="telafuncs-1.html#ss1.149">isvoid</A>
+<LI><A NAME="toc1.150">1.150</A> <A HREF="telafuncs-1.html#ss1.150">length</A>
+<LI><A NAME="toc1.151">1.151</A> <A HREF="telafuncs-1.html#ss1.151">limit</A>
+<LI><A NAME="toc1.152">1.152</A> <A HREF="telafuncs-1.html#ss1.152">link</A>
+<LI><A NAME="toc1.153">1.153</A> <A HREF="telafuncs-1.html#ss1.153">linsolve</A>
+<LI><A NAME="toc1.154">1.154</A> <A HREF="telafuncs-1.html#ss1.154">load</A>
+<LI><A NAME="toc1.155">1.155</A> <A HREF="telafuncs-1.html#ss1.155">log</A>
+<LI><A NAME="toc1.156">1.156</A> <A HREF="telafuncs-1.html#ss1.156">logfact</A>
+<LI><A NAME="toc1.157">1.157</A> <A HREF="telafuncs-1.html#ss1.157">map</A>
+<LI><A NAME="toc1.158">1.158</A> <A HREF="telafuncs-1.html#ss1.158">mapmax</A>
+<LI><A NAME="toc1.159">1.159</A> <A HREF="telafuncs-1.html#ss1.159">mapmin</A>
+<LI><A NAME="toc1.160">1.160</A> <A HREF="telafuncs-1.html#ss1.160">matprod</A>
+<LI><A NAME="toc1.161">1.161</A> <A HREF="telafuncs-1.html#ss1.161">meminuse</A>
+<LI><A NAME="toc1.162">1.162</A> <A HREF="telafuncs-1.html#ss1.162">menu</A>
+<LI><A NAME="toc1.163">1.163</A> <A HREF="telafuncs-1.html#ss1.163">mesh</A>
+<LI><A NAME="toc1.164">1.164</A> <A HREF="telafuncs-1.html#ss1.164">ones</A>
+<LI><A NAME="toc1.165">1.165</A> <A HREF="telafuncs-1.html#ss1.165">panel</A>
+<LI><A NAME="toc1.166">1.166</A> <A HREF="telafuncs-1.html#ss1.166">parseEPOCH</A>
+<LI><A NAME="toc1.167">1.167</A> <A HREF="telafuncs-1.html#ss1.167">pause</A>
+<LI><A NAME="toc1.168">1.168</A> <A HREF="telafuncs-1.html#ss1.168">pcolor</A>
+<LI><A NAME="toc1.169">1.169</A> <A HREF="telafuncs-1.html#ss1.169">perf</A>
+<LI><A NAME="toc1.170">1.170</A> <A HREF="telafuncs-1.html#ss1.170">pixmap</A>
+<LI><A NAME="toc1.171">1.171</A> <A HREF="telafuncs-1.html#ss1.171">plot</A>
+<LI><A NAME="toc1.172">1.172</A> <A HREF="telafuncs-1.html#ss1.172">plot3</A>
+<LI><A NAME="toc1.173">1.173</A> <A HREF="telafuncs-1.html#ss1.173">plotopt</A>
+<LI><A NAME="toc1.174">1.174</A> <A HREF="telafuncs-1.html#ss1.174">poissonrand</A>
+<LI><A NAME="toc1.175">1.175</A> <A HREF="telafuncs-1.html#ss1.175">printf</A>
+<LI><A NAME="toc1.176">1.176</A> <A HREF="telafuncs-1.html#ss1.176">prod</A>
+<LI><A NAME="toc1.177">1.177</A> <A HREF="telafuncs-1.html#ss1.177">pseudo</A>
+<LI><A NAME="toc1.178">1.178</A> <A HREF="telafuncs-1.html#ss1.178">putenv</A>
+<LI><A NAME="toc1.179">1.179</A> <A HREF="telafuncs-1.html#ss1.179">quit</A>
+<LI><A NAME="toc1.180">1.180</A> <A HREF="telafuncs-1.html#ss1.180">rand</A>
+<LI><A NAME="toc1.181">1.181</A> <A HREF="telafuncs-1.html#ss1.181">rank</A>
+<LI><A NAME="toc1.182">1.182</A> <A HREF="telafuncs-1.html#ss1.182">read_CDF</A>
+<LI><A NAME="toc1.183">1.183</A> <A HREF="telafuncs-1.html#ss1.183">realFFT</A>
+<LI><A NAME="toc1.184">1.184</A> <A HREF="telafuncs-1.html#ss1.184">remove</A>
+<LI><A NAME="toc1.185">1.185</A> <A HREF="telafuncs-1.html#ss1.185">reset_alt_display</A>
+<LI><A NAME="toc1.186">1.186</A> <A HREF="telafuncs-1.html#ss1.186">reshape</A>
+<LI><A NAME="toc1.187">1.187</A> <A HREF="telafuncs-1.html#ss1.187">round</A>
+<LI><A NAME="toc1.188">1.188</A> <A HREF="telafuncs-1.html#ss1.188">run</A>
+<LI><A NAME="toc1.189">1.189</A> <A HREF="telafuncs-1.html#ss1.189">save</A>
+<LI><A NAME="toc1.190">1.190</A> <A HREF="telafuncs-1.html#ss1.190">sec</A>
+<LI><A NAME="toc1.191">1.191</A> <A HREF="telafuncs-1.html#ss1.191">set_alt_display</A>
+<LI><A NAME="toc1.192">1.192</A> <A HREF="telafuncs-1.html#ss1.192">sformat</A>
+<LI><A NAME="toc1.193">1.193</A> <A HREF="telafuncs-1.html#ss1.193">showcompiled</A>
+<LI><A NAME="toc1.194">1.194</A> <A HREF="telafuncs-1.html#ss1.194">sign</A>
+<LI><A NAME="toc1.195">1.195</A> <A HREF="telafuncs-1.html#ss1.195">sin</A>
+<LI><A NAME="toc1.196">1.196</A> <A HREF="telafuncs-1.html#ss1.196">sinFFT</A>
+<LI><A NAME="toc1.197">1.197</A> <A HREF="telafuncs-1.html#ss1.197">sinh</A>
+<LI><A NAME="toc1.198">1.198</A> <A HREF="telafuncs-1.html#ss1.198">sinqFFT</A>
+<LI><A NAME="toc1.199">1.199</A> <A HREF="telafuncs-1.html#ss1.199">size</A>
+<LI><A NAME="toc1.200">1.200</A> <A HREF="telafuncs-1.html#ss1.200">smenu</A>
+<LI><A NAME="toc1.201">1.201</A> <A HREF="telafuncs-1.html#ss1.201">sort</A>
+<LI><A NAME="toc1.202">1.202</A> <A HREF="telafuncs-1.html#ss1.202">sort_old</A>
+<LI><A NAME="toc1.203">1.203</A> <A HREF="telafuncs-1.html#ss1.203">source</A>
+<LI><A NAME="toc1.204">1.204</A> <A HREF="telafuncs-1.html#ss1.204">source_silent</A>
+<LI><A NAME="toc1.205">1.205</A> <A HREF="telafuncs-1.html#ss1.205">sppcmark</A>
+<LI><A NAME="toc1.206">1.206</A> <A HREF="telafuncs-1.html#ss1.206">sppcopts</A>
+<LI><A NAME="toc1.207">1.207</A> <A HREF="telafuncs-1.html#ss1.207">sprintf</A>
+<LI><A NAME="toc1.208">1.208</A> <A HREF="telafuncs-1.html#ss1.208">sqrt</A>
+<LI><A NAME="toc1.209">1.209</A> <A HREF="telafuncs-1.html#ss1.209">srand</A>
+<LI><A NAME="toc1.210">1.210</A> <A HREF="telafuncs-1.html#ss1.210">stencil2d_4</A>
+<LI><A NAME="toc1.211">1.211</A> <A HREF="telafuncs-1.html#ss1.211">str2num</A>
+<LI><A NAME="toc1.212">1.212</A> <A HREF="telafuncs-1.html#ss1.212">streq</A>
+<LI><A NAME="toc1.213">1.213</A> <A HREF="telafuncs-1.html#ss1.213">strmat</A>
+<LI><A NAME="toc1.214">1.214</A> <A HREF="telafuncs-1.html#ss1.214">strmat2</A>
+<LI><A NAME="toc1.215">1.215</A> <A HREF="telafuncs-1.html#ss1.215">strstarteq</A>
+<LI><A NAME="toc1.216">1.216</A> <A HREF="telafuncs-1.html#ss1.216">sum</A>
+<LI><A NAME="toc1.217">1.217</A> <A HREF="telafuncs-1.html#ss1.217">system</A>
+<LI><A NAME="toc1.218">1.218</A> <A HREF="telafuncs-1.html#ss1.218">system_with_returnvalue</A>
+<LI><A NAME="toc1.219">1.219</A> <A HREF="telafuncs-1.html#ss1.219">t2ct</A>
+<LI><A NAME="toc1.220">1.220</A> <A HREF="telafuncs-1.html#ss1.220">tan</A>
+<LI><A NAME="toc1.221">1.221</A> <A HREF="telafuncs-1.html#ss1.221">tanh</A>
+<LI><A NAME="toc1.222">1.222</A> <A HREF="telafuncs-1.html#ss1.222">telapath</A>
+<LI><A NAME="toc1.223">1.223</A> <A HREF="telafuncs-1.html#ss1.223">tic</A>
+<LI><A NAME="toc1.224">1.224</A> <A HREF="telafuncs-1.html#ss1.224">toc</A>
+<LI><A NAME="toc1.225">1.225</A> <A HREF="telafuncs-1.html#ss1.225">tostring</A>
+<LI><A NAME="toc1.226">1.226</A> <A HREF="telafuncs-1.html#ss1.226">transpose</A>
+<LI><A NAME="toc1.227">1.227</A> <A HREF="telafuncs-1.html#ss1.227">trunc</A>
+<LI><A NAME="toc1.228">1.228</A> <A HREF="telafuncs-1.html#ss1.228">ungetc</A>
+<LI><A NAME="toc1.229">1.229</A> <A HREF="telafuncs-1.html#ss1.229">unhide</A>
+<LI><A NAME="toc1.230">1.230</A> <A HREF="telafuncs-1.html#ss1.230">version</A>
+<LI><A NAME="toc1.231">1.231</A> <A HREF="telafuncs-1.html#ss1.231">vplot</A>
+<LI><A NAME="toc1.232">1.232</A> <A HREF="telafuncs-1.html#ss1.232">where</A>
+<LI><A NAME="toc1.233">1.233</A> <A HREF="telafuncs-1.html#ss1.233">whos</A>
+<LI><A NAME="toc1.234">1.234</A> <A HREF="telafuncs-1.html#ss1.234">xlabels</A>
+</UL>
+<HR>
+<A HREF="telafuncs-1.html">Next</A>
+Previous
+Contents
+</BODY>
+</HTML>

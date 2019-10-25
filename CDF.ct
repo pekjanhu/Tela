@@ -1,0 +1,979 @@
+/*
+ * This file is part of tela the Tensor Language.
+ * Copyright (c) 1994-1999 Pekka Janhunen
+ */
+
+/*
+	CDF.ct
+	Notice that CDF is not the same as netCDF, which is already supported by HDF library!
+	Preprocess with ctpp.
+	C-tela code is C++ equipped with []=f() style function definition.
+
+	---
+	Contains functions: import_CDF, export_CDF,
+	computeEPOCH, EPOCHbreakdown, parseEPOCH, encodeEPOCH.
+*/
+
+#include "cdf.h"
+#include <ctype.h>
+
+#define DEBUG 0
+
+static int StatusHandler(CDFstatus status, int linenumber)
+// Return -1 in case of fatal error, 0 otherwise
+{
+	char message[CDF_ERRTEXT_LEN+1];
+
+	if (status < CDF_WARN) {
+		CDFerror(status,message);
+		cout << "CDF error " << status << " at line " << linenumber << ":\n  " << message << "\n";
+		return -1;
+	} else if (status < CDF_OK) {
+		cout << "CDF warning " << status << " at line " << linenumber << ":\n  " << message << "\n";
+	} else if (status > CDF_OK) {
+		CDFerror (status, message);
+		cout << "CDF informative message " << status << " at line " << linenumber << ":\n  " << message << "\n";
+	}
+	return 0;
+}
+
+static void MakeValidIdentifier(char *s)
+// Replace bad characters in s by underscore (dollar if first character is bad).
+// Valid identifier starts with a letter or dollar sign, the rest of the chars
+// may contain also digits or underscores. (See lexer source file "d.l").
+// Before all, however, the function deletes trailing blanks.
+{
+	int L = strlen(s) - 1;
+	while (s[L] == ' ') {s[L] = '\0'; L--;}
+	if (s[0] && !isalpha(s[0]) && s[0]!='$') s[0] = '$';
+	int i;
+	for (i=1; s[i]; i++)
+		if (!isalpha(s[i]) && !isdigit(s[i]) && s[i]!='$' && s[i]!='_')
+			s[i] = '_';
+}
+
+#define chk(f) status=f; if (status != CDF_OK) {retval=StatusHandler(status,__LINE__); if (retval < 0) return -2;}
+#define CDFlong long
+#define CDFshort short
+#define CDFushort unsigned short
+#define CDFchar char
+#define CDFuchar unsigned char
+#define CDFdouble double
+#define CDFfloat float
+
+static char *DataTypeString(long datatype)
+{
+	char *s;
+	switch (datatype) {
+	case CDF_INT1: s = "int1"; break;
+	case CDF_INT2: s = "int2"; break;
+	case CDF_INT4: s = "int4"; break;
+	case CDF_UINT1: s = "uint1"; break;
+	case CDF_UINT2: s = "uint2"; break;
+	case CDF_UINT4: s = "uint4"; break;
+	case CDF_REAL4: s = "real4"; break;
+	case CDF_REAL8: s = "real8"; break;
+	case CDF_EPOCH: s = "epoch"; break;
+	case CDF_BYTE: s = "byte"; break;
+	case CDF_FLOAT: s = "float"; break;
+	case CDF_DOUBLE: s = "double"; break;
+	case CDF_CHAR: s = "char"; break;
+	case CDF_UCHAR: s = "uchar"; break;
+	default: s = "<UNKNOWN DATA TYPE>";
+	}
+	return s;
+}
+
+static void transpose(Tint x[], Tint rank, const CDFlong dims[], Tint Nelems)
+// from Fortran order to C order
+{
+	if (rank <= 1) return;
+	Tint n = 1, d, p;
+	for (d=0; d<rank; d++) n*= dims[d];
+	Tint *buff = new Tint [n];
+	Tint ijk[MAXRANK];
+	for (p=0; p<n; p++) {
+		// p is toindex (C-order index)
+		Tint p1 = p;
+		for (d=rank-1; d>=0; d--) {
+			ijk[d] = p1 % dims[d];
+			p1 = (p1 - ijk[d])/dims[d];
+		}
+		Tint fromindex = 0, multiplier = 1;
+		for (d=0; d<rank; d++) {
+			fromindex+= multiplier*ijk[d];
+			multiplier*= dims[d];
+		}
+		Tint e;
+		for (e=0; e<Nelems; e++) buff[Nelems*p+e] = x[Nelems*fromindex+e];
+	}
+	memcpy(x,buff,sizeof(Tint)*Nelems*n);
+	delete [] buff;
+}
+
+static void transpose(Treal x[], Tint rank, const CDFlong dims[], Tint Nelems)
+// from Fortran order to C order
+{
+	if (rank <= 1) return;
+	Tint n = 1, d, p;
+	for (d=0; d<rank; d++) n*= dims[d];
+	Treal *buff = new Treal [n];
+	Tint ijk[MAXRANK];
+	for (p=0; p<n; p++) {
+		// p is toindex (C-order index)
+		Tint p1 = p;
+		for (d=rank-1; d>=0; d--) {
+			ijk[d] = p1 % dims[d];
+			p1 = (p1 - ijk[d])/dims[d];
+		}
+		Tint fromindex = 0, multiplier = 1;
+		for (d=0; d<rank; d++) {
+			fromindex+= multiplier*ijk[d];
+			multiplier*= dims[d];
+		}
+		Tint e;
+		for (e=0; e<Nelems; e++) buff[Nelems*p+e] = x[Nelems*fromindex+e];
+	}
+	memcpy(x,buff,sizeof(Treal)*Nelems*n);
+	delete [] buff;
+}
+
+static int ReadOneCDFAsObject(CDFlong v, Tobject& obj)
+// Returns 0 on success, error code on error
+{
+	CDFlong rank, dims[CDF_MAX_DIMS], encoding, majority, maxrec, Nvars;
+	CDFstatus status;
+	int retval, returnvalue=0, d=0;
+	
+	char varname[1000];
+	CDFlong datatype, Nelems, recvariance, dimvariances[CDF_MAX_DIMS];
+
+	chk(CDFlib(SELECT_,zVAR_,v,NULL_));
+	
+	chk(CDFlib(GET_,zVAR_NUMDIMS_,&rank,NULL_));
+	if (rank > MAXRANK /*-1*/ ) return 6;		// removed this -1 /Pj 26 Oct 2002
+	chk(CDFlib(GET_,
+			   zVAR_DIMSIZES_,dims,
+			   zVAR_DATATYPE_,&datatype,
+			   zVAR_NAME_,varname,
+			   zVAR_MAXREC_,&maxrec,
+			   zVAR_NUMELEMS_,&Nelems,
+			   zVAR_RECVARY_,&recvariance,
+			   CDF_MAJORITY_,&majority,
+			   NULL_));
+	const int must_transpose = (majority == COLUMN_MAJOR);
+//	cout << "majority = " << majority << ", must_transpose = " << must_transpose << "\n";
+	if (rank == 0) {rank = 1; dims[0] = 1;}
+		
+#if DEBUG
+	cout << "rank=" << rank << ", dims=";
+	for (d=0; d<rank; d++) cout << " " << dims[d];
+	cout << "- Variable '" << varname << "', Nelems="
+		 << Nelems << ", datatype=" << DataTypeString(datatype) << ", recvariance=" << recvariance << "\n" << flush;
+#endif
+
+	long itemsize;
+	switch (datatype) {
+	case CDF_INT1: case CDF_BYTE: case CDF_CHAR: case CDF_UCHAR: itemsize = sizeof(char); break;
+	case CDF_INT2: itemsize = sizeof(short int); break;
+	case CDF_INT4: itemsize = sizeof(int); break;
+	case CDF_UINT1: itemsize = sizeof(unsigned char); break;
+	case CDF_UINT2: itemsize = sizeof(unsigned short int); break;
+	case CDF_UINT4: itemsize = sizeof(unsigned int); break;
+	case CDF_REAL4: case CDF_FLOAT: itemsize = sizeof(float); break;
+	case CDF_REAL8: case CDF_DOUBLE: case CDF_EPOCH: itemsize = sizeof(double); break;
+	default: itemsize = -1;
+		
+	}
+
+	if (itemsize == -1) {
+		cout << "---- Warning: Unsupported data type\n" << flush;
+		return -10;
+	}
+	long Nrecs = (recvariance == VARY) ? maxrec+1 : 1;
+	long recStart = 0;
+	long recCount = (recvariance == VARY) ? maxrec+1 : 1;
+	if (recCount <= 0) recCount = 1;	// ???, but seems to be needed
+	long recInterval = 1;
+	long *dimStart = new long [3*rank];
+	long *dimEnd = dimStart + rank;
+	long *dimIntervals = dimStart + 2*rank;
+	long length = 1;
+	Tint objdims[MAXRANK];
+#if DEBUG
+	cout << "--- Nrecs=" << Nrecs << "\n" << flush;
+#endif
+		
+	if (Nrecs > 1) objdims[0] = Nrecs;
+#if DEBUG
+	cout << "--- rank=" << rank << "\n" << flush;
+#endif
+	dimStart[0] = dimEnd[0] = 0; dimIntervals[0] = 1;
+	if (rank != 1 || dims[0] != 1 || Nelems > 1 || Nrecs > 1 || (rank==1 && dims[0]==1 && Nelems==1 && Nrecs==1)) {
+		for (d=0; d<rank; d++) {
+			dimStart[d] = 0;
+			dimEnd[d] = dims[d];
+			objdims[d + (Nrecs > 1 ? 1 : 0)] = Tint(dims[d]);
+			length*= dims[d];
+			dimIntervals[d] = 1;
+		}
+	}
+	if (Nelems > 1) {
+		objdims[(rank==1 && dims[0]==1 && (Nelems!=1 || Nrecs!=1) ? d-1 : d) + (Nrecs > 1 ? 1 : 0)] = Nelems;
+		length*= Nelems;
+	}
+	TDimPack odims(objdims,
+				   int((rank==1 && dims[0]==1 && (Nelems!=1 || Nrecs!=1) ? 0 : rank)
+					   + (Nrecs > 1 ? 1 : 0)
+					   + (Nelems > 1 ? 1 : 0) ));
+
+#if DEBUG
+	cout << "odims = " << odims << "\n";
+	cout << "itemsize=" << itemsize << ", length=" << length << ", recCount=" << recCount << "\n";
+	cout << "Allocating buffer of size=" << itemsize*length*recCount << "\n" << flush;
+#endif
+	char *buffer = new char [itemsize*length*recCount];
+
+	chk(CDFlib(SELECT_,
+			   zVAR_,v,
+			   zVAR_RECNUMBER_, recStart,
+			   zVAR_RECCOUNT_, recCount,
+			   zVAR_RECINTERVAL_, recInterval,
+			   zVAR_DIMINDICES_, dimStart,
+			   zVAR_DIMCOUNTS_, dimEnd,
+			   zVAR_DIMINTERVALS_, dimIntervals,
+			   GET_, zVAR_HYPERDATA_, buffer,
+			   NULL_));
+
+	Treal *rptr=0; Tint *iptr=0;
+	int is_real_data = 0;
+	switch (datatype) {
+		// All integer types -> Tint, except UINT4 which maps to Treal
+		// because UINT4 will not fit into Tint on 32-bit machines!
+	case CDF_INT1:
+	case CDF_BYTE:
+	case CDF_INT2:
+	case CDF_INT4:
+	case CDF_UINT1:
+	case CDF_UINT2:
+	case CDF_CHAR:
+	case CDF_UCHAR:
+		is_real_data = 0;
+		obj.izeros(odims); iptr = obj.IntPtr(); break;
+	case CDF_REAL4:
+	case CDF_REAL8:
+	case CDF_FLOAT:
+	case CDF_DOUBLE:
+	case CDF_EPOCH:
+	case CDF_UINT4:
+		is_real_data = 1;
+		obj.rzeros(odims); rptr = obj.RealPtr(); break;
+	default:
+		cout << "*** Unsupported data type!\n" << flush;
+		delete [] buffer;
+		delete [] dimStart;
+		return -10;
+	}
+	
+	Tint i, N = obj.length()  /*Tint(length*Nrecs)*/;
+	switch (datatype) {
+	case CDF_INT1:
+	case CDF_BYTE:
+	case CDF_CHAR:
+		for (i=0; i<N; i++) iptr[i] = ((char *)buffer)[i];
+		if (datatype == CDF_CHAR) obj.SetStringFlag();
+		break;
+	case CDF_INT2:
+		for (i=0; i<N; i++) iptr[i] = ((short int*)buffer)[i];
+		if (sizeof(short int) != 2) returnvalue = 1;
+		break;
+	case CDF_INT4:
+		for (i=0; i<N; i++) iptr[i] = ((int*)buffer)[i];
+		if (sizeof(int) != 4) returnvalue = 2;
+		break;
+	case CDF_UINT1:
+	case CDF_UCHAR:
+		for (i=0; i<N; i++) iptr[i] = ((unsigned char*)buffer)[i];
+		if (datatype == CDF_UCHAR) obj.SetStringFlag();
+		break;
+	case CDF_UINT2:
+		for (i=0; i<N; i++) iptr[i] = ((unsigned short int*)buffer)[i];
+		if (sizeof(unsigned short int) != 2) returnvalue = 1;
+		break;
+	case CDF_UINT4:
+		for (i=0; i<N; i++) rptr[i] = ((unsigned int*)buffer)[i];
+		if (sizeof(unsigned int) != 4) returnvalue = 2;
+		break;
+	case CDF_REAL4:
+	case CDF_FLOAT:
+		for (i=0; i<N; i++) rptr[i] = ((float *)buffer)[i];
+		if (sizeof(float) != 4) returnvalue = 3;
+		break;
+	case CDF_REAL8:
+	case CDF_DOUBLE:
+	case CDF_EPOCH:
+		for (i=0; i<N; i++) rptr[i] = ((double *)buffer)[i];
+		if (sizeof(double) != 8) returnvalue = 4;
+		break;
+	default: cout << "Unsupported type!!!!!\n" << flush;
+	}
+	if (must_transpose) {
+		int r;
+//		cout << "Transposing...\n";
+		for (r=0; r<recCount; r++) {
+			if (is_real_data) {
+				transpose(&rptr[r*(N/recCount)],rank,dims,Nelems);
+			} else {
+				transpose(&iptr[r*(N/recCount)],rank,dims,Nelems);
+			}
+		}
+	}
+	delete [] buffer;
+	delete [] dimStart;
+#if DEBUG
+	cout << flush;
+#endif
+	// If 0-rank and recCount==1, make it scalar variable
+	chk(CDFlib(GET_,zVAR_NUMDIMS_,&rank,NULL_));
+	if (rank == 0 && recCount==1 && Nelems==1) {
+		if (obj.kind() == KIntArray) {
+			const Tint i = obj.IntPtr()[0];
+			obj = i;
+			if (datatype == CDF_CHAR) obj.SetCharFlag();
+		} else {
+			const Treal x = obj.RealPtr()[0];
+			obj = x;
+		}
+	}
+	return returnvalue;
+}
+
+static int ReadOneCDF(CDFlong v)
+{
+	CDFstatus status;
+	Tobject obj;
+	int retval, returnvalue = ReadOneCDFAsObject(v,obj);
+	if (returnvalue) return returnvalue;
+	char varname[1000];
+	chk(CDFlib(SELECT_,zVAR_,v,NULL_));
+	chk(CDFlib(GET_,
+			   zVAR_NAME_,varname,
+			   NULL_));
+	MakeValidIdentifier(varname);
+#if DEBUG
+	cout << "After MakeValidIdentifier, varname='" << varname << "', obj = " << obj << ", N=" << N << "\n";
+#endif
+	if (strlen(varname) > 0) {
+		Tsymbol *symptr = theHT.add((Tchar*)varname);
+		symptr->value()->bitwiseMoveFrom(obj);
+	} else {
+		cerr << "- Empty variable name in CDF file - ignoring\n";
+		returnvalue = 5;
+	}
+	return returnvalue;
+}
+
+static int floatflag = 0;
+// Affects WriteOneCDF:
+// If floatflag!=0, writes 32-bit floating point, otherwise 64-bit.
+// This affects only arrays, real scalars always use 64-bit.
+static int recordflag = 0;
+// Affects WriteOneCDF:
+// If recordflag!=0, makes the leading dimension the 'record dimension'.
+static int stringflag = 1;
+// Affects WriteOneCDF:
+// If stringflag!=0, writes strings using the 'numelements' concept,
+// eliminating the last dimension from character arrays.
+
+// These must agree with definitions in tela.C:
+const int const_CDF_FLOAT = 1;
+const int const_CDF_DOUBLE = 2;
+const int const_CDF_RECORD = 4;
+const int const_CDF_NORECORD = 8;
+
+static void SetCDFFlags(Tint flags)
+{
+	if (flags & const_CDF_FLOAT) floatflag = 1;
+	if (flags & const_CDF_DOUBLE) floatflag = 0;
+	if (flags & const_CDF_RECORD) recordflag = 1;
+	if (flags & const_CDF_NORECORD) recordflag = 0;
+}
+
+static void ResetCDFFlags() {
+	floatflag = 0;
+	recordflag = 0;
+}
+
+static int WriteOneCDF(TConstObjectPtr objptr, const Tstring& NAME, int silentflag=0)
+{
+	const Tkind k = objptr->kind();
+	int d,d0,retval=0;
+	CDFlong rank, dims[CDF_MAX_DIMS],
+		recvary, datatype, numelems, dimvarys[CDF_MAX_DIMS];
+	CDFlong varnum;
+	CDFstatus status;
+	Tint i,len;
+	CDFlong lsbuff;
+	CDFchar csbuff;
+	CDFdouble dsbuff;
+	switch (k) {
+	case Kint:
+	case Kreal:
+		datatype = (k==Kint) ? CDF_INT4 : CDF_DOUBLE;
+		if (k==Kint && objptr->IntValue() >= -127 && objptr->IntValue() <= 127 && objptr->IsChar())
+			datatype = CDF_CHAR;
+		numelems = 1;
+		recvary = VARY;
+		rank = 0;
+		dims[0] = 1;
+		dimvarys[0] = VARY;
+		chk(CDFlib(CREATE_,zVAR_,(char*)NAME, datatype, numelems, rank,dims,recvary,dimvarys,&varnum,NULL_));
+		if (k == Kint) {
+			lsbuff = objptr->IntValue();
+			csbuff = char(objptr->IntValue());
+		} else
+			dsbuff = objptr->RealValue();
+		chk(CDFlib(PUT_, zVAR_HYPERDATA_,
+				   (k==Kint) ? (datatype==CDF_CHAR ? (void*)(&csbuff) : (void*)(&lsbuff)) : (void*)(&dsbuff),
+				   NULL_));
+		break;
+	case KIntArray:
+	case KRealArray:
+		if (k == KIntArray) {
+			Tint i;
+			const Tint L = objptr->length();
+			Tint mi=objptr->IntPtr()[0], ma=objptr->IntPtr()[0];
+			for (i=1; i<L; i++) {
+				const Tint j = objptr->IntPtr()[i];
+				if (j > ma) ma = j;
+				if (j < mi) mi = j;
+			}
+			if (mi >= -127 && ma <= 127 && sizeof(CDFchar)==1)
+				datatype = objptr->HasStringFlag() ? CDF_CHAR : CDF_INT1;
+			else if (mi >= 0 && ma <= 255 && sizeof(CDFuchar)==1)
+				datatype = objptr->HasStringFlag() ? CDF_UCHAR : CDF_UINT1;
+			else if (mi >= -32767 && ma <= 32767 && sizeof(CDFshort)==2)
+				datatype = CDF_INT2;
+			else if (mi >= 0 && ma <= 65535 && sizeof(CDFushort)==2)
+				datatype = CDF_UINT2;
+			else
+				datatype = CDF_INT4;
+		} else {
+			datatype = floatflag ? CDF_FLOAT : CDF_DOUBLE;
+		}
+		numelems = (datatype == CDF_CHAR && stringflag) ? objptr->dims()[objptr->rank()-1] : 1;
+		recvary = VARY;
+		d0 = recordflag ? 1 : 0;
+		rank = objptr->rank() - d0 - ((datatype==CDF_CHAR && stringflag) ? 1 : 0);
+		if (rank < 0) {
+			cerr << "warning: cannot save variable " << NAME << " because too small rank (Do not use CDF_RECORD with a string)\n";
+			return 0;
+		}
+		for (d=d0; d<objptr->rank(); d++) {dims[d-d0] = objptr->dims()[d]; dimvarys[d-d0] = VARY;}
+		chk(CDFlib(CREATE_,zVAR_,(char*)NAME, datatype, numelems, rank,dims,recvary,dimvarys,&varnum,NULL_));
+		len = objptr->length();
+		chk(CDFlib(SELECT_,zVAR_RECCOUNT_, recordflag ? objptr->dims()[0] : 1,NULL_));
+		if (k==KIntArray) {
+			if ((datatype == CDF_INT1 || datatype == CDF_CHAR) && sizeof(CDFchar)==1) {
+				CDFchar *buff = new CDFchar [len];
+				for (i=0; i<len; i++) buff[i] = CDFchar(objptr->IntPtr()[i]);
+				chk(CDFlib(PUT_, zVAR_HYPERDATA_, buff, NULL_));
+				delete [] buff;
+			} else if ((datatype == CDF_UINT1 || datatype == CDF_UCHAR) && sizeof(CDFchar)==1) {
+				CDFuchar *buff = new CDFuchar [len];
+				for (i=0; i<len; i++) buff[i] = (CDFuchar)(objptr->IntPtr()[i]);
+				chk(CDFlib(PUT_, zVAR_HYPERDATA_, buff, NULL_));
+				delete [] buff;
+			} else if (datatype == CDF_INT2 && sizeof(CDFshort)==2) {
+				CDFshort *buff = new CDFshort [len];
+				for (i=0; i<len; i++) buff[i] = CDFshort(objptr->IntPtr()[i]);
+				chk(CDFlib(PUT_, zVAR_HYPERDATA_, buff, NULL_));
+				delete [] buff;
+			} else if (datatype == CDF_UINT2 && sizeof(CDFushort)==2) {
+				CDFushort *buff = new CDFushort [len];
+				for (i=0; i<len; i++) buff[i] = (CDFushort)(objptr->IntPtr()[i]);
+				chk(CDFlib(PUT_, zVAR_HYPERDATA_, buff, NULL_));
+				delete [] buff;
+			} else {
+				CDFlong *buff = new CDFlong [len];
+				for (i=0; i<len; i++) buff[i] = objptr->IntPtr()[i];
+				chk(CDFlib(PUT_, zVAR_HYPERDATA_, buff, NULL_));
+				delete [] buff;
+			}
+		} else {
+			if (floatflag) {
+				CDFfloat *buff = new CDFfloat [len];
+				for (i=0; i<len; i++) buff[i] = objptr->RealPtr()[i];
+				chk(CDFlib(PUT_, zVAR_HYPERDATA_, buff, NULL_));
+				delete [] buff;
+			} else {
+				const double pad = -1.0;
+				chk(CDFlib(PUT_,zVAR_PADVALUE_,&pad,NULL_));
+				CDFdouble *buff = new CDFdouble [len];
+				for (i=0; i<len; i++) buff[i] = objptr->RealPtr()[i];
+				chk(CDFlib(PUT_, zVAR_HYPERDATA_, buff, NULL_));
+				delete [] buff;
+			}
+		}
+		break;
+	case Kcomplex:
+	case KComplexArray:
+		cerr << "export_CDF: ignoring complex variable " << NAME << "\n";
+		break;
+	default:
+		if (!silentflag) cerr << "export_CDF: variable " << NAME << " is not numeric, skipping\n";
+		return 0;
+	}
+	return retval;
+}
+
+
+
+[] = import_CDF(fn...)
+/* import_CDF("fyle") reads the variables in CDF file "fyle.cdf"
+   into Tela workspace. Notice that you can leave out the suffix .cdf.
+
+   import_CDF("fyle","var1","var2",...) reads only variables with
+   specified names.
+
+   CDF 'record dimensions' are turned into the first dimension of the
+   Tela arrays. Likewise, CDF 'number of elements', which is used for
+   character strings, is turned into the last dimension. Thus you get
+   all the data stored in the file in all cases.
+   
+   Use import_CDF if you want to load all variables and their names
+   suit your purposes and it is OK to load them into global variables.
+   import_CDF allows you to control which variables to read, but not
+   change their names or load them into local variables.
+   See read_CDF if you rather want to load only some variables and
+   you want to give them new names or load them into local variables.
+   
+   Extra services:
+   - Uncompresses and reads *.cdf.gz files automatically (using scratch file)
+
+   See also: read_CDF, export_CDF
+   Error codes:
+   1: Loading INT2/UINT2 CDF data, but this Tela kernel has sizeof(short int) != 2
+   2: Loading INT4/UINT4 CDF data, but this Tela kernel has sizeof(int) != 4
+   3: Loading FLOAT CDF data, but this Tela kernel has sizeof(float) != 4
+   4: Loading DOUBLE CDF data, but this Tela kernel has sizeof(double) != 8
+   5: Empty variable name in CDF file - ignoring
+   6: Too high rank in CDF file for this Tela kernel (variable(s) skipped)
+   -1: First argument not a string
+   -2: Fatal CDF library error
+   -3: Unsupported data type
+   -5: Function called with more than one argument and the rest are not all strings
+   -6: Could not generate temporary file
+   -10: Internal error
+*/
+{
+	if (!fn.IsString()) return -1;
+	Tstring FN = fn;
+	char *f = (char*)FN;
+	// If filename ends with .gz, gunzip it in temp file and then import
+	const int len = strlen(f);
+	struct TDeleteTemp {
+		int delete_t;
+		char t[MAXFILENAME];
+		TDeleteTemp() : delete_t(0) {}
+		~TDeleteTemp() {if (delete_t) remove(t);}
+	};
+	TDeleteTemp deltemp;		// when this object is deallocated, the tempfile will be removed
+	// this arrangement is necessary because the chk() macro returns directly without knowing about delete_t
+	if (f[len-1]=='z' && f[len-2]=='g' && f[len-3]=='.') {
+		if (!tmpnam(deltemp.t)) return -6;
+		strcat(deltemp.t,".cdf");
+		deltemp.delete_t = 1;
+		char cmd[MAXFILENAME*2+80];
+		sprintf(cmd,"gunzip <%s >%s",f,deltemp.t);
+		system(cmd);
+		f = deltemp.t;
+	}
+	int retval,returnvalue=0;
+	CDFid id;
+	CDFstatus status;
+	CDFlong v,Nvars;
+	
+	chk(CDFopen(f,&id));
+	chk(CDFlib(SELECT_,
+			   CDF_READONLY_MODE_,READONLYon,
+			   CDF_zMODE_,zMODEon2,
+			   CDF_,id,
+			   NULL_));
+	if (Nargin > 1) {
+
+		int a;
+		for (a=1; a<Nargin; a++) {
+			if (!argin[a]->IsString()) {return -5;}
+			Tstring S = *argin[a];
+#if DEBUG
+			cout << "S = " << S << "\n" << flush;
+#endif
+			chk(CDFlib(GET_,zVAR_NUMBER_,(char*)S,&v,NULL_));
+#if DEBUG
+			cout << "- Variable name '" << (char*)S << "' has number " << v << "\n" << flush;
+#endif
+			returnvalue = ReadOneCDF(v);
+			if (returnvalue == 6) {
+				cerr << "Warning: Too high rank for this Tela kernel (MAXRANK=" << MAXRANK << "), Variable skipped in CDF file\n";
+				continue;
+			}
+			if (returnvalue < 0) {CDFclose(id); return returnvalue;}
+		}
+		
+	} else {
+		chk(CDFlib(GET_,CDF_NUMzVARS_,&Nvars,NULL_));
+#if DEBUG
+		cout << "Nvars = " << Nvars << "\n";
+#endif
+		for (v=0; v<Nvars; v++) {
+			chk(CDFlib(SELECT_,zVAR_,v,NULL_));
+			returnvalue = ReadOneCDF(v);
+			if (returnvalue < 0) {CDFclose(id); return returnvalue;}
+		}
+	}
+	
+	chk(CDFclose(id));
+
+	return returnvalue;
+}
+
+[...] = read_CDF(fn...)
+/* read_CDF("fyle","varname") reads the variable "varname"
+   in CDF file "fyle.cdf" and returns its value.
+   You can leave out the suffix .cdf from filename.
+   It can also read *.cdf.gz files, uncompressing them
+   automatically.
+
+   [out1,out2,...] = read_CDF("fyle","name1","name2",...)
+   reads several variables and assigns them into the
+   output parameters in order. There must be at least as
+   many names as there are outputs; if there are more,
+   a warning message is given.
+
+   CDF 'record dimensions' are turned into the first dimension of the
+   Tela arrays. Likewise, CDF 'number of elements', which is used for
+   character strings, is turned into the last dimension. Thus you get
+   all the data stored in the variables in all cases.
+
+   Use read_CDF if you want to load only some variables and/or want
+   to give them new names or load them into local variables.
+   If it is OK to read the variables with their default names into
+   global variables, it is easier to use import_CDF.
+   
+   See also: import_CDF, export_CDF
+   Error codes:
+   1: Loading INT2/UINT2 CDF data, but this Tela kernel has sizeof(short int) != 2
+   2: Loading INT4/UINT4 CDF data, but this Tela kernel has sizeof(int) != 4
+   3: Loading FLOAT CDF data, but this Tela kernel has sizeof(float) != 4
+   4: Loading DOUBLE CDF data, but this Tela kernel has sizeof(double) != 8
+   5: Empty variable name in CDF file - ignoring
+   6: Too high rank in CDF file for this Tela kernel (variable(s) skipped)
+   10: More named variables than output args
+   -1: First argument not a string
+   -2: Fatal CDF library error
+   -3: Unsupported data type
+   -5: Function called with more than one argument and the rest are not all strings
+   -6: Could not generate temporary file
+   -10: Internal error
+   -11: More output args than named variables
+*/
+{
+	if (!fn.IsString()) return -1;
+	Tstring FN = fn;
+	char *f = (char*)FN;
+	// If filename ends with .gz, gunzip it in temp file and then import
+	const int len = strlen(f);
+	struct TDeleteTemp {
+		int delete_t;
+		char t[MAXFILENAME];
+		TDeleteTemp() : delete_t(0) {}
+		~TDeleteTemp() {if (delete_t) remove(t);}
+	};
+	TDeleteTemp deltemp;		// when this object is deallocated, the tempfile will be removed
+	// this arrangement is necessary because the chk() macro returns directly without knowing about delete_t
+	if (f[len-1]=='z' && f[len-2]=='g' && f[len-3]=='.') {
+		if (!tmpnam(deltemp.t)) return -6;
+		strcat(deltemp.t,".cdf");
+		deltemp.delete_t = 1;
+		char cmd[MAXFILENAME*2+80];
+		sprintf(cmd,"gunzip <%s >%s",f,deltemp.t);
+		system(cmd);
+		f = deltemp.t;
+	}
+	int retval,returnvalue=0;
+	CDFid id;
+	CDFstatus status;
+	CDFlong v,Nvars;
+	
+	chk(CDFopen(f,&id));
+	chk(CDFlib(SELECT_,
+			   CDF_READONLY_MODE_,READONLYon,
+			   CDF_zMODE_,zMODEon2,
+			   CDF_,id,
+			   NULL_));
+	if (Nargin-1 < Nargout) return -11;
+	int a;
+	for (a=1; a<min(Nargin,Nargout+1); a++) {
+		if (!argin[a]->IsString()) {return -5;}
+		Tstring S = *argin[a];
+		chk(CDFlib(GET_,zVAR_NUMBER_,(char*)S,&v,NULL_));
+		Tobject obj;
+		returnvalue = ReadOneCDFAsObject(v,obj);
+		if (returnvalue == 6) {
+			cerr << "Warning: Too high rank for this Tela kernel (MAXRANK=" << MAXRANK << "), Variable skipped in CDF file\n";
+			continue;
+		}
+		if (returnvalue < 0) {CDFclose(id); return returnvalue;}
+		argout[a-1]->bitwiseMoveFrom(obj);
+	}
+	chk(CDFclose(id));
+	if (Nargin-1 > Nargout && returnvalue==0) returnvalue = 10;
+	return returnvalue;
+}
+
+[] = export_CDF(fn...)
+/* export_CDF("fyle"[,flags][,"varables"]...) writes the named global
+   variables in CDF file "fyle.cdf". The arguments after the file name
+   must be either strings (global variable names) or integer scalars giving
+   optional flags.
+   export_CDF("fyle"[,flags]) writes all global variables.
+   Integer arrays are written using 1-byte or 2-byte signed or unsigned
+   storage, if possible.
+   Strings and chars are written as CDF_CHAR type if in range -127..127.
+
+   Supported symbolic flags (to combine, use addition):
+     CDF_FLOAT    Write reals using 4 bytes
+     CDF_DOUBLE   Write reals using 8 bytes (the default)
+     CDF_RECORD   Turn first dimension to 'record dimension'
+     CDF_NORECORD Do not (the default)
+   For example:
+     export_CDF("fyle.cdf",CDF_FLOAT+CDF_RECORD,"A",CDF_NORECORD,"B")
+   stores global variables A and B using floats, if they are real arrays,
+   and turning the first dimension of A into a record dimension.
+   Thus the flags are effective for those variables that follow, unless
+   turned off by other flags. The flags are not remembered between calls.
+   See also: import_CDF
+   Error codes:
+   -1: First argument not a string
+   -2: Fatal CDF library error
+   -5: Rest of the args are not strings or int scalars
+*/
+{
+	if (!fn.IsString()) return -1;
+	Tstring FN = fn;
+    int i,retval=0,WriteAll=1;
+	for (i=1; i<Nargin; i++) {
+		if (!argin[i]->IsString() && argin[i]->kind()!=Kint) return -5;
+		if (argin[i]->IsString()) WriteAll = 0;
+	}
+	CDFid id;
+	CDFstatus status;
+	CDFlong dims[CDF_MAX_DIMS];
+
+	char *f = strdup((char*)FN);
+	int L = strlen(f);
+	if (L >= 5 && f[L-1] == 'f' && f[L-2] == 'd' && f[L-3] == 'c' && f[L-4] == '.') f[L-4] = '\0';
+	L = strlen(f);
+	char *actual_filename = new char [L+5];
+	strcpy(actual_filename,f);
+	strcat(actual_filename,".cdf");
+	remove(actual_filename);
+	delete [] actual_filename;
+	chk(CDFcreate(f, 0, dims, NETWORK_ENCODING, ROW_MAJOR,&id));
+
+	if (WriteAll) {
+		for (i=1; i<Nargin; i++) SetCDFFlags(argin[i]->IntValue());
+		// Loop over all reasonable workspace objects
+		for (THashEntryPtr p=theHT.first(); p; p=theHT.next()) if (p->value() && !p->IsHidden()) {
+			retval = WriteOneCDF(p->value(),p->name(),1);
+			if (retval) {free(f); return retval;}
+		}
+	} else {
+		// Write only named variables
+		for (i=1; i<Nargin; i++) {
+			if (argin[i]->kind()==Kint)
+				SetCDFFlags(argin[i]->IntValue());
+			else {
+				Tstring NAME = *argin[i];
+				THashEntryPtr p = theHT.assoc(NAME);
+				if (p) {
+					retval = WriteOneCDF(p->value(),p->name());
+					if (retval) {free(f); return retval;}
+				} else {
+					cerr << "export_CDF warning: undefined variable " << NAME << " not saved\n";
+				}
+			}
+		}
+	}
+	ResetCDFFlags();
+#if 0	
+	// Loop over all reasonable workspace objects
+	for (THashEntryPtr p=theHT.first(); p; p=theHT.next()) if (p->value()) {
+		int DoWrite = 0;
+		if (WriteAll && !p->IsHidden())
+			DoWrite = 1;
+		else {
+			for (i=1; i<Nargin; i++) {
+				Tstring Var = *argin[i];
+				if (!strcmp((char*)Var,(char*)(p->name()))) {
+					DoWrite = 1;
+					break;
+				}
+			}
+		}
+		if (DoWrite) {
+			retval = WriteOneCDF(p->value(),p->name());
+			if (retval) {free(f); return retval;}
+		}
+	}
+#endif
+	CDFlong attrNum;
+	chk(CDFattrCreate(id,"TITLE",GLOBAL_SCOPE,&attrNum));
+	chk(CDFattrPut(id,attrNum,0L,CDF_CHAR,50L,(char*)"CDF written by Tela                               "));
+	
+	chk(CDFclose(id));
+	free(f);
+	return retval;
+}
+
+[epoch] = computeEPOCH(year,month,day,hour,minute,second,msec)
+/* computeEPOCH(year,month,day,hour,minute,second,msec)
+   returns the number of milliseconds since 01-Jan-0000 00:00:00.000
+   as a real number.
+   The arguments must be integer scalars or arrays.
+   The arrays must be of the same sizes, but a mixture of arrays and
+   scalars is allowed. The result is array if any of the inputs is.
+   If an illegal component is detected the result(ing component) will
+   be -1.0.
+   See also: EPOCHbreakdown, parseEPOCH, encodeEPOCH.
+   Error codes:
+   -1: Argument not integer
+   -2: Arguments of incompatible dimensions
+*/
+{
+	int a;
+	Tkind k;
+	int IsArray = 0;
+	TDimPack dp;
+	for (a=0; a<Nargin; a++) {
+		k = argin[a]->kind();
+		if (k != Kint && k != KIntArray) return -1;
+		if (k == KIntArray) {
+			if (IsArray) {
+				if (argin[a]->dims() != dp) return -2;
+			}
+			IsArray = 1;
+			dp = argin[a]->dims();
+		}
+	}
+	if (IsArray) {
+		epoch.rzeros(dp);
+		Tint i;
+		const Tint N = dp.length();
+		for (i=0; i<N; i++) {
+			epoch.RealPtr()[i] =
+				computeEPOCH(year.kind()==KIntArray ? year.IntPtr()[i] : year.IntValue(),
+							 month.kind()==KIntArray ? month.IntPtr()[i] : month.IntValue(),
+							 day.kind()==KIntArray ? day.IntPtr()[i] : day.IntValue(),
+							 hour.kind()==KIntArray ? hour.IntPtr()[i] : hour.IntValue(),
+							 minute.kind()==KIntArray ? minute.IntPtr()[i] : minute.IntValue(),
+							 second.kind()==KIntArray ? second.IntPtr()[i] : second.IntValue(),
+							 msec.kind()==KIntArray ? msec.IntPtr()[i] : msec.IntValue());
+		}
+	} else {
+		epoch = computeEPOCH(year.IntValue(), month.IntValue(), day.IntValue(),
+							 hour.IntValue(), minute.IntValue(), second.IntValue(),
+							 msec.IntValue());
+	}
+	return 0;
+}
+
+[year,month,day,hour,minute,second,msec] = EPOCHbreakdown(epoch)
+/* [year,month,day,hour,minute,second,msec] = EPOCHbreakdown(epoch)
+   breaks down the epoch value (number of milliseconds since
+   01-Jan-0000 00:00:00.000) into year (4-digit), month (1-12), day (1-31),
+   minute (0-59), second (0-59) and millisecond (0-999) values (integers).
+   The argument must be a real scalar or array.
+   See also: computeEPOCH, parseEPOCH, encodeEPOCH.
+   Error codes:
+   -1: Argument not real scalar or array
+*/
+{
+	long yyyy,MM,dd,hh,mm,sec,ms;
+	if (epoch.kind() == Kreal) {
+		EPOCHbreakdown(epoch.RealValue(),
+					   &yyyy,&MM,&dd,&hh,&mm,&sec,&ms);
+		year = Tint(yyyy);
+		month = Tint(MM);
+		day = Tint(dd);
+		hour = Tint(hh);
+		minute = Tint(mm);
+		second = Tint(sec);
+		msec = Tint(ms);
+	} else if (epoch.kind() == KRealArray) {
+		Tint i;
+		const Tint N = epoch.length();
+		const TDimPack dp = epoch.dims();
+		year.izeros(dp);
+		month.izeros(dp);
+		day.izeros(dp);
+		hour.izeros(dp);
+		minute.izeros(dp);
+		second.izeros(dp);
+		msec.izeros(dp);
+		for (i=0; i<N; i++) {
+			EPOCHbreakdown(epoch.RealPtr()[i],
+						   &yyyy,&MM,&dd,&hh,&mm,&sec,&ms);
+			year.IntPtr()[i] = yyyy;
+			month.IntPtr()[i] = MM;
+			day.IntPtr()[i] = dd;
+			hour.IntPtr()[i] = hh;
+			minute.IntPtr()[i] = mm;
+			second.IntPtr()[i] = sec;
+			msec.IntPtr()[i] = ms;
+		}
+	} else
+		return -1;
+	return 0;
+}
+
+[epoch] = parseEPOCH(s)
+/* parseEPOCH(epochstring) parses an epoch string
+   and returns the epoch value (number of milliseconds since
+   01-Jan-0000 00:00:00.000). The epoch string must be of the
+   form dd-mmm-yyyy hh:mm:ss.ccc where
+     dd   is the day of month (1-31)
+	 mmm  is the month (Jan,Feb,Mar,Apr,May,Jun,Jul,Aug,Sep,Oct,Nov,Dec)
+	 yyyy is the year
+	 hh   is the hour (0-23)
+     mm   is the minute (0-59)
+	 sec  is the second (0-59)
+	 ccc  is the millisecond (0-999)
+   If an invalid string is given, -1.0 is returned.
+   See also: computeEPOCH, EPOCHbreakdown, encodeEPOCH.
+   Error codes:
+   -1: Argument not a string
+*/
+{
+	if (!s.IsString()) return -1;
+	Tstring S = s;
+	epoch = Treal(parseEPOCH((char*)S));
+	return 0;
+}
+
+[s] = encodeEPOCH(epoch)
+/* encodeEPOCH(epoch) returns the character string
+   encoding of the given epoch value (number of milliseconds
+   since 01-Jan-0000 00:00:00.000) as dd-mmm-yyyy hh:mm:ss:ccc.
+   See also: parseEPOCH, computeEPOCH, EPOCHbreakdown.
+   Error codes:
+   -1: Argument not a real scalar
+*/
+{
+	if (epoch.kind()!=Kreal) return -1;
+	char str[EPOCH_STRING_LEN+1];
+	encodeEPOCH(epoch.RealValue(),str);
+	s = str;
+	return 0;
+}

@@ -1,0 +1,2270 @@
+/*
+ * This file is part of tela the Tensor Language.
+ * Copyright (c) 1994-1999 Pekka Janhunen
+ */
+
+/*
+	files.ct
+	Save/load and export/import functions.
+	Preprocess with ctpp.
+	C-tela code is C++ equipped with []=f() style function definition.
+*/
+
+#include <cctype>
+#include <limits.h>
+#include <iostream>
+#include <fstream>
+#include <stdint.h>
+#ifndef __GNUC__
+extern "C" {
+#endif
+#ifdef HPUX
+#  define __STDC__
+#endif
+#ifdef OLD_HDF_VERSION		/* Should be defined if using HDF3.1.x */
+#  include "df.h"
+#  include "dfsd.h"
+#  include "dfan.h"
+#  include "dfr8.h"
+#else
+	extern "C" {
+#   include "df.h"
+#   include "mfhdf.h"
+    }
+#endif
+#ifndef __GNUC__
+}
+#endif
+
+// Added 20 Nov 2007, because MAX_NC_NAME definition seems to have disappeared from HDF headers:
+#ifndef MAX_NC_NAME
+#  define MAX_NC_NAME 256
+#endif
+
+#include "png.H"
+
+extern FILE *FindAndOpenFile(const Tchar*);       // defined in tela.C
+extern int CompleteFileName(const Tchar *fn, Tchar totalfn[MAXFILENAME]);	// also in tela.C
+
+static int SeekDataset(char *fn, char *label) {
+	// Seek specific SDS in HDF file "fn"
+	// Returns 0 on success, -1 on failure
+	const int LISTSIZE = 500;
+	const int MAXLEN = 32;
+	uint16 reflist[LISTSIZE],ref=0;
+	char labellist[MAXLEN*LISTSIZE+1];
+	int nlabels;
+	nlabels = DFANlablist(fn,DFTAG_SDG, reflist,labellist, LISTSIZE, MAXLEN, 1);
+	if (nlabels < 1) return -1;
+	int i;
+	for (i=0; i<nlabels; i++)
+		if (!strcmp(labellist+i*MAXLEN,label)) {
+			ref = reflist[i];
+			DFSDreadref(fn,ref);
+			return 0;
+		}
+	cerr << "Label \"" << label << "\" not found in file \"" << fn << "\".\n";
+	return -1;
+} /* SeekDataset */
+
+static void MakeValidIdentifier(Tchar *s)
+// Replace bad characters in s by underscore (dollar if first character is bad).
+// Valid identifier starts with a letter or dollar sign, the rest of the chars
+// may contain also digits or underscores. (See lexer source file "d.l").
+{
+	if (s[0] && !isalpha(s[0]) && s[0]!='$') s[0] = '$';
+	for (int i=1; s[i]; i++)
+		if (!isalpha(s[i]) && !isdigit(s[i]) && s[i]!='$' && s[i]!='_')
+			s[i] = '_';
+}
+
+static void PassComments(FILE *fp)
+// Pass empty lines and lines that begin with '#'
+{
+	int ch,ch2;
+	for (;;) {
+		ch = fgetc(fp);
+		if (ch == '\n') continue;
+		if (ch == '#') {
+			do {
+				ch2 = fgetc(fp);
+			} while (ch2!='\n' && !feof(fp));
+			if (feof(fp)) break;
+
+		} else {
+			ungetc(ch,fp);
+			break;
+		}
+	}
+}
+
+static void CountRowsAndColumns(FILE *fp, Tint& nrows, Tint& ncols)
+{
+	int ch, i=0, j=0, maxj=0, LastWasSpace=1, LastWasntNewline=1;
+	int InCommentLine=0;
+	for (;;) {
+		ch = fgetc(fp);
+		if (feof(fp)) {if (LastWasntNewline) i++; break;}
+		if (ch == '\n') {
+			if (j > 0 && !InCommentLine) i++;
+			j = 0;
+			LastWasSpace = 1;
+			LastWasntNewline = 0;
+			InCommentLine = 0;
+		} else if (isspace(ch)) {
+			LastWasSpace = 1;
+			LastWasntNewline = 1;
+		} else if (ch == '#') {
+			InCommentLine = 1;
+			LastWasntNewline = 1;
+		} else {
+			if (LastWasSpace && !InCommentLine) j++;
+			LastWasSpace = 0;
+			LastWasntNewline = 1;
+		}
+		if (j > maxj) maxj = j;
+	}
+	nrows = i;
+	ncols = maxj;
+}
+
+[x] = import1(filename; label)
+/* import1("file") reads one object from "file". The imported
+   object is returned. "File" can be one of the following:
+
+   1) HDF file, in which case the first Scientific Data Set (SDS)
+      is imported. The form import1("file.hdf","label") reads SDS
+      with label "label", which is not necessarily the first one.
+
+   2) D-style ASCII file of the following format:
+
+        (line 1)   D=Nt dim1 dim2 ... dimN
+        (any number M of blank lines or lines starting with '#')
+        (line M+2) data1 data2 ....
+
+       where N is the rank of the dataset and t is an optionial
+       type specification letter: t may be either 'r', 'i', or 'c'
+       for real, integer and complex data, respectively. If t is
+       missing, real data are asssumed.
+
+   3) Plain ASCII file of nrows x ncols real numbers. If nrows or
+      ncols is 1, it will be returned as a vector, otherwise as a
+      matrix. Missing entries are treated as zeros. This format
+      is similar to Matlab's load for ASCII, except that '#'
+      comments are accepted (for vector files, '#' comments are
+	  accepted only in the beginning).
+       
+   See also: import, load, save.
+   See import for a difference between import and import1.
+   For filename conventions, see load.
+   Error codes:
+   -1: Input arg not a char or string
+   2: File not found
+   3: Unknown format in ASCII file
+   4: Unknown format in ASCII file
+   5: Too high rank ASCII data
+   6: Syntax error in ASCII file dimension specification
+   7: Syntax error when reading D-style ASCII data
+   -8: Internal error
+   -9: Cannot import file
+   -10: Second arg not a string
+   11: Specified label not found
+   12: Premature end of file in D-style ASCII
+   13: Syntax error when reading plain ASCII data
+   14: DFSDgetdims error
+   15: DFSDgetdata error
+   */
+{
+	Tint i;
+	if (!filename.IsString() && !filename.IsChar()) return -1;
+	Tstring FN = filename;
+	x.SetToVoid();
+	if (filename.length() < 1) return 2;
+	Tchar fn[MAXFILENAME];
+	if (!CompleteFileName((Tchar*)FN,fn)) return 2;
+	// now fn is the complete filename as char*
+	if (DFishdf((char*)fn)==0) {
+		int rank;
+		int32 sizes[MAXRANK];
+		DFSDrestart();
+		if (Nargin==2) {
+			if (!label.IsString()) return -10;
+			Tstring LABEL = label;
+			if (SeekDataset((char*)fn,(char*)LABEL)!=0) return 11;
+		}
+		// Read next dataset
+		if (DFSDgetdims((char*)fn,&rank,sizes,10)!=0) return 14;
+		int isizes[MAXRANK];
+		for (i=0; i<rank; i++) isizes[i] = int(sizes[i]);
+		TDimPack dp(isizes,rank);
+		x.rreserv(dp);
+		int32 sz = 1;
+		for (int d=0; d<rank; d++) sz*= sizes[d];
+		float32 *buff = new float32 [sz];
+		if (DFSDgetdata((char*)fn,rank,sizes,buff)!=0) {delete [] buff; return 15;}
+		Treal *xp = x.RealPtr();
+		for (i=0; i<sz; i++) xp[i] = Treal(buff[i]);
+		delete [] buff;
+	} else {		// Try to load as an ASCII file
+		FILE *fp = fopen((char*)fn,"r");
+		if (!fp) return 2;	// this should never happen since CompleteFileName already checked but never too sure..
+		char ch1=fgetc(fp), ch2=fgetc(fp), ch3=fgetc(fp);
+		if (ch1=='D' && ch2=='=') {		// Try to load as 'D=' ASCII file
+			if (!isdigit(ch3)) {fclose(fp); return 4;}
+			int D = ch3 - '0';
+			if (D>MAXRANK) {fclose(fp); return 5;}
+			char ch4=fgetc(fp);
+			Tkind k = KRealArray;
+			if (ch4=='r' || ch4=='R')
+				k = KRealArray;
+			else if (ch4=='c' || ch4=='C')
+				k = KComplexArray;
+			else if (ch4=='i' || ch4=='I')
+				k = KIntArray;
+			else ungetc(ch4,fp);
+			int dims[MAXRANK];
+			for (int d=0; d<D; d++) {
+				if (fscanf(fp,"%d",&dims[d])!=1) {fclose(fp); return 6;}
+			}
+			PassComments(fp);
+			TDimPack dp(dims,D);
+			int i;
+			long ii; double dd,ddi;
+			switch (k) {
+			case KIntArray:
+				x.ireserv(dp);
+				for (i=0; i<x.length(); i++) {
+					if (fscanf(fp,"%ld",&ii)!=1) {int retval=feof(fp)?12:7; fclose(fp); return retval;}
+					x.IntPtr()[i] = Tint(ii);
+				}
+				break;
+			case KRealArray:
+				x.rreserv(dp);
+				for (i=0; i<x.length(); i++) {
+					if (fscanf(fp,"%lf",&dd)!=1) {int retval=feof(fp)?12:7; fclose(fp); return retval;}
+					x.RealPtr()[i] = Treal(dd);
+				}
+				break;
+			case KComplexArray:
+				x.creserv(dp);
+				for (i=0; i<x.length(); i++) {
+					if (fscanf(fp,"%lf",&dd)!=1) {int retval=feof(fp)?12:7; fclose(fp); return retval;}
+					char ch = fgetc(fp);
+					ungetc(ch,fp);
+					if (ch=='+' || ch=='-') {
+						if (fscanf(fp,"%lfi",&ddi)!=1) {int retval=feof(fp)?12:7; fclose(fp); return retval;}
+					} else ddi = 0;
+					x.ComplexPtr()[i] = Tcomplex(dd,ddi);
+				}
+				break;
+			default:;
+			}
+		} else {		// Try to load as Matlab-style ASCII file
+			double dd;
+			Tint nrows, ncols;
+			rewind(fp);
+			PassComments(fp);
+			CountRowsAndColumns(fp,nrows,ncols);
+			//cerr << "nrows=" << nrows << ", ncols=" << ncols << "\n";
+			rewind(fp);
+			PassComments(fp);
+			const Tint L = nrows*ncols;
+			if (ncols == 1 || nrows == 1) {		// Will become a vector
+				x.rreserv(L);
+				for (i=0; i<L; i++) {
+					if (fscanf(fp,"%lf",&dd)!=1) {fclose(fp); return 13;}
+					x.RealPtr()[i] = Treal(dd);
+				}
+			} else {		// Will become a matrix
+				int j, ch, thislineready;
+				/* Premature EOLN causes processing of that line to be stopped.
+				   We could just use goto, but Cfront refuses to compile it ("sorry not implemented").
+				   Therefore we have to use multiple break stmts to break out of multiple loops. */
+				x.rzeros(TDimPack(nrows,ncols));
+				for (i=0; i<nrows; i++) {
+					thislineready = 0;
+					for (j=0; j<ncols; j++) {
+						do {
+							ch = fgetc(fp);
+							if (feof(fp)) {fclose(fp); return 0;}
+							if (ch == '\n') {
+								if (j == 0)
+									continue;
+								else {
+									thislineready = 1;
+									break;
+								}
+							}
+						} while (isspace(ch));
+						if (thislineready) break;
+						ungetc(ch,fp);
+						if (fscanf(fp,"%lf",&dd)!=1) {fclose(fp); return 13;}
+						x.RealPtr()[i*ncols+j] = Treal(dd);
+					}
+					if (!thislineready) {
+						do {
+							ch = fgetc(fp);
+							if (feof(fp)) {fclose(fp); return 0;}
+						} while (ch != '\n');
+					}
+					// Code fragment added 4.7.1996: Also accept '#' comment lines in between data lines
+					while ((ch = fgetc(fp)) == '#') {
+						char ch2;
+						do {
+							ch2 = fgetc(fp);
+						} while (ch2 != '\n' || feof(fp));
+					}
+					ungetc(ch,fp);
+				}
+			}
+		}
+		fclose(fp);
+	}
+	return 0;
+}
+
+#define CHK(hdfcall) code=(hdfcall); if (code!=0) return code
+#define CHK2(hdfcall,whatif) code=(hdfcall); if (code!=0) {whatif; return code;}
+#define CHK3(hdfcall,whatif,msg) code=(hdfcall); if (code!=0) {whatif; cerr << msg << '\n'; return code;}
+
+static int HDFAdd(char*fn, const Tobject& x, const char name[], int overwriteflag=0)
+// Adds (saves) object x data in HDF file fn under label "name".
+// If overwriteflag is nonzero, then puts (overwriting possible old file).
+{
+	int32 sizes[MAXRANK+1];
+	Tkind k = x.kind();
+	int code,d;
+	char *type;
+	float32 scalarbuffer[2];
+#	ifndef OLD_HDF_VERSION
+	if (overwriteflag) {CHK(DFANclear());}
+#	endif
+	switch (k) {
+	case Kint:
+	case Kreal:
+	case Kcomplex:
+		sizes[0] = (k==Kcomplex) ? 2 : 1;
+		CHK(DFSDsetdims(1,sizes));
+		if (k==Kint) {
+			scalarbuffer[0] = x.IntValue();
+			type = x.IsChar() ? (char*)"Char" : (char*)"Int";
+		} else if (k==Kreal) {
+			scalarbuffer[0] = float32(x.RealValue());
+			type = "Real";
+		} else {
+			scalarbuffer[0] = float32(real(x.ComplexValue()));
+			scalarbuffer[1] = float32(imag(x.ComplexValue()));
+			type = "Complex";
+		}
+		CHK(overwriteflag ? DFSDputdata(fn,1,sizes,scalarbuffer) : DFSDadddata(fn,1,sizes,scalarbuffer));
+		break;
+	case KIntArray:
+		{
+			type = x.HasStringFlag() ? (char*)"String" : (char*)"IntArray";
+			for (d=0; d<x.rank(); d++) sizes[d] = x.dims()[d];
+			CHK(DFSDsetdims(x.rank(),sizes));
+			float32 *buff = new float32 [x.length()];
+			Tint *ip = x.IntPtr();
+			for (int i=0; i<x.length(); i++) buff[i] = float32(ip[i]);
+			CHK2(overwriteflag ? DFSDputdata(fn,x.rank(),sizes,buff) : DFSDadddata(fn,x.rank(),sizes,buff),
+				 delete[]buff);
+			delete [] buff;
+		}
+		break;
+	case KRealArray:
+		{
+			type = "RealArray";
+			for (d=0; d<x.rank(); d++) sizes[d] = x.dims()[d];
+			CHK(DFSDsetdims(x.rank(),sizes));
+			float32 *buff = new float32 [x.length()];
+			Treal *xp = x.RealPtr();
+			for (int i=0; i<x.length(); i++) buff[i] = float32(xp[i]);
+			CHK2(overwriteflag ? DFSDputdata(fn,x.rank(),sizes,buff) : DFSDadddata(fn,x.rank(),sizes,buff),
+				 delete[]buff);
+			delete [] buff;
+		}
+		break;
+	case KComplexArray:
+		{
+			type = "ComplexArray";
+			for (d=0; d<x.rank(); d++) sizes[d] = x.dims()[d];
+			sizes[x.rank()-1]*= 2;		// multiply last dim by 2 to make space for re,im parts
+			CHK(DFSDsetdims(x.rank(),sizes));
+			float32 *buff = new float32 [2*x.length()];
+			Treal *xp = x.RealPtr();
+			for (int i=0; i<2*x.length(); i++) buff[i] = float32(xp[i]);
+			CHK2(overwriteflag ? DFSDputdata(fn,x.rank(),sizes,buff) : DFSDadddata(fn,x.rank(),sizes,buff),
+				 delete[]buff);
+			delete [] buff;
+		}
+		break;
+	default:
+		type = "UNKNOWN";	// should never reach this point
+	}		
+	char *s = new char [strlen(name)+40];
+	sprintf(s,"%s:%s",type,name);
+	CHK2(DFANputlabel(fn,DFTAG_SDG,DFSDlastref(),s),delete[]s);
+	delete [] s;
+	return 0;
+}
+
+#ifndef OLD_HDF_VERSION
+static int HDFAdd_newstyle(int32 fileid, const Tobject& x, const char name[])
+// Adds (saves) object x data in new style HDF SD file fileid under label "name".
+{
+	int32 sizes[MAXRANK+1], id;
+	const Tkind k = x.kind();
+	int code,d;
+	int strflag=0, cmplxflag=0, cnt;		// string flag, comple flag, number type
+	int32 zero=0, one=1, two=2, nt;
+	static int32 start[MAXRANK+1] = {0};
+	float64 rbuff[2];
+	int32 ibuff;
+	void *buff;
+	if (x.IsScalar()) {
+		sizes[0] = (k==Kcomplex) ? 2 : 1;
+		if (k==Kint) {
+			nt = DFNT_INT32;
+			strflag = x.IsChar();
+			ibuff = x.IntValue();
+		} else if (k==Kreal) {
+			nt = DFNT_FLOAT64;
+			rbuff[0] = x.RealValue();
+		} else {
+			nt = DFNT_FLOAT64;
+			cmplxflag = 1;
+			rbuff[0] = real(x.ComplexValue());
+			rbuff[1] = imag(x.ComplexValue());
+		}
+		id = SDcreate(fileid,(char*)name,nt,1,sizes);
+		if (k==Kint)
+			SDwritedata(id,&zero,0,&one,&ibuff);
+		else if (k==Kreal)
+			SDwritedata(id,&zero,0,&one,rbuff);
+		else
+			SDwritedata(id,&zero,0,&two,rbuff);
+	} else {		// Array object
+		for (d=0; d<x.rank(); d++) sizes[d] = x.dims()[d];
+		if (k==KIntArray)
+			nt = DFNT_INT32;
+		else
+			nt = DFNT_FLOAT64;
+		if (k==KComplexArray)
+			sizes[x.rank()-1]*= 2;		// multiply last dim by 2 to make space for re,im parts
+		id = SDcreate(fileid,(char*)name,nt,x.rank(),sizes);
+		const Tint L = x.length();
+		if (k==KIntArray) {
+			if (sizeof(int32) != sizeof(Tint)) {
+				int32 *buff = new int32 [L];
+				VECTORIZED for (Tint i=0; i<L; i++) buff[i] = x.IntPtr()[i];
+				CHK2(SDwritedata(id,start,0,sizes,buff),delete[]buff);
+				delete [] buff;
+			} else {
+				CHK(SDwritedata(id,start,0,sizes,x.IntPtr()));
+			}
+			strflag = x.HasStringFlag();
+		} else if (k==KRealArray) {
+			if (sizeof(float64) != sizeof(Treal)) {
+				float64 *buff = new float64 [L];
+				VECTORIZED for (Tint i=0; i<L; i++) buff[i] = x.RealPtr()[i];
+				CHK2(SDwritedata(id,start,0,sizes,buff),delete[]buff);
+				delete [] buff;
+			} else {
+				CHK(SDwritedata(id,start,0,sizes,x.RealPtr()));
+			}
+		} else {
+			cmplxflag = 1;
+			if (sizeof(float64) != sizeof(Treal)) {
+				float64 *buff = new float64 [2*L];
+				VECTORIZED for (Tint i=0; i<L; i++) {
+					buff[2*i]   = real(x.ComplexPtr()[i]);
+					buff[2*i+1] = imag(x.ComplexPtr()[i]);
+				}
+				CHK2(SDwritedata(id,start,0,sizes,buff),delete[]buff);
+				delete [] buff;
+			} else {
+				CHK(SDwritedata(id,start,0,sizes,x.ComplexPtr()));
+			}
+		}
+	}
+	if (strflag) SDsetattr(id,"strflag",DFNT_INT32,1,&one);
+	if (cmplxflag) SDsetattr(id,"cmplxflag",DFNT_INT32,1,&one);
+	SDendaccess(id);
+	return 0;
+}
+#endif
+
+/* #ifdef OLD_HDF_VERSION */
+static int HDFRead(Tchar*fn, Tobject& x, Tstring& name, int tolerant=0, int silent=0)
+// Read the next SDS in HDF file fn. Interpret its type from the label string
+// and assign the value to object x. Return the name in name.
+// Return 0 if succesful, 1 otherwise.
+// If tolerant is nonzero, tries to interpret also objects whose label field
+// does not contain colon (:) as RealArray objects.
+{
+	int32 sizes[MAXRANK+1];
+	int rank,code;
+	//cerr << "HDFRead " << fn << "\n";
+	CHK(DFSDgetdims((char*)fn,&rank,sizes,MAXRANK));
+	Tint length=1;
+	int d;
+	for (d=0; d<rank; d++) length*= Tint(sizes[d]);
+	float32 *buff = new float32 [length];
+	CHK2(DFSDgetdata((char*)fn,rank,sizes,buff),cerr<<"Error loading HDF data, load terminated early\n"; delete[]buff);
+	int32 lablen = DFANgetlablen((char*)fn,DFTAG_SDG,DFSDlastref());
+	if (lablen<=0 && !tolerant) {if (!silent) cerr<<"load: no label in HDF file, load terminated early\n"; delete[]buff; return 1;}
+	Tchar *s = (Tchar*)"";
+	Tchar ss[80];
+	if (lablen>0) {
+		s = new Tchar [lablen+2];
+		code = DFANgetlabel((char*)fn,DFTAG_SDG,DFSDlastref(),(char*)s,lablen+1);
+		if (code && !tolerant) {
+			delete [] buff;
+			delete [] s;
+			return 1;
+		}
+	}
+	//cerr << "Label = " << s << "\n";
+	Tchar *colon = strchr(s,':');
+	if (!colon) {
+		if (tolerant) {
+			if (s && strlen(s)>0) {		// if there was any label
+				MakeValidIdentifier(s);
+				name = s;
+			} else {		// there was not label, generate a new, hopefully unique, name
+				static int counter = 0;
+				sprintf((char*)ss,"Dataset%d",++counter);		// generate names Dataset1, Dataset2,...
+				name = ss;
+			}
+			Tint i;
+			int isizes[MAXRANK];
+			for (d=0; d<rank; d++) isizes[d] = int(sizes[d]);
+			TDimPack dp(isizes,rank);
+			x.rreserv(dp);
+			Treal *xp = x.RealPtr();
+			for (i=0; i<length; i++) xp[i] = Treal(buff[i]);
+			if (strlen(s)>0) delete [] s;
+			delete [] buff;
+			return 0;
+		} else {
+			cerr << "Warning: HDF file \"" << fn << "\" in unknown format for Tela.\n";
+			cerr << "Loading ended early with unknown label " << s << "\n";
+			delete [] s;
+			delete [] buff;
+			return 1;
+		}
+	}
+	*colon = '\0';
+	name = colon+1;
+	//cerr << "Reading data, s=" << s << ", name=" << name << "\n";
+	if (!strcmp(s,(const Tchar*)"Int")) {
+		x = Tint(buff[0]);
+	} else if (!strcmp(s,(const Tchar*)"Char")) {
+		x = Tint(buff[0]);
+		x.SetCharFlag();
+	} else if (!strcmp(s,(const Tchar*)"Real")) {
+		x = Treal(buff[0]);
+	} else if (!strcmp(s,(const Tchar*)"Complex")) {
+		x = Tcomplex(buff[0],buff[1]);
+	} else {
+		Tint i;
+		int isizes[MAXRANK];
+		for (d=0; d<rank; d++) isizes[d] = int(sizes[d]);
+		if (!strcmp(s,(const Tchar*)"ComplexArray")) isizes[rank-1]/= 2;
+		TDimPack dp(isizes,rank);
+		if (!strcmp(s,(const Tchar*)"IntArray") || !strcmp(s,(const Tchar*)"String")) {
+			x.ireserv(dp);
+			Tint *ip = x.IntPtr();
+			for (i=0; i<length; i++) ip[i] = iround(buff[i]);
+			if (!strcmp(s,(const Tchar*)"String")) x.SetStringFlag();
+		} else if (!strcmp(s,(const Tchar*)"RealArray")) {
+			x.rreserv(dp);
+			Treal *xp = x.RealPtr();
+			for (i=0; i<length; i++) xp[i] = Treal(buff[i]);
+		} else if (!strcmp(s,(const Tchar*)"ComplexArray")) {
+			x.creserv(dp);
+			Treal *xp = x.RealPtr();
+			for (i=0; i<length; i++) xp[i] = Treal(buff[i]);
+		} else {
+			cerr << "Warning: HDF file \"" << fn << "\" in unknown format for this Tela.\n";
+			cerr << "Loading ended early with unknown type " << s << " in label field.\n";
+			cerr << "Maybe you are using a too old version of Tela?\n";
+			delete [] s;
+			delete [] buff;
+			return 1;
+		}
+	}
+	delete [] buff;
+	return 0;
+}
+/* #endif */
+
+#ifndef OLD_HDF_VERSION
+static int HDFRead_newstyle(int32 fileid, Tchar*fn, int i, Tobject& x, Tstring& name, int tolerant=0)
+// Read the ith SDS from new-style HDF file fileid.
+// Interpret its type from the label string and assign the value to object x.
+// Return the name in name.
+// Return 0 if succesful, 1 otherwise.
+// If tolerant is nonzero, tries to interpret also objects whose label field
+// does not contain colon (:) as RealArray objects.
+{
+	int32 sizes[MAXRANK+1];
+	int32 rank, nt, nattr; int code;
+	const int32 id = SDselect(fileid,i);
+	if (id<0) return 1;
+	Tchar *s = new Tchar [MAX_NC_NAME+1];
+	*s = '\0';
+	if (SDgetinfo(id,(char*)s,&rank,sizes,&nt,&nattr)<0) return 1;
+//	cerr << "HDFRead_newstyle: Dataset name is " << s << "\n";
+	if (strstr((char*)s,"Data-Set-") == (char*)s) {		// Fake name ==> try to get old style DFAN label
+		delete [] s;
+		int32 lablen = DFANgetlablen((char*)fn,DFTAG_SDG,SDidtoref(id));
+		if (lablen<=0 && !tolerant) {
+			cerr<<"load: no label in HDF file, load terminated early\n";
+			return 1;
+		}
+		s = (Tchar*)"";
+		if (lablen>0) {
+			s = new Tchar [lablen+2];
+			code = DFANgetlabel((char*)fn,DFTAG_SDG,SDidtoref(id),(char*)s,lablen+1);
+			if (code && !tolerant) {
+				delete [] s;
+				return 1;
+			}
+//			cerr << "HDFRead_newstyle: Old-style label is " << s << "\n";
+		}
+	}
+	int32 len = 1;
+    int d;
+	for (d=0; d<rank; d++) len*= sizes[d];
+	static int32 start[MAXRANK+1] = {0};
+	const int strflag = (SDfindattr(id,"strflag") >= 0);
+	const int cmplxflag = (SDfindattr(id,"cmplxflag") >= 0);
+	if (nt==DFNT_FLOAT32) {						// "Old style" SDS data set, kind encoded in label
+//		cerr << "##### nt == DFNT_FLOAT32, name=" << name << "\n";
+		float32 *buff = new float32 [len];
+		if (SDreaddata(id,start,0,sizes,buff)<0) {delete [] s; delete [] buff; return 1;}
+		Tchar *colon = strchr(s,':');
+		Tchar ss[80];
+		if (!colon) {
+			if (tolerant) {
+				if (s && strlen(s)>0) {	// if there was any label
+					MakeValidIdentifier(s);
+					name = s;
+				} else {		// there was not label, generate a new, hopefully unique, name
+					static int counter = 0;
+					sprintf((char*)ss,"Dataset%d",++counter); // generate names Dataset1, Dataset2,...
+					name = ss;
+				}
+				Tint i;
+				int isizes[MAXRANK];
+				for (d=0; d<rank; d++) isizes[d] = int(sizes[d]);
+				TDimPack dp(isizes,rank);
+				x.rreserv(dp);
+				Treal *xp = x.RealPtr();
+				for (i=0; i<len; i++) xp[i] = Treal(buff[i]);
+				if (strlen(s)>0) delete [] s;
+				delete [] buff;
+				return 0;
+			} else {
+				cerr << "Warning: Old style HDF SDS file in unknown format for Tela.\n";
+				cerr << "Ignored variable with unknown label " << s << "\n";
+				delete [] s;
+				delete [] buff;
+				return 0 /*1*/;
+			}
+		}
+		*colon = '\0';
+		name = colon+1;
+		//cerr << "Reading data, s=" << s << ", name=" << name << "\n";
+		if (!strcmp(s,(const Tchar*)"Int")) {
+			x = Tint(buff[0]);
+		} else if (!strcmp(s,(const Tchar*)"Char")) {
+			x = Tint(buff[0]);
+			x.SetCharFlag();
+		} else if (!strcmp(s,(const Tchar*)"Real")) {
+			x = Treal(buff[0]);
+		} else if (!strcmp(s,(const Tchar*)"Complex")) {
+			x = Tcomplex(buff[0],buff[1]);
+		} else {
+			Tint i;
+			int isizes[MAXRANK];
+			for (d=0; d<rank; d++) isizes[d] = int(sizes[d]);
+			if (!strcmp(s,(const Tchar*)"ComplexArray")) isizes[rank-1]/= 2;
+			TDimPack dp(isizes,rank);
+			if (!strcmp(s,(const Tchar*)"IntArray") || !strcmp(s,(const Tchar*)"String")) {
+				x.ireserv(dp);
+				Tint *ip = x.IntPtr();
+				for (i=0; i<len; i++) ip[i] = iround(buff[i]);
+				if (!strcmp(s,(const Tchar*)"String")) x.SetStringFlag();
+			} else if (!strcmp(s,(const Tchar*)"RealArray")) {
+				x.rreserv(dp);
+				Treal *xp = x.RealPtr();
+				for (i=0; i<len; i++) xp[i] = Treal(buff[i]);
+			} else if (!strcmp(s,(const Tchar*)"ComplexArray")) {
+				x.creserv(dp);
+				Treal *xp = x.RealPtr();
+				for (i=0; i<len; i++) xp[i] = Treal(buff[i]);
+			} else {
+				cerr << "Warning: Old style HDF SDS file in unknown format for this Tela.\n";
+				cerr << "Ignored variable with unknown type " << s << " in label field.\n";
+				cerr << "Maybe you are using a too old version of Tela?\n";
+				delete [] s;
+				delete [] buff;
+				return 0 /*1*/;
+			}
+		}
+		delete [] buff;
+	} else {							// We are dealing with new-style dataset
+		MakeValidIdentifier(s);
+		name = s;								// Name of variable will be name of dataset
+		int isizes[MAXRANK];
+		for (d=0; d<rank; d++) isizes[d] = int(sizes[d]);
+		if (nt==DFNT_FLOAT64) {
+//			cerr << "##### nt == DFNT_FLOAT64, name=" << name << "\n";
+			if (cmplxflag) {
+				if (len == 2 && rank == 1) {	// Complex scalar
+					float64 z[2];
+					CHK(SDreaddata(id,start,0,sizes,z));
+					x = Tcomplex(z[0],z[1]);
+				} else {						// ComplexArray
+					isizes[rank-1]/= 2;
+					x.creserv(TDimPack(isizes,rank));
+					if (sizeof(float64) != sizeof(Treal)) {
+						float64 *buff = new float64 [len];
+						CHK2(SDreaddata(id,start,0,sizes,buff),delete[]buff);
+						VECTORIZED for (Tint i=0; i<len/2; i++)
+							x.ComplexPtr()[i] = Tcomplex(buff[2*i], buff[2*i+1]);
+						delete [] buff;
+					} else {
+						CHK(SDreaddata(id,start,0,sizes,x.ComplexPtr()));
+					}
+				}
+			} else {
+				if (len == 1 && rank == 1) { 	// Real scalar
+					float64 r;
+					CHK(SDreaddata(id,start,0,sizes,&r));
+					x = Treal(r);
+				} else {						// RealArray
+//					cerr << "## This is 64-bit RealArray, len=" << len << ", rank=" << rank << "\n";
+					x.rreserv(TDimPack(isizes,rank));
+					if (sizeof(float64) != sizeof(Treal)) {
+						float64 *buff = new float64 [len];
+						CHK2(SDreaddata(id,start,0,sizes,buff),delete[]buff);
+						VECTORIZED for (Tint i=0; i<len; i++) x.RealPtr()[i] = buff[i];
+						delete [] buff;
+					} else {
+						CHK(SDreaddata(id,start,0,sizes,x.RealPtr()));
+					}
+				}
+			}
+		} else if (nt==DFNT_INT32) {
+//			cerr << "##### nt == DFNT_INT32, name=" << name << "\n";
+			if (len == 1 && rank == 1) { 		// Int scalar
+				int32 i;
+				CHK(SDreaddata(id,start,0,sizes,&i));
+				x = (Tint)i;
+				if (strflag) x.SetCharFlag();
+			} else {							// IntArray
+				x.ireserv(TDimPack(isizes,rank));
+//				if (sizeof(int32) != sizeof(Tint)) {
+					int32 *buff = new int32 [len];
+					CHK2(SDreaddata(id,start,0,sizes,buff),delete[]buff);
+					Tint i;
+					int32 mx=buff[0], mi=buff[0];
+					for (i=0; i<len; i++) {
+						if (buff[i] > mx) mx = buff[i];
+						if (buff[i] < mi) mi = buff[i];
+					}
+//					cerr << "### INT32: min=" << mi << ", max=" << mx << "\n";
+					VECTORIZED for (i=0; i<len; i++) x.IntPtr()[i] = buff[i];
+					delete [] buff;
+//				} else {
+//					CHK(SDreaddata(id,start,0,sizes,x.IntPtr()));
+//				}
+				if (strflag) x.SetStringFlag();
+			}
+		} else {
+			cerr << "Warning: Unknown number type nt=" << nt << ", not one of FLOAT32, FLOAT64, INT32\n";
+		}
+	}
+	delete [] s;
+	return 0;
+}
+#endif
+
+[y] = NewHDFSupported()
+/* NewHDFSupported() returns 1 if this Tela was compiled with
+   HDF4.0b1 or later. If this is the case, then the following
+   become possible:
+   - HDFNewMode(1) can be used to save HDF data in "new" format
+     (SD rathern than SDS interface). This is now the default!
+   - Unidata netCDF files can be loaded/imported in the same
+     way as HDF SDS/SD files
+   
+   The main benefit of using the new format is that no precision
+   loss occurs because 64-bit numbers are used for real data
+   (the old HDF interface only supports 32-bit data).
+   
+   The main drawback of using the new format is that old Tela
+   versions and Tela versions which are still compiled with
+   HDF3.1r5 can not read the files. The old style files can be
+   read by all Tela versions.
+   
+   See also: HDFNewMode, save.*/
+{
+#	if OLD_HDF_VERSION
+	y = 0;
+#	else
+	y = 1;
+#	endif
+	return 0;
+}
+
+#ifndef OLD_HDF_VERSION
+static int NewStyleHDF = 1;
+#endif
+
+[;y] = HDFNewMode(;x)
+/* HDFNewMode(1) causes subsequent save calls to write the data
+   in "new" style HDF files, using the SD rather than SDS interface,
+   which is nowadays the default.
+   The old style SDS interface is used by subsequent saves after
+   calling HDFNewMode(0).
+   
+   This function works only if you have compiled Tela with HDF4.0b1
+   or newer and Tela version 1.23 or later. Whether this is the case
+   can be tested by calling NewHDFSupported().
+   
+   See also: NewHDFSupported, save.
+   Error codes:
+   1: Argument not integer
+   2: New HDF mode not supported by this Tela
+   */
+{
+#	ifdef OLD_HDF_VERSION
+	return 2;
+#	else
+	if (Nargin == 1) {
+		if (x.kind()!=Kint) return 1;
+		NewStyleHDF = x.IntValue();
+		y.SetToVoid();
+	} else if (Nargout == 1) y = NewStyleHDF;
+	return 0;
+#	endif
+}
+
+static int saving_netCDF = 0;
+
+[] = save(fn...)
+/* save("file") saves all variables in Tela workspace
+   in "file". Any previous contents of "file" is
+   overwritten. The data are written as Scientific
+   Data Sets in HDF format. Hidden variables are not saved.
+   
+   save("file","var1","var2"...) saves only the
+   specified variables. Notice that you have to give
+   the variable names as strings.
+   
+   Limitations (bugs): It is not possible to save
+   local variables, since they are not bound to
+   symbols. If you try, the global one, if any,
+   will be saved.
+   
+   See also: HDFNewMode, load, export_matlab, export_netCDF.
+   Error codes:
+   1: Too few arguments
+   2: Argument not a string or char
+   3: Unexpected HDF error
+   4: Cannot open new-style HDF SD file
+*/
+{
+	if (Nargin<1) return 1;
+	int WriteAll = Nargin==1;
+    int i;
+	for (i=0; i<Nargin; i++)
+		if (!argin[i]->IsString() && !argin[i]->IsChar()) return 2;
+	Tstring FN = fn;
+	int overwriteflag = 1; // Overwrite old file at first saved dataset
+#	ifndef OLD_HDF_VERSION
+	int32 fileid = -1;
+	if (NewStyleHDF || saving_netCDF) {
+		fileid = SDstart((char*)FN, saving_netCDF ? DFACC_RDWR : DFACC_CREATE);
+		if (fileid < 0) return 4;
+	}
+#	endif
+	// Loop over all reasonable workspace objects
+	for (THashEntryPtr p=theHT.first(); p; p=theHT.next()) {
+		TObjectPtr objptr = p->value();
+		if (objptr) {
+			Tkind k = objptr->kind();
+			if (k!=Kfunction && k!=KCfunction && k!=KIntrinsicFunction && k!=Kundef && k!=Kvoid && k!=KObjectArray) {
+				int DoWrite = 0;
+				if (WriteAll && !p->IsHidden() && !strchr((char*)(p->name()),':'))
+					DoWrite = 1;
+				else {
+					for (i=1; i<Nargin; i++) {
+						Tstring Var = *argin[i];
+						if (!strcmp((char*)Var,(char*)(p->name()))) {
+							DoWrite = 1;
+							break;
+						}
+					}
+				}
+				if (DoWrite) {
+					int errcode;
+#					ifndef OLD_HDF_VERSION
+					if (NewStyleHDF || saving_netCDF)
+						errcode = HDFAdd_newstyle(fileid,*objptr, (char*)(p->name()));
+					else
+						errcode = HDFAdd((char*)FN,*objptr,(char*)(p->name()),overwriteflag);
+#					else
+					errcode = HDFAdd((char*)FN,*objptr,(char*)(p->name()),overwriteflag);
+#					endif
+					overwriteflag = 0; // overwrite only at first time
+					if (errcode) {
+						cerr << "HDF error code " << DFerror << ".\n";
+#						ifndef OLD_HDF_VERSION
+						if (NewStyleHDF || saving_netCDF) SDend(fileid);
+#						endif
+						return 3;
+					}
+				}
+			}
+		}
+	}
+#	ifndef OLD_HDF_VERSION
+	if (NewStyleHDF || saving_netCDF) SDend(fileid);
+#	endif
+	return 0;
+}
+
+[] = export_netCDF(fn...)
+/* export_netCDF("file",...) behaves exactly like
+   save but it exports the variables in netCDF rather
+   than HDF format. The function is operational only
+   if NewHDFSupported() returns nonzero.
+   
+   See also: save, HDFNewMode.
+   Error codes:
+   1: Too few arguments
+   2: Argument not a string or char
+   3: Unexpected HDF error
+   4: Cannot open new-style HDF SD file
+   5: Cannot create netCDF file
+   6: netCDF not supported by this Tela, use HDF4.0b1 or later
+*/
+{
+#	ifdef OLD_HDF_VERSION
+	return 6;
+#	else
+	if (!fn.IsString()) return 2;
+	Tstring FN = fn;
+	saving_netCDF = 1;
+	remove((char*)FN);
+	int id = nccreate((char*)FN,NC_CLOBBER);
+	if (id<0) return 5;
+	int ret = savefunction(argin,Nargin,argout,Nargout);
+	saving_netCDF = 0;
+	ncclose(id);
+	return ret;
+#	endif
+}
+
+[] = load(filename)
+/* load("file") loads the contents of "file" in Tela workspace.
+   "file" must have been previously created using the 'save'
+   command; it must be in a certain HDF format.
+   
+   Filename conventions:
+   If the filename starts with "/", "./" or "..",
+   it is considered absolute. Otherwise it is searched
+   along TELAPATH. This applies to other file
+   operations as well.
+   
+   The counterpart of load is save.
+   To read more general HDF files and ASCII files, see import1.
+   To load more general HDF files and MATLAB binary files,
+   see import.
+   
+   See also: save, import, import1, export_matlab.
+   Error codes:
+   1: Argument not string or char
+   2: Argument is not an HDF file
+   3: File not found
+   4: Argument is not an HDF or netCDF file
+   5: Cannot load this HDF file
+   6: HDF file load incomplete
+   */
+{
+	if (!filename.IsString() && !filename.IsChar()) return 1;
+	Tstring FN = filename;
+	Tchar fn[MAXFILENAME];
+	if (!CompleteFileName((Tchar*)FN,fn)) return 3;
+	int32 nvars = 0;
+
+#	ifndef OLD_HDF_VERSION
+	// First try new-style interface
+	const int32 fileid = SDstart((char*)fn,DFACC_RDONLY);
+	if (fileid != FAIL) {
+		Tstring name;
+		int32 dummy;
+		if (fileid < 0) return 4;
+		if (SDfileinfo(fileid,&nvars,&dummy)!=0) return 5;
+		for (int i=0; i<nvars; i++) {
+			Tobject obj;
+			if (HDFRead_newstyle(fileid,fn,i,obj,name)!=0) return 6;
+			if (!(Tchar *)name) continue;
+//		cout << "Adding name \"" << name << "\" to hash table...\n";
+			Tsymbol *symptr = theHT.add(name);
+			symptr->value()->bitwiseMoveFrom(obj);
+		}
+		SDend(fileid);
+		return 0;
+	}
+#	endif
+	// Did not succeed with new-style interface, try old one
+	if (DFishdf((char*)fn)==0) {
+		Tobject x;
+		Tstring name;
+		DFSDrestart();
+		const int silent =
+#		ifdef OLD_HDF_VERSION
+		0;
+#		else
+		1;
+#		endif
+		while (HDFRead(fn,x,name,0,silent)==0) {
+			//cerr << "Loaded " << name << " = " << Tshort(x) << "\n";
+			Tsymbol *symptr = theHT.add(name);
+			*(symptr->value()) = x;
+			nvars++;
+		}
+	} else {
+		return 2;
+	}
+	return 0;
+}
+
+struct TMatlabMatrix {
+	int type;
+	int mrows;
+	int ncols;
+	int imagf;
+	int namlen;
+};
+
+static void SetAppendix(Tstring& s, const Tobject& appendix)
+/* Appends the string object appendix to the end of s.
+   appendix must be a string object. */
+{
+	int Ls = s.length();
+	int La = appendix.length();
+	Tchar *s2 = new Tchar [Ls + La + 1];
+	int j = 0;
+	strcpy(s2,(Tchar*)s);
+	Tstring APP = appendix;
+	strcat(s2,(Tchar*)APP);
+	s = s2;
+	delete [] s2;
+}
+
+// Use C-tela function 'round' from std.ct
+extern "C" int roundfunction(const TConstObjectPtr[], const int, const TObjectPtr[], const int);
+
+#if defined(__i386) || defined(__x86_64) || defined(__DECCXX)
+#  define WE_ARE_LITTLE_ENDIAN 1
+#else
+#  define WE_ARE_LITTLE_ENDIAN 0
+#endif
+
+static void ByteConversion(int sz, unsigned char *x, int n)
+{
+	int i,ind,j;
+	unsigned int b[16];
+	for (i=ind=0; i<n; i++,ind+=sz) {
+		for (j=0; j<sz; j++) b[j] = x[ind+j];
+		for (j=0; j<sz; j++) x[ind+sz-1-j] = b[j];
+	}
+}
+
+int
+shuffle_to_double (int LetterP, double * buff, Tint length) 
+{
+  switch (LetterP) {
+  case 0:
+    //64-bit real
+    if ( ! sizeof(double) == 8 ) {
+      cerr << "Size of double not 64-bit, what do I do?" << endl;
+      return 4;
+    }
+    break;
+  case 1:
+    //32-bit real
+    if ( sizeof(float) != 4 ) {
+      cerr << "Size of float not 32-bit, what do I do?" << endl;
+      return 4;
+    } else {
+      volatile  float * ibuff = reinterpret_cast<float *> (buff);
+      float tmp=ibuff[0];
+      for (int i = length - 1; i > 0; i--)
+	buff[i]=ibuff[i];
+      buff[0]=tmp;
+    }
+    break;
+  case 2:
+    //32-bit signed integer
+    {
+      volatile int32_t *ibuff = reinterpret_cast<int32_t *> (buff);
+      int32_t tmp = ibuff[0];
+      for (int i = length - 1; i > 0; i--)
+	buff[i]=ibuff[i];
+      buff[0]=tmp;
+    }
+    break;
+  case 3:
+    //16-bit signed integer
+    {
+      volatile int16_t *ibuff = reinterpret_cast<int16_t *> (buff);
+      int16_t tmp = ibuff[0];
+      for (int i = length - 1; i > 0; i--)
+	buff[i]=ibuff[i];
+      buff[0]=tmp;
+    }
+    break;
+  case 4:
+    //16-bit unsigned integer
+    {
+      volatile uint16_t *ibuff = reinterpret_cast<uint16_t *> (buff);
+      uint16_t tmp = ibuff[0];
+      for (int i = length - 1; i > 0; i--)
+	buff[i]=ibuff[i];
+      buff[0]=tmp;
+    }
+    break;
+  case 5:
+    //8-bit unsigned integer
+    {
+      volatile uint8_t *ibuff = reinterpret_cast<uint8_t *> (buff);
+      uint8_t tmp = ibuff[0];
+      for (int i = length - 1; i > 0; i--)
+	buff[i]=ibuff[i];
+      buff[0]=tmp;
+    }
+    break;
+  default:
+    //Cannot happen, already checked for this...
+    return 7;
+  }
+  return 0;
+}
+
+[] = import(filename; appendix)
+/* import("file") tries to load the contents of "file" in
+   Tela workspace. All files accepted by load are also accepted
+   by import. In addition, import accepts more general HDF files
+   (SDS and 8-bit raster image files) as well as MATLAB binary
+   files (MAT-files).
+   
+   import("file","app") appends the string "app" to the name
+   of every variable imported.
+   
+   Restrictions:
+   1) If file is HDF-file, import first tries to read all SDSs.  Only
+   if none was found, it tries to read all RIS8 datasets.  The
+   variable names are taken from the HDF labels, if the labels have
+   been set. If there are no labels, the variables are named
+   "Dataset1", "Dataset2", ... and "Image1", "Image2",... for SDS and
+   RIS8 imports, respectively.
+   2) Only read Matlab version 4 format (Actually Level 1.0, as
+   written by matlab version <= 4 and on request on newer versions).
+   
+   For filename conventions, see load.
+   See also: load, save, import1, export_matlab, export_RIS8, import_PNM.
+   
+   (The difference between import and import1 is that import1 reads
+   only one object and returns it, whereas import reads several
+   objects and assigns them directly to workspace variables.)
+   Error codes:
+   1: First arg not string
+   2: First arg is not an HDF file
+   3: File not found
+   4: Cannot import file
+   5: Unused error message
+   6: Cannot import file, internal Matlab file error
+   7: Cannot import this Matlab file, unknown data format
+   8: Cannot import this Matlab file, it is a sparse matrix. Make it full before saving.
+   10: Bad Matlab binary file, premature end of file
+   11: Second argument not a string
+   12: Cannot import this Matlab file, it contains VAX or CRAY floating point
+   */
+{
+  //Check input
+	if (!filename.IsString()) return 1;
+	Tstring FN = filename;
+	Tchar fn[MAXFILENAME];
+	if ( ! CompleteFileName( (Tchar*) FN, fn ) ) return 3;
+	if (Nargin==2) {
+		if ( ! appendix.IsString() ) return 11;
+	}
+
+#ifndef OLD_HDF_VERSION
+	// Try to import as new-style SD file
+	const int32 fileid = SDstart((char*)fn,DFACC_RDONLY);
+	if (fileid >= 0) {
+		Tobject x;
+		Tstring name;
+		int32 nvars, dummy;
+		if (SDfileinfo(fileid,&nvars,&dummy)==0) {
+			for (int i=0; i<nvars; i++) {
+				if (HDFRead_newstyle(fileid,fn,i,x,name,1)!=0) break;
+				if (Nargin==2) SetAppendix(name,appendix);
+				Tsymbol *symptr = theHT.add(name);
+				*(symptr->value()) = x;
+			}
+			SDend(fileid);
+			return 0;
+		} else SDend(fileid);
+		return 0;
+	}
+#endif //OLD_HDF_VERSION
+	if (DFishdf((char*)fn)==0) {		// First try to import as HDF file
+		Tobject x;
+		Tstring name;
+		int SDSRead = 0;
+#ifdef OLD_HDF_VERSION
+		DFSDrestart();
+		while (HDFRead(fn,x,name,1)==0) {
+			SDSRead = 1;
+			if (Nargin==2) SetAppendix(name,appendix);
+			Tsymbol *symptr = theHT.add(name);
+			*(symptr->value()) = x;
+		}
+#endif //OLD_HDF_VERSION
+		if (!SDSRead) {
+			// No SDSs found, try to import as RIS8 file (try to read first RIS8)
+			DFR8restart();
+			int32 xdim,ydim; int ispalette;
+			while (DFR8getdims((char*)fn,&xdim,&ydim,&ispalette)==0) {
+				Tobject x;
+				unsigned char *image = new unsigned char [xdim*ydim];
+				DFR8getimage((char*)fn,image,xdim,ydim,0);
+				int32 lablen = DFANgetlablen((char*)fn,DFTAG_RIG,DFR8lastref());
+				Tchar *s;
+				if (lablen > 0) {
+					s = new Tchar [lablen+2];
+					DFANgetlabel((char*)fn,DFTAG_RIG,DFR8lastref(),(char*)s,lablen+1);
+				} else {	// No label, make a new, hopefully unique, name...
+					s = new Tchar [80];
+					static int counter = 0;
+					// generate names Image1, Image2,...
+					sprintf((char*)s,"Image%d",++counter);	
+				}
+				Tstring S = s;
+				if (Nargin==2) SetAppendix(S,appendix);
+				Tsymbol *symptr = theHT.add(S);
+				x.ireserv(TDimPack(Tint(ydim),Tint(xdim)));
+				int32 i,j;
+				for (i=0; i<xdim; i++) for (j=0; j<ydim; j++)
+					x.IntPtr()[i+j*xdim] = Tint(image[i+j*xdim]);
+				*(symptr->value()) = x;
+				delete [] s;
+				delete [] image;
+			}
+		}
+	} else {
+		// Try to import as Matlab binary file
+		if ( CHAR_BIT != 8 ) { 
+			cerr << "Char has not 8 bits!  Cannot read matlab files then! " << endl;
+			return 4;
+		}
+
+		std::ifstream file ( reinterpret_cast<char *> (fn), 
+							 ios::in | ios::binary );
+		if ( ! file ) return 3;
+
+		for(;;) {		// exiting with break near the end
+
+			int32_t type, mrows, ncols, imagf, namlen;
+
+			if ( ! file.read( reinterpret_cast<char*> (&type), 4) ) return 4;
+			if ( ! file.read( reinterpret_cast<char*> (&mrows), 4) ) return 4;
+			if ( ! file.read( reinterpret_cast<char*> (&ncols), 4) ) return 4;
+			if ( ! file.read( reinterpret_cast<char*> (&imagf), 4) ) return 4;
+			if ( ! file.read( reinterpret_cast<char*> (&namlen), 4) ) return 4;
+
+			// If endianness is wrong, type is not in range. Try
+			// byte-conversion then.
+			if ( type < 0 || type > 9999 ) {
+				ByteConversion(4, reinterpret_cast<unsigned char*> (&type), 1);
+				ByteConversion(4, reinterpret_cast<unsigned char*> (&mrows), 1);
+				ByteConversion(4, reinterpret_cast<unsigned char*> (&ncols), 1);
+				ByteConversion(4, reinterpret_cast<unsigned char*> (&imagf), 1);
+				ByteConversion(4, reinterpret_cast<unsigned char*> (&namlen), 1);
+			}
+			if ( type < 0 || type > 9999 ) {
+				std::cerr << "Not a valid Matlab v4 file!" << endl 
+						  << " Is it written with v5 or higher (file format > 1.0)?" 
+						  << endl << " Please implement." << endl;
+				return 4;
+			}
+    
+			// type is MOPT in decimal.
+    
+			// M is 0 for little-endian (386, DEC-alpha) and 1 for big-endian
+			// (and 2 for VAX D-float, 3 for VAX G-float, 4 for Cray which we
+			// do not support).
+
+			// O is always 0
+
+			// P is 0 for double precision, 1 for 32-bit float, 2 for signed
+			// 32-bit int, 3 for signed 16-bit int, 4 for unsigned 16-bit int,
+			// and 5 for unsigned 8-bit int.
+
+			// T is 0 for numerical and 1 for strings (and 2 for sparse, which
+			// we do not support)
+
+			int LetterT = type % 10;
+			type /= 10;
+			int LetterP = type % 10;
+			type /= 10;
+			int LetterO = type % 10;
+			type /= 10;
+			int LetterM = type % 10;
+
+			if (LetterM != 0 && LetterM != 1) {
+				return 12;
+			}
+
+			int numbersize;
+			if (LetterO != 0)  return 6;
+			switch (LetterP) {
+			case 0: 
+				numbersize = 8;
+				break;
+			case 1:
+			case 2:
+				numbersize = 4;
+				break;
+			case 3:
+			case 4:
+				numbersize = 2;
+				break;
+			case 5:
+				numbersize = 1;
+				break;
+			default:
+				return 7;
+			}
+
+			if (LetterT == 2) 
+				return 8;
+			if (LetterT != 0 && LetterT != 1)
+				return 7;
+			if ( mrows < 0 || ncols < 0 ) {
+				std::cerr << "Negative matrix dimension" << endl; 
+				return 4;
+			}
+			if ( imagf != 0 && imagf != 1 ) {
+				std::cerr << "Imagflag not 0 nor 1" << endl; 
+				return 4;
+			}
+			if ( namlen <= 0 ) {
+				std::cerr << "Non-positive namlen" << endl; 
+				return 4;
+			}
+
+			//Read variable name
+			Tchar *matrixName = new Tchar [namlen];
+			if ( ! file.read( reinterpret_cast<char *> (matrixName),  (namlen) ) ) 
+				return 10;
+			if ( matrixName[namlen-1] != 0 ) 
+				cerr << "Matrix name not NULL-terminated!  "
+					 << "Don't know how this will work, but proceeding anyway..." 
+					 << endl;
+			MakeValidIdentifier(matrixName);
+
+			//Read data -- just byte by byte.  Correct type later
+			Tint length = mrows * ncols;
+			double *rbuff = new double [length];
+			if ( ! file.read( reinterpret_cast<char *> (rbuff), length*numbersize ) )
+				return 10;
+			double *ibuff = 0;
+			if ( imagf ) {
+				ibuff = new double [length];
+				if ( ! file.read( reinterpret_cast<char *> (ibuff), length*numbersize) )
+					return 10;
+			}
+
+			//Swap data?
+#if WE_ARE_LITTLE_ENDIAN
+			if (LetterM == 1) {
+				ByteConversion (numbersize, 
+								reinterpret_cast<unsigned char*> (rbuff), 
+								length);
+				if (ibuff) 
+					ByteConversion (numbersize, 
+									reinterpret_cast<unsigned char*> (ibuff), 
+									length);
+			}
+#else
+			if (LetterM == 0) {
+				ByteConversion (numbersize, 
+								reinterpret_cast<unsigned char*> (rbuff), 
+								length);
+				if (ibuff) 
+					ByteConversion (numbersize, 
+									reinterpret_cast<unsigned char*> (ibuff), 
+									length);
+			}
+#endif // WE_ARE_LITTLE_ENDIAN
+
+			//Shuffle data in rbuff (and ibuff) to really be double[]
+			int i = shuffle_to_double ( LetterP,  rbuff, length);
+			if ( i != 0 ) 
+				return i;
+      
+			if ( imagf ) {
+				int i = shuffle_to_double ( LetterP,  ibuff, length);
+				if ( i != 0 ) 
+					return i;
+			}
+
+			//Make a new Tela object
+			Tsymbol *symptr;
+			Tstring NAME = matrixName;
+			if (Nargin==2) {
+				// Set the appendix in place
+				SetAppendix( NAME, appendix );
+			}
+			symptr = theHT.add(NAME);
+
+			//Put the data into a Tela object
+
+			// Allocate memory and move data
+			TObjectPtr objptr = symptr->value();
+			if (ibuff) {
+				objptr->creserv( TDimPack( Tint(mrows), Tint(ncols) ) );
+				Tcomplex* cp = objptr->ComplexPtr();
+				Tint n,m;
+				for ( n = 0; n < ncols; n++) for ( m = 0; m < mrows; m++) {
+					cp[m*ncols+n] = Tcomplex( rbuff[n*mrows+m],ibuff[n*mrows+m] );
+				}
+				delete [] ibuff;
+				if (mrows==1 && ncols==1) {
+					Tcomplex z = objptr->ComplexPtr()[0];
+					*objptr = z;
+				}
+			} else {
+				objptr->rreserv( TDimPack( Tint(mrows), Tint(ncols) ) );
+				Treal* xp = objptr->RealPtr();
+				Tint n,m;
+				for ( n = 0; n < ncols; n++) for ( m = 0; m < mrows; m++) {
+					xp[m*ncols+n] = rbuff[n*mrows+m];
+				}
+			}
+
+			if (LetterT == 1) {// Handle string variables, make them IntArrays
+				Tobject int_obj;
+				TConstObjectPtr inputs[1]; 
+				TObjectPtr outputs[1];
+				inputs[0] = objptr;
+				outputs[0] = &int_obj;
+				roundfunction(inputs,1,outputs,1);
+				int_obj.SetStringFlag();
+				if (objptr->length() == 1) {	// Length-one strings become Tela char variables
+					*objptr = int_obj.IntPtr()[0];
+					objptr->SetCharFlag();
+				} else {
+					*objptr = int_obj;
+				}
+			}
+      
+			if ( mrows==1 && ncols==1 && LetterT == 0) { //Make it a scalar
+				if ( imagf ) {
+					Tcomplex x = objptr->ComplexPtr()[0];
+					*objptr = x;
+				} else {
+					Treal x = objptr->RealPtr()[0];
+					*objptr = x;
+				}
+			} else if ( mrows==1 || ncols==1) { 
+				// Matlab row or column vectors ==> Tela vectors, not matrices
+				objptr->flatten();  //Make array into vector
+			}
+
+			delete [] rbuff;
+			delete [] matrixName;
+			if ( file.peek() == EOF ) break;
+		}
+	}
+	return 0;
+}
+
+static int AppendToMatFile(char*fn, const Tobject& x, const char *name, int strflag=0)
+// x must be RealArray or ComplexArray. x.rank() must be either 1 or 2.
+// returns 0 on success, 1 on failure
+{
+	TMatlabMatrix theMatrix;
+#	if WE_ARE_LITTLE_ENDIAN
+	theMatrix.type = 0000;
+#	else
+	theMatrix.type = 1000;
+#	endif
+	if (strflag) theMatrix.type++;
+	if (strflag) {
+		theMatrix.mrows = (x.rank()==1) ? 1 : x.dims()[0];
+		theMatrix.ncols = (x.rank()==1) ? x.length() : x.dims()[1];
+	} else {
+		theMatrix.mrows = (x.rank()==1) ? x.length() : x.dims()[0];
+		theMatrix.ncols = (x.rank()==1) ? 1 : x.dims()[1];
+	}
+	theMatrix.imagf = (x.kind() == KComplexArray);
+	theMatrix.namlen = strlen(name)+1;
+	FILE *fp = fopen(fn,"a");
+	if (!fp) return 1;
+	fwrite(&theMatrix,sizeof(theMatrix),1,fp);
+	fwrite(name,sizeof(char),size_t(theMatrix.namlen),fp);
+	if (x.rank() == 1) {
+		if (x.kind() == KRealArray) {		// Real vector case
+			double *buff = new double [x.length()];
+			for (Tint i=0; i<x.length(); i++) buff[i] = double(x.RealPtr()[i]);
+			fwrite(buff,sizeof(double),x.length(),fp);
+			delete [] buff;
+		} else {							// Complex vector case
+			double *rbuff = new double [x.length()];
+			double *ibuff = new double [x.length()];
+			for (Tint i=0; i<x.length(); i++) {
+				rbuff[i] = double(real(x.ComplexPtr()[i]));
+				ibuff[i] = double(imag(x.ComplexPtr()[i]));
+			}
+			fwrite(rbuff,sizeof(double),x.length(),fp);
+			fwrite(ibuff,sizeof(double),x.length(),fp);
+			delete [] ibuff;
+			delete [] rbuff;
+		}
+	} else {
+		if (x.kind() == KRealArray) {		// Real matrix case
+			double *buff = new double [x.length()];
+			Tint imax=x.dims()[0], jmax=x.dims()[1];
+			for (Tint i=0; i<imax; i++) for (Tint j=0; j<jmax; j++)
+				buff[j*imax + i] = double(x.RealPtr()[i*jmax+j]);
+			fwrite(buff,sizeof(double),x.length(),fp);
+			delete [] buff;
+		} else {							// Complex matrix case
+			double *rbuff = new double [x.length()];
+			double *ibuff = new double [x.length()];
+			Tint imax=x.dims()[0], jmax=x.dims()[1];
+			for (Tint i=0; i<imax; i++) for (Tint j=0; j<jmax; j++) {
+				rbuff[j*imax + i] = double(real(x.ComplexPtr()[i*jmax+j]));
+				ibuff[j*imax + i] = double(imag(x.ComplexPtr()[i*jmax+j]));
+			}
+			fwrite(rbuff,sizeof(double),x.length(),fp);
+			fwrite(ibuff,sizeof(double),x.length(),fp);
+			delete [] ibuff;
+			delete [] rbuff;
+		}
+	}
+	fclose(fp);
+	return 0;
+}
+										  
+static int ExportMatlab(const Tstring& FN, TConstObjectPtr objptr, const Tstring& NAME)
+// Append (write) *objptr in file (char*)FN in Matlab binary form.
+// Returns 0 on success, 3 on write error.
+{
+	Tkind k = objptr->kind();
+	if (k==Kint || k==Kreal || k==Kcomplex || k==KIntArray || k==KRealArray || k==KComplexArray) {
+		Tobject x;
+		int strflag = 0;
+		switch (k) {
+		case Kint:
+			x.rreserv(TDimPack(1));
+			x.RealPtr()[0] = objptr->IntValue();
+			if (objptr->IsChar()) strflag = 1;
+			break;
+		case Kreal:
+			x.rreserv(TDimPack(1));
+			x.RealPtr()[0] = objptr->RealValue();
+			break;
+		case Kcomplex:
+			x.creserv(TDimPack(1));
+			x.ComplexPtr()[0] = objptr->ComplexValue();
+			break;
+		case KIntArray:
+			x.rzeros(objptr->dims());
+			Add(x,*objptr);
+			if (objptr->HasStringFlag()) strflag = 1;
+			if (objptr->rank()>2) x.flatten();
+			break;
+		case KRealArray:
+			x = *objptr;
+			if (objptr->rank()>2) x.flatten();
+			break;
+		case KComplexArray:
+			x = *objptr;
+			if (objptr->rank()>2) x.flatten();
+			break;
+		default:;
+		}
+		int errcode = AppendToMatFile((char*)FN,x,(char*)NAME,strflag);
+		if (errcode) return 3;
+	}
+	return 0;
+}
+
+[] = export_matlab(fn...)
+/* export_matlab("file") saves all variables in Tela
+   workspace in "file". Any previous contents of "file"
+   are overwritten. The data are written in MATLAB
+   binary format. Hidden Tela variables are not saved.
+
+   export_matlab("file","var1","var2"...) saves only the
+   specified variables. Notice that you have to give the
+   variable names as strings.
+
+   The resulting MAT-file can be read using the
+   MATLAB 'load' command.
+   
+   Limitations (bugs): It is not possible to export
+   local variables. If you try, the global ones will
+   be written, if they have numeric values. Use
+   export_matlab2 to achieve this, and to have explicit
+   control of variable naming.
+   
+   See also: export_matlab2, save, load, import.
+   Error codes:
+   1: Too few arguments
+   2: Argument not a string
+   3: Write error on file
+   */
+{
+	if (Nargin<1) return 1;
+	int WriteAll = Nargin==1;
+    int i;
+	for (i=0; i<Nargin; i++)
+		if (!argin[i]->IsString()) return 2;
+	Tstring FN = fn;
+	// Delete any previous contents:
+	remove((char*)FN);
+	// Loop over all reasonable workspace objects
+	for (THashEntryPtr p=theHT.first(); p; p=theHT.next()) if (p->value()) {
+		int DoWrite = 0;
+		if (WriteAll && !p->IsHidden())
+			DoWrite = 1;
+		else {
+			for (i=1; i<Nargin; i++) {
+				Tstring Var = *argin[i];
+				if (!strcmp((char*)Var,(char*)(p->name()))) {
+					DoWrite = 1;
+					break;
+				}
+			}
+		}
+		if (DoWrite) {
+			int retval = ExportMatlab(FN,p->value(),p->name());
+			if (retval) return retval;
+		}
+	}
+	return 0;
+}
+
+[] = export_matlab2(fn...)
+/* export_matlab2("file", var1,"name1", var2,"name2"...)
+   saves objects var1,var2... in MATLAB binary format in "file".
+   The objects will be named "name1", "name2"... .
+   Any previous contents of "file" are overwritten.
+   workspace in "file". Any previous contents of "file"
+   is overwritten.
+
+   The resulting MAT-file can be read using the
+   MATLAB 'load' command.
+   
+   See also: export_matlab, save, load, import.
+   Error codes:
+   1: First arg not a string
+   2: Even number of arguments
+   3: Write error on file
+   4: The 'name' argument is not a string
+   */
+{
+	if (!fn.IsString()) return 1;
+	Tstring FN = fn;
+	if ((Nargin-1) % 2 != 0) return 2;
+	// Delete any previous contents:
+	remove((char*)FN);
+	for (int i=1; i<Nargin; i+=2) {
+		TConstObjectPtr valptr = argin[i];
+		TConstObjectPtr nameptr = argin[i+1];
+		if (!nameptr->IsString()) return 4;
+		Tstring NAME = *nameptr;
+		ExportMatlab(FN,valptr,NAME);
+	}
+	return 0;
+}
+
+[] = export_RIS8(fn,x)
+/* export_RIS8("file.hdf",x) writes (appends) integer matrix x
+   to HDF file "file.hdf" as a raster-8 image (Raster Image Set, RIS).
+   When the file is opened with default settings using the usual
+   HDF viewers such as Spyglass products, the first dimension grows
+   vertically downward and the second dimension grows from left to
+   right.
+
+   The RIS8 HDF files can be read back using import.
+
+   See also: export_matlab, save, import
+   Error codes:
+   1: First argument not a string
+   2: Second argument not an integer matrix
+   */
+{
+	int code;
+	if (!fn.IsString()) return 1;
+	Tstring FN = fn;
+	if (x.kind()!=KIntArray) return 2;
+	if (x.rank()!=2) return 2;
+	const int32 xdim = x.dims()[1];
+	const int32 ydim = x.dims()[0];
+	uint8 *image = new uint8 [xdim*ydim];
+    Tint i;
+	for (i=0; i<x.length(); i++) image[i] = uint8(x.IntPtr()[i]);
+	DFR8restart();
+	CHK2(DFR8addimage((char*)FN,image,xdim,ydim,DFTAG_RLE), delete [] image);
+	unsigned char palette[768];
+	for (i=0; i<255; i++) palette[3*i] = palette[3*i+1] = palette[3*i+2] = i;
+	DFR8setpalette(palette);
+	delete [] image;
+	return 0;
+}
+
+[] = export_PNM(fn,r;g,b)
+/* export_PNM("file.pnm",x) writes integer matrix x in
+   PNM (Portable aNyMap) file "file.pnm". If no element is
+   larger than 255, a 8-bit "raw" file is written, otherwise an ASCII file.
+   If all elements are equal to 0 or 1, a black and white 1-bit PBM
+   (Portable BitMap) file will be written.
+
+   export_PNM("file.pnm",r,g,b) creates a 24-bit color-PPM file.
+   Matrix entries are truncated in the range 0..255 in this case.
+   The integer matrices r,g and b represent the red, green
+   and blue values. They must have equal dimensions.
+
+   If the system supports pipes (has the popen function),
+   you can use export_PNM("!...",..) to write to a pipe instead
+   of a file (for example, export_PNM("!cjpeg >x.jpeg",r,g,b)).
+   
+   See also: import_PNM.
+   Error codes:
+   1: First arg not a string
+   2: Argument is not integer matrix
+   3: export_PNM must be called with 2 or 4 input args
+   4: Dimensions of R,G,B matrices must be equal
+   5: Could not open file for output
+*/
+{
+	if (Nargin!=2 && Nargin!=4) return 3;
+	if (!fn.IsString()) return 1;
+	Tstring FN = fn;
+	if (r.kind()!=KIntArray || r.rank()!=2) return 2;
+	if (Nargin == 4) {
+		if (r.kind()!=KIntArray || r.rank()!=2 ||
+			b.kind()!=KIntArray || b.rank()!=2) return 2;
+		if (g.dims()!=r.dims() || b.dims()!=r.dims()) return 4;
+	}
+	FILE *fp;
+#	if HAVE_POPEN
+	int IsPipe = 0;
+	if ((char*)FN && *(char*)FN == '!') {
+		fp = popen((char*)FN+1,"w");
+		IsPipe = 1;
+	} else
+		fp = fopen((char*)FN,"w");
+#	else
+	fp = fopen((char*)FN,"w");
+#	endif
+	if (!fp) return 5;
+	Tint i,j;
+	const Tint N = r.length();
+	const Tint xdim = r.dims()[1];
+	const Tint ydim = r.dims()[0];
+	extern char *VersionString;		// from tela.C
+	if (Nargin == 2) {
+		int onebit = 1;
+		for (i=0; i<N; i++)
+			if (r.IntPtr()[i] & (~1)) {onebit=0; break;}
+		if (onebit) {
+			// Write one-bit PBM image (P4 format)
+			fprintf(fp,"P4\n# CREATOR: Tela version %s\n%d %d\n",VersionString,int(xdim),int(ydim));
+			for (j=0; j<ydim; j++) {
+				int pixel = 0;
+				int shift = 0;
+				for (i=0; i<xdim; i++) {
+					const int bit = r.IntPtr()[j*xdim+i];
+					shift = 7 - i % 8;
+					if (bit) pixel |= (1 << shift);
+					if (shift == 0 && i > 0) {
+						putc(pixel,fp);
+						pixel = 0;
+					}
+				}
+				if (shift != 0) putc(pixel,fp);
+			}
+		} else {
+			Tint maxpixel = 0;
+			for (i=0; i<xdim*ydim; i++) if (r.IntPtr()[i] > maxpixel) maxpixel = r.IntPtr()[i];
+			const int rawformat = (maxpixel <= 255);
+			if (rawformat) {
+				// Write 8-bit PGM (P5 format)
+				fprintf(fp,"P5\n# CREATOR: Tela version %s\n%d %d\n255\n",VersionString,int(xdim),int(ydim));
+				for (j=0; j<ydim; j++) for (i=0; i<xdim; i++)
+				    putc(max(0,min(255,r.IntPtr()[j*xdim+i])),fp);
+			} else {
+				// Write n-bit ASCII-PGM (P2 format)
+				fprintf(fp,"P2\n# CREATOR: Tela version %s\n%d %d\n%d\n",VersionString,int(xdim),int(ydim),int(maxpixel));
+				for (j=0; j<ydim; j++) {
+					for (i=0; i<xdim; i++)
+				        fprintf(fp," %d",int(r.IntPtr()[j*xdim+i]));
+					fprintf(fp,"\n");
+				}
+			}
+		}
+	} else {
+		// Write 24-bit PNM (P6 format)
+		fprintf(fp,"P6\n# CREATOR: Tela version %s\n%d %d\n255\n",VersionString,int(xdim),int(ydim));
+			for (j=0; j<ydim; j++) for (i=0; i<xdim; i++) {
+				putc(max(0,min(255,r.IntPtr()[j*xdim+i])),fp);
+				putc(max(0,min(255,g.IntPtr()[j*xdim+i])),fp);
+				putc(max(0,min(255,b.IntPtr()[j*xdim+i])),fp);
+			}
+	}
+#	if HAVE_POPEN
+	if (IsPipe) pclose(fp); else fclose(fp);
+#	else
+	fclose(fp);
+#	endif
+	return 0;
+}
+
+[r;g,b] = import_PNM(fn)
+/* x = import_PNM("file.pnm") reads PNM (Portable aNyMap) format image file.
+   x will become integer matrix.
+   [r,g,b] = import_PNM("file.pnm") reads a color image
+   and assigns the red, green and blue components to
+   matrices r,g,b.
+   All six PNM formats (P1-P6) are recognized. If a color
+   image (P3 or P6) is loaded using only one output argument,
+   the average of color components is computed and assigned
+   to x. If a greyscale image is loaded using three output
+   args, only the first (r) output arg will be filled,
+   g and b are assigned the VOID value. You might use
+   a code like
+
+   [r,g,b] = import_PNM("file.pnm");
+   if (isvoid(g)) {g=r; b=r};
+
+   to continue processing in 24-bit mode.
+
+   If the system supports pipes (has the popen function),
+   you can do import_PNM("!...") to read from a pipe.
+   For example, import_PNM("djpeg x.jpg").
+   
+   See also: import, export_PNM.
+   Error codes:
+   -1: First arg not a string
+   2: Could not open input file
+   3: Input file is not PNM file
+   4: Width or height not positive - improper PNM file
+   5: Invalid color range
+   -6: Two output args, give 1 or 3
+   7: Error when reading ASCII data
+   8: Pixel not 0 or 1 in 1-bit image
+   10: Could not read all binary data
+   */
+{
+	if (Nargout==2) return -6;
+	if (!fn.IsString()) return -1;
+	r.SetToVoid();
+	Tstring FN = fn;
+	FILE *fp;
+	int IsPipe = 0;
+#	if HAVE_POPEN
+	if ((char*)FN && *(char*)FN == '!') {
+		fp = popen((char*)FN+1,"r");
+		IsPipe = 1;
+	} else
+		fp = fopen((char*)FN,"r");
+#	else
+#	define pclose fclose	/* so that the pclose calls below on early returns succeed */
+	fp = fopen((char*)FN,"r");
+#	endif
+	if (!fp) return 2;
+	int ch = fgetc(fp);
+	if (ch != 'P') return 3;
+	const int n = fgetc(fp) - '0';
+	if (n<1 || n>6) return 3;
+	if (fgetc(fp) != '\n') return 3;
+	char s[80];
+	do {
+		fgets(s,77,fp);
+		if (feof(fp)) return 3;
+	} while (*s == '#');
+	int w,h;
+	// Some files have w h maxcol in one line (which is in s),
+	// but usually w,h are in s and maxcol is in the following line
+	int Nscanned,maxcol;
+	if (n == 1 || n == 4) {
+		// PBM, no maxcol
+		if ((Nscanned=sscanf(s,"%d %d",&w,&h))<2) return 3;
+		if (w <= 0 || h <= 0) return 4;
+		maxcol = 1;
+	} else {
+		if ((Nscanned=sscanf(s,"%d %d %d",&w,&h,&maxcol))<2) return 3;
+		if (w <= 0 || h <= 0) return 4;
+		if (n!=1 && n!=4 && Nscanned==2) {
+			if (fscanf(fp,"%d",&maxcol)!=1) return 3;
+		}
+		if (maxcol<1) return 5;
+	}
+	ch = fgetc(fp);
+	if (ch != '\n') ungetc(ch,fp);
+	// Allocate output value(s)
+	const TDimPack dims(h,w);
+	r.izeros(dims);
+	if (Nargout == 3) {
+		if (n==3 || n==6) {
+			g.izeros(dims);
+			b.izeros(dims);
+		} else {
+			g.SetToVoid();
+			b.SetToVoid();
+		}
+	}
+	Tint i,j;
+	const Tint N = w*h;
+	int pixel,pixel2,pixel3;
+	unsigned char *buf;
+	switch (n) {
+	case 1:
+		// P1 - 1-bit ASCII
+		for (i=0; i<N; i++) {
+			do {ch=fgetc(fp);} while (isspace(ch));
+			if (ch != '1' && ch != '0') {if (IsPipe) pclose(fp); else fclose(fp); return 8;}
+			pixel = ch - '0';
+			r.IntPtr()[i] = pixel;
+		}
+		break;
+	case 2:
+		// P2 - 8-bit ASCII
+		for (i=0; i<N; i++) {
+			if (fscanf(fp,"%d",&pixel)!=1) {if (IsPipe) pclose(fp); else fclose(fp); return 7;}
+			if (pixel<0) {if (IsPipe) pclose(fp); else fclose(fp); return 5;}
+			r.IntPtr()[i] = pixel;
+		}
+		break;
+	case 3:
+		// P3 - 24-bit ASCII
+		if (Nargout == 3)
+			for (i=0; i<N; i++) {
+				if (fscanf(fp,"%d%d%d",&pixel,&pixel2,&pixel3)!=3) {if (IsPipe) pclose(fp); else fclose(fp); return 7;}
+				if (pixel<0 || pixel2<0 || pixel3<0) {
+					if (IsPipe) pclose(fp); else fclose(fp);
+					return 5;
+				}
+				r.IntPtr()[i] = pixel;
+				g.IntPtr()[i] = pixel2;
+				b.IntPtr()[i] = pixel3;
+			}
+		else		// Convert to greyscale image
+			for (i=0; i<N; i++) {
+				if (fscanf(fp,"%d%d%d",&pixel,&pixel2,&pixel3)!=3) {if (IsPipe) pclose(fp); else fclose(fp); return 7;}
+				if (pixel<0 || pixel2<0 || pixel3<0) {
+					if (IsPipe) pclose(fp); else fclose(fp);
+					return 5;
+				}
+				r.IntPtr()[i] = (pixel + pixel2 + pixel3)/3;
+			}
+		break;
+	case 4:
+		// P4 - 1-bit raw image
+		buf = new unsigned char [(w+7)/8];
+		for (j=0; j<h; j++) {
+			if (int(fread(buf,sizeof(unsigned char),(w+7)/8,fp)) != (w+7)/8) {if (IsPipe) pclose(fp); else fclose(fp); return 10;}
+			for (i=0; i<w; i++) {
+				const int byte = i/8;
+				const int bit = 7 - i % 8;
+				r.IntPtr()[j*w+i] = Tint( (buf[byte] >> bit) & 1 );
+			}
+		}
+		delete [] buf;
+		break;
+	case 5:
+		// P5 - 8-bit raw image
+		buf = new unsigned char [N];
+		if (int(fread(buf,sizeof(unsigned char),N,fp)) != N) {if (IsPipe) pclose(fp); else fclose(fp); return 10;}
+		for (i=0; i<N; i++) r.IntPtr()[i] = Tint(buf[i]);
+		delete [] buf;
+		break;
+	case 6:
+		// P6 - 24-bit raw image
+		buf = new unsigned char [3*N];
+		if (int(fread(buf,3*sizeof(unsigned char),N,fp)) != N) {if (IsPipe) pclose(fp); else fclose(fp); return 10;}
+		if (Nargout == 3)
+			for (i=0; i<N; i++) {
+				r.IntPtr()[i] = Tint(buf[3*i]);
+				g.IntPtr()[i] = Tint(buf[3*i+1]);
+				b.IntPtr()[i] = Tint(buf[3*i+2]);
+			}
+		else	// convert to greyscale
+			for (i=0; i<N; i++)
+				r.IntPtr()[i] = Tint( (buf[3*i] + buf[3*i+1] + buf[3*i+2])/3 );
+		delete [] buf;
+		break;
+	default:;		// never get here
+	}
+	if (IsPipe) pclose(fp); else fclose(fp);
+#	if !HAVE_POPEN
+#	undef pclose	/* cancel the hack we made above */
+#	endif
+	return 0;
+}
+
+[r;g,b,a] = import_PNG(fn)
+/* [r,g,b] = import_PNG(fn)
+   reads in a PNG file and places the red, green and blue components
+   in matrices r,g and b, respectively. If the file is grayscale,
+   r, g and b will have the same value.
+
+   u = import_PNG(fn) reads a grayscale image into u.
+   If file has colour information, the average of R, G and B
+   components is placed in matrix u.
+
+   [r,g,b,a] = import_PNG(fn) reads also the alpha channel.
+   If no alpha channel is stored in the file, a will be set to 255.
+
+   Limitations/bugs: Reading interlaced PNG files is not yet supported.
+   
+   Error codes:
+   1: Cannot open input file
+   2: Input file is not PNG file
+   3: Bad format inside input PNG file
+   -1: Input arg not a string
+ */
+{
+	if (!fn.IsString()) return -1;
+	r.SetToVoid();
+	Tstring FN = fn;
+	ifstream f((char*)FN);
+	if (!f.good()) return 1;
+	if (!pngcheckheader(f)) return 2;
+	Timage image;
+	if (!pngread(f,image)) return 3;
+	const Tint w = image.width();
+	const Tint h = image.height();
+	// Allocate output value(s)
+	const TDimPack dims(h,w);
+	r.izeros(dims);
+	if (Nargout >= 2) {
+		g.izeros(dims);
+		if (Nargout >= 3) {
+			b.izeros(dims);
+			if (Nargout == 4)
+				a.izeros(dims);
+		}
+	}
+	Tint i,j;
+	if (Nargout == 1) {
+		for (i=0; i<h; i++) for (j=0; j<w; j++) {
+			r.IntPtr()[i*w+j] = (image.red(i,j) + image.green(i,j) + image.blue(i,j))/3;
+		}
+	} else {
+		for (i=0; i<h; i++) for (j=0; j<w; j++) {
+			r.IntPtr()[i*w+j] = image.red(i,j);
+			if (Nargout >= 2) {
+				g.IntPtr()[i*w+j] = image.green(i,j);
+				if (Nargout >= 3) {
+					b.IntPtr()[i*w+j] = image.blue(i,j);
+					if (Nargout == 4) {
+						a.IntPtr()[i*w+j] = image.alpha(i,j);
+					}
+				}
+			}
+		}
+	}
+	return 0;
+}
+
+[] = export_PNG(fn,r;g,b,a)
+/* export_PNG("file.png",u)
+   writes integer matrix u into grayscale PNG file.
+
+   export_PNG("file.png",u,a) writes grayscale and alpha data.
+
+   export_PNG("file.png",r,g,b) writes RGB colour data.
+
+   export_PNG("file.png",r,g,b,a) writes RGB and alpha data.
+
+   The bit depth will be 8 or 16, depending on whether maxval
+   is less than 256 or not. Negative values are silently
+   replaced by zero.
+   
+   Error codes:
+   1: First arg not a string
+   2: Cannot open output file
+   3: Cannot write PNG header to output file
+   4: Second input arg not integer matrix
+   5: Third input arg not integer matrix
+   6: Third input arg is different size matrix than second arg
+   7: Fourth input arg not integer matrix
+   8: Fourth input arg is different size matrix than second arg
+   9: Fifth input arg not integer matrix
+   10: Fifth input arg is different size matrix than second arg
+*/
+{
+	const int compression = 6;
+	if (!fn.IsString()) return 1;
+	Tstring FN = fn;
+	ofstream f((char*)FN);
+	if (!f.good()) return 2;
+	if (!pngwriteheader(f)) return 3;
+	if (r.kind() != KIntArray || r.rank() != 2) return 4;
+	const Tint h = r.dims()[0];
+	const Tint w = r.dims()[1];
+	if (Nargin >= 3) {
+		if (g.kind() != KIntArray || g.rank() != 2) return 5;
+		if (g.dims() != r.dims()) return 6;
+		if (Nargin >= 4) {
+			if (b.kind() != KIntArray || b.rank() != 2) return 7;
+			if (b.dims() != r.dims()) return 8;
+			if (Nargin == 5) {
+				if (a.kind() != KIntArray || a.rank() != 2) return 9;
+				if (a.dims() != r.dims()) return 10;
+			}
+		}
+	}
+	Timage image(w,h);
+	Tint i,j;
+	if (Nargin == 2) {
+		// grayscale (r=gray)
+		for (i=0; i<h; i++) for (j=0; j<w; j++) {
+			Tint u;
+			u = r.IntPtr()[i*w+j];
+			if (u < 0) u = 0; else if (u > 65535) u = 65535;
+			image.set_red(i,j,u);
+			image.set_green(i,j,u);
+			image.set_blue(i,j,u);
+		}
+		pngwrite_g(f,image,compression);
+	} else if (Nargin == 3) {
+		// grayscale and alpha (r=gray, g=alpha)
+		for (i=0; i<h; i++) for (j=0; j<w; j++) {
+			Tint u;
+			u = r.IntPtr()[i*w+j];
+			if (u < 0) u = 0; else if (u > 65535) u = 65535;
+			image.set_red(i,j,u);
+			image.set_green(i,j,u);
+			image.set_blue(i,j,u);
+			Tint alp = g.IntPtr()[i*w+j];
+			if (alp < 0) alp = 0; else if (alp > 65535) alp = 65535;
+			image.set_alpha(i,j,alp);
+		}
+		pngwrite_ga(f,image,compression);
+	} else if (Nargin == 4) {
+		// rgb
+		for (i=0; i<h; i++) for (j=0; j<w; j++) {
+			Tint u;
+			u = r.IntPtr()[i*w+j];
+			if (u < 0) u = 0; else if (u > 65535) u = 65535;
+			image.set_red(i,j,u);
+			u = g.IntPtr()[i*w+j];
+			if (u < 0) u = 0; else if (u > 65535) u = 65535;
+			image.set_green(i,j,u);
+			u = b.IntPtr()[i*w+j];
+			if (u < 0) u = 0; else if (u > 65535) u = 65535;
+			image.set_blue(i,j,u);
+		}
+		pngwrite_rgb(f,image,compression);
+	} else if (Nargin == 5) {
+		// rgba
+		for (i=0; i<h; i++) for (j=0; j<w; j++) {
+			Tint u;
+			u = r.IntPtr()[i*w+j];
+			if (u < 0) u = 0; else if (u > 65535) u = 65535;
+			image.set_red(i,j,u);
+			u = g.IntPtr()[i*w+j];
+			if (u < 0) u = 0; else if (u > 65535) u = 65535;
+			image.set_green(i,j,u);
+			u = b.IntPtr()[i*w+j];
+			if (u < 0) u = 0; else if (u > 65535) u = 65535;
+			image.set_blue(i,j,u);
+			u = a.IntPtr()[i*w+j];
+			if (u < 0) u = 0; else if (u > 65535) u = 65535;
+			image.set_alpha(i,j,u);
+		}
+		pngwrite_rgba(f,image,compression);
+	}
+	return 0;
+}
+
+[] = export_sound_CDR(fn,L,R)
+/* export_sound_CDR("file.cdr",left,right)
+   takes integer-valued vectors left and right and writes them in
+   raw audio-CD format in "file.cdr". The file will consist of 16-bit
+   signed sample pairs (left,right).
+   If the filename starts with "!", it is interpreted as an output pipe.
+   Error codes:
+   1: First arg not a (nonempty) string
+   2: Second arg not an int vector
+   3: Third arg not an int vector
+   4: Second and third args of unequal lengths
+   5: Cannot open output file
+   6: This Tela implementation has sizeof(short)!=2, cannot do export_sound_CDR, sorry
+   7: Not enough memory for work arrays
+   8: File write incomplete, maybe filesystem full
+*/
+{
+	if (!fn.IsString()) return 1;
+	if (L.kind() != KIntArray || L.rank() != 1) return 2;
+	if (R.kind() != KIntArray || R.rank() != 1) return 3;
+	if (L.length() != R.length()) return 4;
+	Tstring FN = fn;
+	if (FN.length() < 1) return 1;
+	char *const s = (char*)FN;
+	int ispipe = (s[0] == '!');
+	FILE *fp;
+	if (ispipe) {
+#		if HAVE_POPEN
+		fp = popen(s+1,"w");
+#		else
+		fp = 0;
+#		endif
+	} else {
+		fp = fopen(s,"w");
+	}
+	if (!fp) return 5;
+	// assume sizeof(short) == 2
+	if (sizeof(short) != 2) return 6;
+	const Tint N = L.length();
+	short int *const LR = new short int [2*N];
+	if (!LR) {
+		if (ispipe) {
+#			if HAVE_POPEN
+			pclose(fp);
+#			endif
+		} else
+			fclose(fp);
+		return 7;
+	}
+	Tint i;
+	for (i=0; i<N; i++) {LR[2*i] = L.IntPtr()[i]; LR[2*i+1] = R.IntPtr()[i];}
+	const int retval = (Tint(fwrite(LR,2*sizeof(short),N,fp)) == N) ? 0 : 8;
+	if (ispipe) {
+#		if HAVE_POPEN
+		pclose(fp);
+#		endif
+	} else {
+		fclose(fp);
+	}
+	delete [] LR;
+	return retval;
+}

@@ -1,0 +1,113 @@
+.\" $FMI/GEO: telakka.1,v 1.0 94/08/02 14:40:00 pjanhune $
+.TH TELAKKA 1 "Version 1.0" ""
+.SH NAME
+telakka \- the TeLa Kernel Konstruction Accessory
+.SH SYNOPSIS
+.B telakka
+[
+.B \-c
+] [
+.B \-h
+] [
+.B \-n
+] [
+.B \-o
+.I file
+] [
+.B \-v
+] [
+.B \-V
+] [
+.B \-\-compile\-only
+] [
+.B \-\-help
+] [
+.B \-\-nostandard
+] [
+.B \-\-output
+.I file
+] [
+.B \-\-shared
+] [
+.B \-\-verbose
+] [
+.B \-\-version
+] [
+.B CFLAGS
+] [
+files
+]
+.SH DESCRIPTION
+\fITelakka\fP is an auxiliary program to be used with \fItela\fP(1).  It
+compiles files and links them with appropriate libraries to produce a
+new Tela executable kernel. On systems that support it, it can also produce
+\fIdynamic shared object\fP files which can be called from \fItela\fP(1) at runtime using
+the \fIlink\fP function.
+
+.SH OPTIONS
+.TP 15
+.B \-\-compile\-only
+Compile only, do not link (as in \fIcc\fP(1)).
+.TP 15
+.B \-\-help
+Give a short help message describing the options.
+.TP 15
+.B \-\-nostandard
+Do not link standard Tela libraries. Normally not needed.
+.TP 15
+.B \-\-output
+Name output file, as in \fIcc\fP(1).
+.TP 15
+.B \-\-shared
+Produce a dynamic shared object (\fIDSO\fP(1)) file. The output file
+name, if not determined by \fB\-\-output\fP option, is formed by suffixing
+the basename of the first \fB*.ct\fP file with \fBso\fP.
+.TP 15
+.B \-\-verbose
+Set \fItelakka\fP verbose: tells what it is doing.
+.TP 15
+.B \-\-version
+Print version number and make a succesful exit.
+.TP 15
+.B \-c
+Same as \fB\-\-compile\-only\fP.
+.TP 15
+.B \-h
+Same as \fB\-\-help\fP.
+.TP 15
+.B \-o
+Same as \fB\-\-output\fP.
+.TP 15
+.B \-v
+Same as \fB\-\-verbose\fP.
+.TP 15
+.B \-V
+Same as \fB\-\-version\fP.
+.TP 15
+.B CFLAGS
+Any options to the C++ compiler/linker.
+
+.SH FILES
+.TP 8
+.I *.ct
+C-tela source. C-tela is C++ equipped with Tela function header
+syntax. A preprocessor named \fIctpp\fP turns C-tela into ordinary
+C++. Usually \fIctpp\fP is accessed indirectly through \fItelakka\fP.
+.TP 8
+.I *.o
+Ordinary object files generated from \fI*.ct\fP files by \fItelakka\fP.
+.TP 8
+.I libtela.a
+The main kernel archive.
+.SH SEE ALSO
+\fItela\fP(1), the \fITe\fPnsor \fILa\fPnguage.
+\fIm2t\fP(1), \fIMatlab\fP to \fITela\fP translator.
+.SH COPYRIGHT
+Copyright 1994, Pekka Janhunen.
+.SH AUTHORS
+Pekka Janhunen <Pekka.Janhunen@fmi.fi>,
+.br
+Finnish Meteorological Institute/
+.br
+Dept. of Geophysics (\fI/FMI/GEO\fP).
+

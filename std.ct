@@ -1,0 +1,4969 @@
+/*
+ * This file is part of tela the Tensor Language.
+ * Copyright (c) 1994-2002 Pekka Janhunen
+ */
+
+/*
+	std.ct
+	Standard functions.
+	Preprocess with ctpp.
+	C-tela code is C++ equipped with []=f() style function definition.
+*/
+
+// --------------- Elementary transcendental functions ------------------
+
+#include <cctype>
+#include "prg.H"
+#if USE_STRINGSTREAM
+#  include <sstream>
+#else
+#  include <strstream.h>
+#endif
+
+//#ifdef HAVE_ISTREAM /* use STL */
+//#  include "fdstream.H"
+//#endif /* HAVE_IOSTREAM */
+
+#ifdef __GNUC__
+#  if __GNUC__ >= 3
+#    include <ext/stdio_filebuf.h>
+#  endif
+#endif
+
+inline Treal conj(Treal x) {return x;}
+inline Tint conj(Tint x) {return x;}
+
+#if USE_ATT_COMPLEX_CLASS
+
+// The AT&T complex class is missing tanh,asin,acos,atan
+
+inline Tcomplex tanh(Tcomplex x) {
+	// tanh(x) = (exp(x) - exp(-x))/(exp(x) + exp(-x))
+	// = (1 - exp(-2*x))/(1 + exp(-2*x))
+	const Tcomplex e = exp(-2*x);
+	return (1-e)/(1+e);
+}
+
+inline Tcomplex asin(Tcomplex z) {
+	const Tcomplex I(0,1);
+	return -I*log(sqrt(1-z*z)+I*z);
+}
+
+inline Tcomplex acos(Tcomplex z) {
+	const Tcomplex I(0,1);
+	return -I*log(z+I*sqrt(1-z*z));
+}
+
+inline Tcomplex atan(Tcomplex z) {
+	const Tcomplex I(0,1);
+	return 0.5*I*log((1-I*z)/(1+I*z));
+}
+
+#endif
+
+#define DEFVFN(fn)\
+static void v##fn(Treal x[], int N) {\
+	for (int i=0; i<N; i++) x[i] = fn(x[i]);\
+}\
+\
+static void v##fn(Tcomplex x[], int N) {\
+    for (int i=0; i<N; i++) x[i] = fn(x[i]);\
+}\
+\
+static TTranscenFunctionPack tfpack_##fn(#fn,fn,fn,v##fn,v##fn);
+
+DEFVFN(sqrt);
+DEFVFN(exp);
+DEFVFN(log);
+DEFVFN(sin);
+DEFVFN(cos);
+DEFVFN(sinh);
+DEFVFN(cosh);
+DEFVFN(tanh);
+DEFVFN(conj);
+DEFVFN(asin);
+DEFVFN(acos);
+DEFVFN(atan);
+
+INLINE int SomeNegative(const Tint x[], int N) {
+	for (int i=0; i<N; i++) if (x[i]<0) return 1;
+	return 0;
+}
+
+INLINE int SomeNegative(const Treal x[], int N) {
+	for (int i=0; i<N; i++) if (x[i]<0) return 1;
+	return 0;
+}
+
+[y] = sqrt(x)
+/* y = sqrt(x) computes the square root of x.
+   If x is complex, the result is complex. If x is real or
+   integer, but negative, the result is complex (purely
+   imaginary). If x is real or integer and non-negative,
+   the result is real.
+   If x is an array, the operation is applied componentwise.
+   If some of the components are negative, all components
+   of the result are complex.*/
+{
+	switch (x.kind()) {
+	case Kint:
+		if (x.IntValue() < 0)
+			y = Tcomplex(0,sqrt(Treal(-x.IntValue())));
+		else
+			y = sqrt(Treal(x.IntValue()));
+		global::nops++;
+		break;
+	case Kreal:
+		if (x.RealValue() < 0)
+			y = Tcomplex(0,sqrt(-x.RealValue()));
+		else
+			y = sqrt(x.RealValue());
+		global::nops++;
+		break;
+	case KIntArray:
+		{
+			const Tint *px = x.IntPtr();
+			int N = x.length();
+			if (SomeNegative(px,N)) {
+				y.copydimsComplexArray(x);
+				Tcomplex *py = y.ComplexPtr();
+				for (int i=0; i<N; i++) py[i] = sqrt(Tcomplex(px[i],0));
+			} else {
+				y.copydimsRealArray(x);
+				Treal *py = y.RealPtr();
+				for (int i=0; i<N; i++) py[i] = sqrt(Treal(px[i]));
+			}
+			global::nops+= N;
+		}
+		break;
+	case KRealArray:
+		{
+			const Treal *px = x.RealPtr();
+			int N = x.length();
+			if (SomeNegative(px,N)) {
+				y.copydimsComplexArray(x);
+				Tcomplex *py = y.ComplexPtr();
+				for (int i=0; i<N; i++) py[i] = sqrt(Tcomplex(px[i],0));
+			} else {
+				y.copydimsRealArray(x);
+				Treal *py = y.RealPtr();
+				for (int i=0; i<N; i++) py[i] = sqrt(px[i]);
+			}
+			global::nops+= N;
+		}
+		break;
+	default:
+		Transcen(tfpack_sqrt,y,x);
+		break;
+	}
+	return 0;
+}
+
+[y] = exp(x)
+/* y = exp(x) computes the exponent function of x.
+   If x is complex, the result is complex, otherwise real.
+   If x is an array, the operation is applied componentwise.*/
+{
+	Transcen(tfpack_exp,y,x);
+	return 0;
+}
+
+[y] = log(x)
+/* y = log(x) computes the natural logarithm of x.
+   If x is complex, the result is complex. If x is real or
+   integer, but negative, the result is complex (purely
+   imaginary). If x is real or integer and non-negative,
+   the result is real.
+   If x is an array, the operation is applied componentwise.
+   If some of the components are negative, all components
+   of the result are complex. */
+{
+	switch (x.kind()) {
+	case Kint:
+		if (x.IntValue() < 0)
+			y = log(Tcomplex(x.IntValue(),0));
+		else
+			y = log(Treal(x.IntValue()));
+		global::nops++;
+		break;
+	case Kreal:
+		if (x.RealValue() < 0)
+			y = log(Tcomplex(x.RealValue(),0));
+		else
+			y = log(x.RealValue());
+		global::nops++;
+		break;
+	case KIntArray:
+		{
+			const Tint *px = x.IntPtr();
+			int N = x.length();
+			if (SomeNegative(px,N)) {
+				y.copydimsComplexArray(x);
+				Tcomplex *py = y.ComplexPtr();
+				for (int i=0; i<N; i++) py[i] = log(Tcomplex(px[i],0));
+			} else {
+				y.copydimsRealArray(x);
+				Treal *py = y.RealPtr();
+				for (int i=0; i<N; i++) py[i] = log(Treal(px[i]));
+			}
+			global::nops+= N;
+		}
+		break;
+	case KRealArray:
+		{
+			const Treal *px = x.RealPtr();
+			int N = x.length();
+			if (SomeNegative(px,N)) {
+				y.copydimsComplexArray(x);
+				Tcomplex *py = y.ComplexPtr();
+				for (int i=0; i<N; i++) py[i] = log(Tcomplex(px[i],0));
+			} else {
+				y.copydimsRealArray(x);
+				Treal *py = y.RealPtr();
+				for (int i=0; i<N; i++) py[i] = log(px[i]);
+			}
+			global::nops+= N;
+		}
+		break;
+	default:
+		Transcen(tfpack_log,y,x);
+		break;
+	}
+	global::nops++;
+	return 0;
+}
+
+[y] = sin(x)
+/* y = sin(x) computes the sine function of x.
+   If x is complex, the result is complex, otherwise real.
+   The argument must be in radians.
+   If x is an array, the operation is applied componentwise.*/
+{
+	Transcen(tfpack_sin,y,x);
+	return 0;
+}
+
+[y] = cos(x)
+/* y = cos(x) computes the cosine function of x.
+   If x is complex, the result is complex, otherwise real.
+   The argument must be in radians.
+   If x is an array, the operation is applied componentwise.*/
+{
+	Transcen(tfpack_cos,y,x);
+	return 0;
+}
+
+[y] = sinh(x)
+/* y = sinh(x) computes the hyperbolic sine function of x.
+   If x is complex, the result is complex, otherwise real.
+   If x is an array, the operation is applied componentwise.*/
+{
+	Transcen(tfpack_sinh,y,x);
+	return 0;
+}
+
+[y] = cosh(x)
+/* y = cosh(x) computes the hyperbolic cosine function of x.
+   If x is complex, the result is complex, otherwise real.
+   If x is an array, the operation is applied componentwise.*/
+{
+	Transcen(tfpack_cosh,y,x);
+	return 0;
+}
+
+[y] = tan(x)
+/* y = tan(x) computes the tangent function of x.
+   If x is complex, the result is complex, otherwise real.
+   The argument must be in radians.
+   If x is an array, the operation is applied componentwise.*/
+{
+	Tobject a;						// need one object workspace
+	Transcen(tfpack_sin,y,x);		// y = sin(x)
+	const
+#	if SLOW_FLOATING_POINT_MATH
+	int
+#	else
+	double
+#	endif
+		global_nops_saved = global::nops;	// record only ops from the sin, so that tan is one op
+	Transcen(tfpack_cos,a,x);		// a = cos(x)
+	Div(y,a);						// y = y/a
+	global::nops = global_nops_saved;
+	return 0;
+}
+
+[y] = tanh(x)
+/* y = tanh(x) computes the hyperbolic tangent function of x.
+   If x is complex, the result is complex, otherwise real.
+   If x is an array, the operation is applied componentwise.*/
+{
+	Transcen(tfpack_tanh,y,x);
+	return 0;
+}
+
+[y] = asin(x)
+/* y = asin(x) computes the arc sine of x.
+   If x is complex, the result is complex, otherwise real.
+   If x is an array, the operation is applied componentwise.*/
+{
+	Transcen(tfpack_asin,y,x);
+	return 0;
+}
+
+[y] = acos(x)
+/* y = acos(x) computes the arc cosine of x.
+   If x is complex, the result is complex, otherwise real.
+   If x is an array, the operation is applied componentwise.*/
+{
+	Transcen(tfpack_acos,y,x);
+	return 0;
+}
+
+[y] = atan(x)
+/* y = atan(x) computes the arc tangent of x.
+   If x is complex, the result is complex, otherwise real.
+   If x is an array, the operation is applied componentwise.
+   See also: atan2. */
+{
+	Transcen(tfpack_atan,y,x);
+	return 0;
+}
+
+static int RealObject(const Tobject& obj, Treal& result) {
+	int ret=1;
+	if (obj.kind() == Kint)
+		result = Treal(obj.IntValue());
+	else if (obj.kind() == Kreal)
+		result = obj.RealValue();
+	else {
+		result = 0;
+		ret = 0;
+	}
+	return ret;
+}
+				
+[z] = atan2(y,x)
+/* z = atan2(y,x) computes the arcus tangent of y/x using the signs
+   of both arguments to determine the quadrant of the return value.
+   The input argument must be integer or real scalars and the
+   return value is real. They can also be real arrays; in this case
+   both must be arrays of the same length.
+   See also: atan.
+   Error codes:
+   -1: Bad input argument
+   -2: Input arrays must be of same length
+*/
+{
+	if (y.kind()==KRealArray && x.kind()==KRealArray) {
+		const Tint n = y.length();
+		if (x.length() != n) return -2;
+		z.rzeros(y.dims());
+		Tint i;
+		for (i=0; i<n; i++) z.RealPtr()[i] = atan2(y.RealPtr()[i],x.RealPtr()[i]);
+		return 0;
+	}
+	Treal X,Y;
+	if (!RealObject(y,Y)) return -1;
+	if (!RealObject(x,X)) return -1;
+	z = atan2(Y,X);
+	return 0;
+}
+
+[y] = csc(x)
+/* y = csc(x) is the cosecant function
+   csc(x) = 1/sin(x). */
+{
+	Tobject invy;
+	Transcen(tfpack_sin,invy,x);
+	Div(y,Tobject(1.0),invy);
+	return 0;
+}
+
+[y] = sec(x)
+/* y = sec(x) is the secant function
+   sec(x) = 1/cos(x). */
+{
+	Tobject invy;
+	Transcen(tfpack_cos,invy,x);
+	Div(y,Tobject(1.0),invy);
+	return 0;
+}
+
+[y] = cot(x)
+/* y = cot(x) is the cotangent function
+   cot(x) = 1/tan(x) = cos(x)/sin(x). */
+{
+	TConstObjectPtr inputs[1]; TObjectPtr outputs[1];
+	Tobject invy;
+	*inputs = &x;
+	*outputs = &invy;
+	tanfunction(inputs,1,outputs,1);
+	Div(y,Tobject(1.0),invy);
+	return 0;
+}
+
+[y] = conj(x)
+/* y = conj(x) computes the complex conjugate of x.
+   Real and integer arguments are returned as such.
+   If x is an array, the operation is applied componentwise.
+   See also: Re, Im, arg. */
+{
+	Transcen(tfpack_conj,y,x);
+	return 0;
+}
+
+[y] = HeavisideTheta(x)
+/* y = HeavisideTheta(x) returns 1 if x>=0 and 0 if x<0.
+   x must be real. If x is array, the operation is applied componentwise.
+   See also: sign.
+   Error codes:
+   -1: Complex or nonnumeric input argument */
+{
+	switch (x.kind()) {
+	case Kint:
+		y = (x.IntValue() >= 0) ? 1 : 0;
+		break;
+	case Kreal:
+		y = (x.RealValue() >= 0) ? 1 : 0;
+		break;
+	case KIntArray:
+		{
+			y.copydimsIntArray(x);
+			Tint * const xp = x.IntPtr();
+			Tint * const yp = y.IntPtr();
+			for (int i=0; i<x.length(); i++)
+				yp[i] = (xp[i] >= 0) ? 1 : 0;
+		}
+		break;
+	case KRealArray:
+		{
+			y.copydimsIntArray(x);
+			Treal * const xp = x.RealPtr();
+			Tint * const yp = y.IntPtr();
+			for (int i=0; i<x.length(); i++)
+				yp[i] = (xp[i] >= 0) ? 1 : 0;
+		}
+		break;
+	default:
+		return -1;
+	}
+	return 0;
+}
+
+[y] = ones(...)
+/* ones(n,m...) returns an integer array with all elements
+   equal to 1 of size n x m x ... .
+
+   ones(V) where V is an integer vector, and thus
+   ones(size(A)), works also.
+
+   See also: rand, eye.
+   
+   Error codes:
+   -1: Input argument not an integer or IntVector
+   -2: Rank of requested tensor array exceeds MAXRANK
+   -3: Non-positive input argument
+   -4: Negative input argument
+   -5: Integer array rank not 1
+   */
+{
+	int dims[MAXRANK],i;
+	if (Nargin > MAXRANK) return -2;
+	if (Nargin == 1) {
+		if (argin[0]->kind() == Kint) {
+			dims[0] = argin[0]->IntValue();
+			if (dims[0]<0) return -4;
+			y.izeros(TDimPack(dims,Nargin));
+		} else if (argin[0]->kind() == KIntArray) {
+			if (argin[0]->rank() != 1) return -5;
+			Tint L = argin[0]->length();
+			if (L > MAXRANK) return -2;
+			for (i=0; i<L; i++) {
+				dims[i] = argin[0]->IntPtr()[i];
+				if (dims[i]<=0) return -3;
+			}
+			y.izeros(TDimPack(dims,L));
+		} else return -1;
+	} else {
+		for (i=0; i<Nargin; i++) {
+			if (argin[i]->kind()!=Kint) return -1;
+			dims[i] = argin[i]->IntValue();
+			if (dims[i]<=0) return -3;
+		}
+		y.izeros(TDimPack(dims,Nargin));
+	}
+	Add(y,Tobject(1));
+	return 0;
+}
+
+
+// new diag() function
+// author:    Ch. L. Spiel <cspiel@hammersmith-consulting.com>
+// last rev.: Sun Mar 11 07:34:29 UTC 2001
+// Tela ver.: 1.31
+
+// diagindex() maps the vector index IDX to the index in a
+// SIZE-times-SIZE matrix, where the vector is placed on OFFSET
+// diagonals above or below the main diagonal.  The returned index is
+// valid for a flattened matrix.
+
+static Tint diagindex(Tint size, Tint idx, Tint offset)
+{
+	if (offset >= 0)
+		return (size + offset + 1) * idx + offset;
+	else
+		return (size + abs(offset)) * (idx + abs(offset)) + idx;
+}
+
+[y] = diag(x; offset)
+/* diag(V, K) (V is a vector) returns a square diagonal matrix, with
+   vector V on the main diagonal (K == 0, default), the K-th super
+   diagonal (K > 0) or the K-th sub-diagonal (K < 0).
+
+   diag(M, K) (M is a matrix) returns the main diagonal (K == 0,
+   default), the K-th super diagonal (K > 0), or the K-th sub-diagonal
+   (K < 0) of M as a vector.  M need not necessarily be square.
+
+   Error codes:
+   -1: Input array X (arg 1) not vector or matrix
+   -2: Expecting offset K (arg 2) to be integral
+   -3: Internal error
+    1: Requested diagonal out of range
+*/
+{
+	const Tkind k = x.kind();
+	if (k != KIntArray && k != KRealArray && k != KComplexArray) {
+		y = x;
+		return 0;
+	}
+	if (x.rank() != 1 && x.rank() != 2) return -1;
+	Tint offd;
+	if (Nargin == 1)
+		offd = 0;	// main diagonal
+	else {
+		if (offset.kind() != Kint) return -2;
+		offd = offset.IntValue();
+	}
+	if (x.rank() == 1) {
+		// build matrix out of vector
+		const Tint n = x.length();
+		const Tint sz = n + abs(offd);
+		switch (k)
+		{
+		case KIntArray:
+			y.izeros(TDimPack(sz, sz));
+			for (int i = 0; i < n; i++)
+				y.IntPtr()[diagindex(n, i, offd)] = x.IntPtr()[i];
+			break;
+		case KRealArray:
+			y.rzeros(TDimPack(sz, sz));
+			for (int i = 0; i < n; i++)
+				y.RealPtr()[diagindex(n, i, offd)] = x.RealPtr()[i];
+			break;
+		case KComplexArray:
+			y.czeros(TDimPack(sz, sz));
+			for (int i = 0; i < n; i++)
+				y.ComplexPtr()[diagindex(n, i, offd)] = x.ComplexPtr()[i];
+			break;
+		default:
+			// internal error
+			return -3;
+		}
+		return 0;
+	} else {
+		// extract (diagonal) vector out of matrix
+		Tint rc = 0;
+		Tint nm = min(x.dims()[0], x.dims()[1]) - abs(offd);
+		if (nm <= 0) {
+			nm = 0;
+			rc = 1; // diagonal out of range warning
+		}
+		switch (k)
+		{
+		case KIntArray:
+			y.izeros(nm);
+			for (int i = 0; i < nm; i++)
+			        y.IntPtr()[i] = x.IntPtr()[diagindex(nm, i, offd)];
+			break;
+		case KRealArray:
+			y.rzeros(nm);
+			for (int i = 0; i < nm; i++)
+				y.RealPtr()[i] = x.RealPtr()[diagindex(nm, i, offd)];
+			break;
+		case KComplexArray:
+			y.czeros(nm);
+			for (int i = 0; i < nm; i++)
+				y.ComplexPtr()[i] = x.ComplexPtr()[diagindex(nm, i, offd)];
+		    break;
+		default:
+			// internal error
+			return -3;
+		}
+		return rc;
+	}
+}
+
+
+
+#if 0
+//[y] = olddiag(x)
+/* diag(V) (V is a vector) returns a square diagonal matrix,
+   whose diagonal elements are given by V.
+   diag(M) (M is a matrix) returns the main diagonal of M
+   as a vector. M need not necessarily be square.
+   Error codes:
+   -1: Input array not vector or matrix
+   */
+{
+	const Tkind k = x.kind();
+	if (k!=KIntArray && k!=KRealArray && k!=KComplexArray) {y=x; return 0;}
+	if (x.rank()!=1 && x.rank()!=2) return -1;
+	Tint i;
+	if (x.rank() == 1) {
+		const Tint n = x.length();
+		switch (k) {
+		case KIntArray:
+			y.izeros(TDimPack(n,n));
+			for (i=0; i<n; i++) y.IntPtr()[i*n+i] = x.IntPtr()[i];
+			break;
+		case KRealArray:
+			y.rzeros(TDimPack(n,n));
+			for (i=0; i<n; i++) y.RealPtr()[i*n+i] = x.RealPtr()[i];
+			break;
+		case KComplexArray:
+			y.czeros(TDimPack(n,n));
+			for (i=0; i<n; i++) y.ComplexPtr()[i*n+i] = x.ComplexPtr()[i];
+			break;
+		default:;
+		}
+	} else {
+		const Tint n = x.dims()[0], m = x.dims()[1];
+		const Tint nm = min(n,m);
+		switch (k) {
+		case KIntArray:
+			y.izeros(nm);
+			for (i=0; i<nm; i++) y.IntPtr()[i] = x.IntPtr()[i*m+i];
+			break;
+		case KRealArray:
+			y.rzeros(nm);
+			for (i=0; i<nm; i++) y.RealPtr()[i] = x.RealPtr()[i*m+i];
+			break;
+		case KComplexArray:
+			y.czeros(nm);
+			for (i=0; i<nm; i++) y.ComplexPtr()[i] = x.ComplexPtr()[i*m+i];
+			break;
+		default:;
+		}
+	}
+	return 0;
+}
+#endif
+
+[y] = sign(x)
+/* y = sign(x) returns 1 if x>0, 0 if x==0, and -1 if x<0.
+   x must be real. If x is array, the operation is applied componentwise.
+   See also: HeavisideTheta.
+   Error codes:
+   -1: Complex or nonnumeric input argument */
+{
+	switch (x.kind()) {
+	case Kint:
+		if (x.IntValue() == 0)
+			y = 0;
+		else
+			y = (x.IntValue() > 0) ? 1 : -1;
+		break;
+	case Kreal:
+		if (x.RealValue() == 0.0)
+			y = 0;
+		else
+			y = (x.RealValue() > 0) ? 1 : -1;
+		break;
+	case KIntArray:
+		{
+			y.copydimsIntArray(x);
+			Tint * const xp = x.IntPtr();
+			Tint * const yp = y.IntPtr();
+			for (int i=0; i<x.length(); i++) {
+				if (xp[i] == 0)
+					yp[i] = 0;
+				else
+					yp[i] = (xp[i] > 0) ? 1 : -1;
+			}
+		}
+		break;
+	case KRealArray:
+		{
+			y.copydimsIntArray(x);
+			Treal * const xp = x.RealPtr();
+			Tint * const yp = y.IntPtr();
+			for (int i=0; i<x.length(); i++) {
+				if (xp[i] == 0.0)
+					yp[i] = 0;
+				else
+					yp[i] = (xp[i] > 0) ? 1 : -1;
+			}
+		}
+		break;
+	default:
+		return -1;
+	}
+	return 0;
+}
+
+[y] = Re(x)
+/* y = Re(x) takes the real part of a complex quantity x.
+   If x is real or integer, it is returned as such.
+   If x is an array, the operation is applied componentwise.
+   See also: Im, conj, arg.
+   Error codes:
+   -1: Nonnumeric input argument */
+{
+	int ret = 0;
+	switch (x.kind()) {
+	case Kint:
+	case Kreal:
+	case KIntArray:
+	case KRealArray:
+		y = x;
+		break;
+	case Kcomplex:
+		y = real(x.ComplexValue());
+		break;
+	case KComplexArray:
+		{
+			int i;
+			Tcomplex * const p = x.ComplexPtr();
+			const Tint N = x.length();
+			if (&y == &x) {
+				Tobject y1;
+				y1.copydimsRealArray(x);
+				Treal * const yp = y1.RealPtr();
+				for (i=0; i<N; i++) yp[i] = real(p[i]);
+				y = y1;
+			} else {
+				y.copydimsRealArray(x);
+				Treal * const yp = y.RealPtr();
+				for (i=0; i<N; i++) yp[i] = real(p[i]);
+			}
+		}
+		break;
+	default:
+		ret = -1;
+	}
+	return ret;
+} // Re
+
+[y] = Im(x)
+/* y = Im(x) takes the imaginary part of a complex quantity x.
+   If x is real or integer, the result is zero.
+   If x is an array, the operation is applied componentwise.
+   See also: Re, conj, arg.
+   Error codes:
+   -1: Nonnumeric input argument */
+{
+	int ret = 0;
+	switch (x.kind()) {
+	case Kint:
+		y = 0;
+		break;
+	case Kreal:
+		y = 0.0;
+		break;
+	case KIntArray:
+		y.izeros(x.dims());
+		break;
+	case KRealArray:
+		y.rzeros(x.dims());
+		break;
+	case Kcomplex:
+		y = imag(x.ComplexValue());
+		break;
+	case KComplexArray:
+		{
+			int i;
+			Tcomplex * const p = x.ComplexPtr();
+			const Tint N = x.length();
+			if (&y == &x) {
+				Tobject y1;
+				y1.copydimsRealArray(x);
+				Treal * const yp = y1.RealPtr();
+				for (i=0; i<N; i++) yp[i] = imag(p[i]);
+				y = y1;
+			} else {
+				y.copydimsRealArray(x);
+				Treal * const yp = y.RealPtr();
+				for (i=0; i<N; i++) yp[i] = imag(p[i]);
+			}
+		}
+		break;
+	default:
+		ret = -1;
+	}
+	return ret;
+} // Im
+
+[y] = abs2(x)
+/* y = abs2(x) computes the square of the absolute value of x.
+   If x is real or integer, the result is just the square of x.
+   If x is complex, the result is equal to x*conj(x), except that
+   the latter would produce a complex result with zero or tiny
+   (because of possible roundoff error) imaginary part.
+   If x is an array, the operation is applied componentwise.
+   Error codes:
+   -1: Nonnumeric input argument */
+{
+	int ret = 0;
+	switch (x.kind()) {
+	case Kint:
+	case Kreal:
+	case KIntArray:
+	case KRealArray:
+		Mul(y,x,x);
+		break;
+	case Kcomplex:
+		y = real(x.ComplexValue())*real(x.ComplexValue()) + imag(x.ComplexValue())*imag(x.ComplexValue());
+		break;
+	case KComplexArray:
+		{
+			int i;
+			Tcomplex * const p = x.ComplexPtr();
+			const Tint N = x.length();
+			if (&y == &x) {
+				Tobject y1;
+				y1.copydimsRealArray(x);
+				Treal * const yp = y1.RealPtr();
+				for (i=0; i<N; i++) yp[i] = real(p[i])*real(p[i]) + imag(p[i])*imag(p[i]);
+				y.bitwiseMoveFrom(y1);
+			} else {
+				y.copydimsRealArray(x);
+				Treal * const yp = y.RealPtr();
+				for (i=0; i<N; i++) yp[i] = real(p[i])*real(p[i]) + imag(p[i])*imag(p[i]);
+			}
+		}
+		break;
+	default:
+		ret = -1;
+	}
+	return ret;
+} // abs2
+
+[y] = floor(x)
+/* floor(x) returns the largest integer which is smaller than x.
+   x must be integer or real scalar or array. If it is an array,
+   the operation is applied componentwise.
+   See also: ceil, round, trunc.
+   Error codes:
+   -1: Complex or nonnumeric input argument */
+{
+	int ret = 0;
+	switch (x.kind()) {
+	case Kint:
+	case KIntArray:
+		y = x;
+		break;
+	case Kreal:
+		y = Tint(floor(x.RealValue()));
+		break;
+	case KRealArray:
+		{
+			Tobject y1;
+			y1.copydimsIntArray(x);
+			Treal *xp = x.RealPtr(); Tint *y1p = y1.IntPtr();
+			for (int i=0; i<x.length(); i++) y1p[i] = Tint(floor(xp[i]));
+			y = y1;
+		}
+		break;
+	default:
+		ret = -1;
+	}
+	return ret;
+} // floor
+
+[y] = ceil(x)
+/* ceil(x) returns the smallest integer which is larger than x.
+   x must be integer or real scalar or array. If it is an array,
+   the operation is applied componentwise.
+   See also: floor, round, trunc.
+   Error codes:
+   -1: Complex or nonnumeric input argument */
+{
+	int ret = 0;
+	switch (x.kind()) {
+	case Kint:
+	case KIntArray:
+		y = x;
+		break;
+	case Kreal:
+		y = Tint(ceil(x.RealValue()));
+		break;
+	case KRealArray:
+		{
+			Tobject y1;
+			y1.copydimsIntArray(x);
+			Treal *xp = x.RealPtr(); Tint *y1p = y1.IntPtr();
+			for (int i=0; i<x.length(); i++) y1p[i] = Tint(ceil(xp[i]));
+			y = y1;
+		}
+		break;
+	default:
+		ret = -1;
+	}
+	return ret;
+} // ceil
+
+[y] = round(x)
+/* round(x) returns the nearest integer.
+   x must be integer or real scalar or array. If it is an array,
+   the operation is applied componentwise.
+   See also: floor, ceil, trunc.
+   Error codes:
+   -1: Complex or nonnumeric input argument */
+{
+	int ret = 0;
+	switch (x.kind()) {
+	case Kint:
+	case KIntArray:
+		y = x;
+		break;
+	case Kreal:
+		y = iround(x.RealValue());
+		break;
+	case KRealArray:
+		{
+			Tobject y1;
+			y1.copydimsIntArray(x);
+			Treal *xp = x.RealPtr(); Tint *y1p = y1.IntPtr();
+			for (int i=0; i<x.length(); i++) y1p[i] = iround(xp[i]);
+			y = y1;
+		}
+		break;
+	default:
+		ret = -1;
+	}
+	return ret;
+} // round
+
+inline int Truncate(Treal x) {return (x < 0) ? -int(-x) : int(x);}
+
+[y] = trunc(x)
+/* trunc(x) returns the nearest integer not larger in absolute value.
+   x must be integer or real scalar or array. If it is an array,
+   the operation is applied componentwise.
+   See also: floor, ceil, round.
+   Error codes:
+   -1: Complex or nonnumeric input argument */
+{
+	switch (x.kind()) {
+	case Kint:
+	case KIntArray:
+		y = x;
+		return 0;
+	case Kreal:
+		y = Truncate(x.RealValue());
+		return 0;
+	case KRealArray:
+		{
+			Tobject y1;
+			y1.copydimsIntArray(x);
+			Treal *xp = x.RealPtr(); Tint *y1p = y1.IntPtr();
+			for (int i=0; i<x.length(); i++) y1p[i] = Truncate(xp[i]);
+			y = y1;
+		}
+		return 0;
+	default:
+		return -1;
+	}
+} // trunc
+
+[y] = rank(x)
+/* rank(A) returns the number of dimensions of array A.
+   The rank of a scalar is 0. The rank of a nonnumeric
+   object, including undefined value, is -1. The rank function
+   never generates an error.
+   See also: length, size. */
+{
+	if (x.IsArray())
+		y = x.rank();
+	else if (x.IsScalar())
+		y = 0;
+	else
+		y = -1;
+	return 0;
+}
+
+[...] = size(x)
+/* [n,m,...] = size(A) finds out the dimensions of array A.
+   The number of n,m... must not exceed rank(A). If rank(A)==0
+   (that is, A is scalar), n=size(A) sets 1 to n.
+   V = size(A) assigns the dimension vector [n,m,..] to V.
+   If A is scalar, V is set to 1, if A is vector, V becomes
+   a one-element vector.
+   See also: length, rank.
+   Error codes:
+   -1: No output arguments
+   -2: Argument has undefined value
+   1: More than one output arg but non-array input arg
+   2: Too many output args relative to input arg rank */
+{
+	if (Nargout == 1) {
+		if (x.IsArray()) {
+			argout[0]->ireserv(TDimPack(x.rank()));
+			NOVECTOR for (int d=0; d<x.rank(); d++) argout[0]->IntPtr()[d] = x.dims()[d];
+		} else {
+			*argout[0] = 1;
+		}
+		return x.kind()==Kundef ? -2 : 0;
+	} else if (Nargout > 1) {
+		if (x.IsArray()) {
+			NOVECTOR for (int d=0; d<min(x.rank(),Nargout); d++) *argout[d] = x.dims()[d];
+			return (x.rank()>=Nargout) ? 0 : 2;
+		} else {
+			*argout[0] = 1;
+			return x.kind()==Kundef ? -2 : 1;
+		}
+	}
+	return -1;
+}
+
+[L] = length(x)
+/* length(x) returns the total number of elements in array x.
+   If x is scalar, length(x) is 1. If x is undefined, an error
+   results. Notice that if x is e.g. a matrix, its length is
+   equal to the product of the row and column dimensions,
+   which is different from e.g. the Matlab convention.
+   See also: size, rank.
+   Error codes:
+   -1: Argument has undefined value */
+{
+	if (x.IsArray())
+		L = x.length();
+	else {
+		if (x.kind()==Kundef) return -1;
+		L = x.IsScalar() ? 1 : 0;
+	}
+	return 0;
+}
+
+[phi] = arg(z)
+/* arg(z) returns the argument of a complex quantity
+   (in radians). The result is between -pi and pi.
+   If z is a complex array, the operation is applied
+   componentwise.
+   See also: Re, Im, conj.
+   Error codes:
+   -1: Argument has undefined value
+   1: Nonnumeric argument */
+{
+	switch (z.kind()) {
+	case Kint:
+	case Kreal:
+		phi = 0;
+		break;
+	case KIntArray:
+	case KRealArray:
+		phi.izeros(z.dims());
+		break;
+	case Kcomplex:
+		phi = arg(z.ComplexValue());
+		break;
+	case KComplexArray:
+		{
+			phi.copydimsRealArray(z);
+			for (int i=0; i<z.length(); i++)
+				phi.RealPtr()[i] = arg(z.ComplexPtr()[i]);
+		}
+		break;
+	 case Kundef:
+		return -1;
+	default:
+		phi = 0;
+		return 1;
+	}
+	return 0;
+}
+
+
+
+inline Tkind VectorKind(Tkind k) {
+	int ki = int(k);
+	if (ki < int(KIntArray)) ki+= 3;
+	return Tkind(ki);
+}
+
+[y] = where(c,a,b)
+/* where(c,a,b) returns a where c is nonzero and b where c is zero.
+   Usually the arguments are arrays, and if they are, they must be
+   of similar dimensions.
+   Error codes:
+   -1: First argument not integer-valued
+   -2: Second arg non-numeric
+   -3: Second arg is incompatible array
+   -4: Third arg non-numeric
+   -5: Third arg incompatible array
+*/
+{
+	if (c.kind()!=Kint && c.kind()!=KIntArray) return -1;
+	if (c.kind()==Kint) {		// Scalar c works as simple if statement
+		if (c.IntValue())
+			y = a;
+		else
+			y = b;
+	} else {					// Vector c. This is the normal case.
+		Tint *const cp = c.IntPtr();
+		const TDimPack& dp = c.dims();
+		const Tint L = dp.length();
+		Tint i;
+		if (!a.IsNumerical()) return -2;
+		if (a.IsArray()) {if (a.dims()!=dp) return -3;}
+		if (!b.IsNumerical()) return -4;
+		if (b.IsArray()) {if (b.dims()!=dp) return -5;}
+		const Tkind akind = a.kind();
+		const Tkind bkind = b.kind();
+		// Idea: reserve y; y = b; y[find(c)] = a[find(c)];
+		Tkind k = Tkind( max(int(VectorKind(a.kind())), int(VectorKind(b.kind()))) );
+		if (k == KIntArray) {
+			y.ireserv(dp);
+			Tint *const yp = y.IntPtr();
+			if (b.kind()==Kint) {
+				const Tint B = b.IntValue();
+#				ifdef UNICOS
+#				pragma _CRI ivdep
+#				endif
+				for (i=0; i<L; i++) yp[i] = B;
+			} else
+				memcpy(yp,b.IntPtr(),sizeof(Tint)*L);	// y = b
+		} else if (k == KRealArray) {
+			y.rreserv(dp);
+			Treal *const yp = y.RealPtr();
+			if (bkind==Kint || bkind==Kreal) {
+				const Treal B = (bkind==Kint ? b.IntValue() : b.RealValue());
+#				ifdef UNICOS
+#				pragma _CRI ivdep
+#				endif
+				for (i=0; i<L; i++) yp[i] = B;
+			} else if (bkind==KIntArray) {
+				const Tint *const bp = b.IntPtr();
+#				ifdef UNICOS
+#				pragma _CRI ivdep
+#				endif
+				for (i=0; i<L; i++) yp[i] = bp[i];
+			} else if (bkind==KRealArray)
+				memcpy(yp,b.RealPtr(),sizeof(Treal)*L);	// y = b
+		} else {		// k must be KComplexArray
+			y.creserv(dp);
+			Tcomplex *const yp = y.ComplexPtr();
+			if (b.IsScalar()) {
+				const Tcomplex B = (bkind==Kcomplex ? b.ComplexValue() : Tcomplex(bkind==Kreal ? b.RealValue() : b.IntValue(),0.0));
+#				ifdef UNICOS
+#				pragma _CRI ivdep
+#				endif
+				for (i=0; i<L; i++) yp[i] = B;
+			} else if (bkind==KIntArray) {
+				const Tint *const bp = b.IntPtr();
+#				ifdef UNICOS
+#				pragma _CRI ivdep
+#				endif
+				for (i=0; i<L; i++) yp[i] = Tcomplex(bp[i],0.0);
+			} else if (bkind==KRealArray) {
+				const Treal *const bp = b.RealPtr();
+#				ifdef UNICOS
+#				pragma _CRI ivdep
+#				endif
+				for (i=0; i<L; i++) yp[i] = Tcomplex(bp[i],0.0);
+			} else
+				memcpy(yp,b.ComplexPtr(),sizeof(Tcomplex)*L);	// y = b
+		}
+
+		// -----------------------
+		// Now y = b has been done
+		// -----------------------
+		// - Now do y[find(c)] = a[find(c)]
+		if (k == KIntArray) {
+			Tint *const yp = y.IntPtr();
+			if (akind==Kint) {
+				const Tint A = a.IntValue();
+#				ifdef UNICOS
+#				pragma _CRI ivdep
+#				endif
+				for (i=0; i<L; i++) if (cp[i]) yp[i] = A;
+			} else {	// akind must be KIntArray
+				const Tint *const ap = a.IntPtr();
+#				ifdef UNICOS
+#				pragma _CRI ivdep
+#				endif
+				for (i=0; i<L; i++) if (cp[i]) yp[i] = ap[i];
+			}
+		} else if (k == KRealArray) {
+			Treal *const yp = y.RealPtr();
+			if (akind==Kint || akind==Kreal) {
+				const Treal A = (akind==Kint ? a.IntValue() : a.RealValue());
+#				ifdef UNICOS
+#				pragma _CRI ivdep
+#				endif
+				for (i=0; i<L; i++) if (cp[i]) yp[i] = A;
+			} else if (akind==KIntArray) {
+				const Tint *const ap = a.IntPtr();
+#				ifdef UNICOS
+#				pragma _CRI ivdep
+#				endif
+				for (i=0; i<L; i++) if (cp[i]) yp[i] = ap[i];
+			} else {		// akind must be KRealArray
+				const Treal *const ap = a.RealPtr();
+#				ifdef UNICOS
+#				pragma _CRI ivdep
+#				endif
+				for (i=0; i<L; i++) if (cp[i]) yp[i] = ap[i];
+			}
+		} else {		// k must be KComplexArray
+			Tcomplex *const yp = y.ComplexPtr();
+			if (a.IsScalar()) {
+				const Tcomplex A = (akind==Kcomplex ? a.ComplexValue() : Tcomplex(akind==Kreal ? a.RealValue() : a.IntValue(),0.0));
+#				ifdef UNICOS
+#				pragma _CRI ivdep
+#				endif
+				for (i=0; i<L; i++) if (cp[i]) yp[i] = A;
+			} else if (akind==KIntArray) {
+				const Tint *const ap = a.IntPtr();
+#				ifdef UNICOS
+#				pragma _CRI ivdep
+#				endif
+				for (i=0; i<L; i++) if (cp[i]) yp[i] = Tcomplex(ap[i],0.0);
+			} else if (akind==KRealArray) {
+				const Treal *const ap = a.RealPtr();
+#				ifdef UNICOS
+#				pragma _CRI ivdep
+#				endif
+				for (i=0; i<L; i++) if (cp[i]) yp[i] = Tcomplex(ap[i],0.0);
+			} else {		// akind must be KComplexArray
+				const Tcomplex *const ap = a.ComplexPtr();
+#				ifdef UNICOS
+#				pragma _CRI ivdep
+#				endif
+				for (i=0; i<L; i++) if (cp[i]) yp[i] = ap[i];
+			}
+		}
+	}
+	return 0;
+}
+
+
+
+
+[B] = map(fn,A,darg)
+/* [B] = map(fn,A,d) maps function fn along d'th dimension
+   in array A. Fn is a functional argument. It must return a scalar
+   or a vector when called with one vector argument. The type and length
+   of the returned value must not change from call to call.
+
+   For example, map(mean,A,1) computes the columnwise means
+   of matrix A, returning a vector. map(sort,A,2) sorts all rows
+   of matrix A in ascending order. Notice than many standard
+   functions, including mean, have a builtin mapping capabability;
+   using map in these cases is unnecessary.
+   See also: mapmin, mapmax, flip.
+   Error codes:
+   -1: First arg not a function
+   -2: Second arg not a numerical array
+   -3: Third arg not an integer scalar
+   -4: Third arg (the dimension) out of range
+   -5: First arg (function) did not return a numerical object
+   -6: First arg (function) unexpectedly changed its return type
+   -7: First arg is an intrinsic function; it is no good
+   -8: Function returned rank>1 array when first called
+*/
+{
+	Tkind fnk = fn.kind();
+	if (fnk==KIntrinsicFunction) return -7;
+	if (fnk!=Kfunction && fnk!=KCfunction) return -1;
+	if (!A.IsNumericalArray()) return -2;
+	if (A.length()==0) {B.izeros(0); return 0;}
+	if (darg.kind()!=Kint) return -3;
+	const Tint d = darg.IntValue()-ArrayBase;
+	const Tint r = A.rank();
+	if (d<0 || d>=r) return -4;
+	const TDimPack Adims = A.dims();
+	const Tint n = Adims[d];
+	Tint bdims[MAXRANK];
+	int d1;
+	NOVECTOR for (d1=0; d1<d; d1++) bdims[d1] = Adims[d1];
+	NOVECTOR for (d1=d+1; d1<r; d1++) bdims[d1-1] = Adims[d1];
+	const TDimPack Bdims(bdims,r-1);
+	Tobject IndexObjects[MAXRANK];
+	TConstObjectPtr indices[MAXRANK];
+	Tint* Aindexptrs[MAXRANK];
+	for (d1=0; d1<r; d1++) {
+		if (d1==d)
+			IndexObjects[d1].SetToVoid();
+		else {
+			IndexObjects[d1] = ArrayBase;
+			Aindexptrs[(d1<d) ? d1 : d1-1] = &(IndexObjects[d1].IntRef());
+		}
+		indices[d1] = &IndexObjects[d1];
+	}
+	Tobject V,S;
+	TConstObjectPtr inputs[1];
+	TObjectPtr outputs[1];
+	Tobject Bindex(0);
+	TConstObjectPtr Bindices[1];
+	Bindices[0] = &Bindex;
+	Tkind Skind;
+	Tint divisors[MAXRANK];
+	for (d1=0; d1<r-1; d1++) {
+		divisors[d1] = 1;
+		NOVECTOR for (int d2=d1+1; d2<r-1; d2++) divisors[d1]*= Bdims[d2];
+	}
+	int VectorCase = 0;
+	Tint Slength;
+	for (Tint i=0; i<Bdims.length(); i++) {
+		NOVECTOR for (d1=0; d1<r-1; d1++)
+			*(Aindexptrs[d1]) = ArrayBase + (i / divisors[d1]) % Bdims[d1];
+		Gather(V,A,indices,r);
+		inputs[0] = &V;
+		outputs[0] = &S;
+		Call(fn,inputs,1,outputs,1);
+		if (i==0) {
+			Skind = S.kind();
+			switch (Skind) {
+			case Kint:
+				B.ireserv(Bdims);
+				break;
+			case Kreal:
+				B.rreserv(Bdims);
+				break;
+			case Kcomplex:
+				B.creserv(Bdims);
+				break;
+			case KIntArray:
+			case KRealArray:
+			case KComplexArray:
+				{
+					if (S.rank() > 1) return -8;
+					Tint trueBdims1[MAXRANK];
+					NOVECTOR for (d1=0; d1<r; d1++) trueBdims1[d1] = Adims[d1];
+					Slength = S.length();
+					trueBdims1[d] = Slength;
+					const TDimPack trueBdims(trueBdims1,r);
+					if (Skind == KIntArray)
+						B.ireserv(trueBdims);
+					else if (Skind == KRealArray)
+						B.rreserv(trueBdims);
+					else
+						B.creserv(trueBdims);
+					VectorCase = 1;
+				}
+				break;
+			default:
+				return -5;
+			}
+		}
+		if (S.kind()!=Skind) return -6;
+		if (VectorCase) {
+			if (S.rank() != 1 || S.length() != Slength) return -6;
+			Scatter(S,B,indices,r);
+		} else  {
+			Bindex.IntRef() = i+ArrayBase;
+			Scatter(S,B,Bindices,1);
+		}
+	}
+	return 0;
+}
+
+
+static void DimpackLoopData
+    (const TDimPack& dp, Tint d,		// inputs
+	 Tint& Nhigher, Tint& N, Tint& Nlower, Tint& chunksize, TDimPack& ydims)	// outputs
+/* Prepare parameters for looping over dimension d under dimpack dp.
+   Inputs:
+   - dp			:	the dimpack data
+   - d			:	dimension along which to build the loop
+   Outputs:
+   - Nhigher	:	Product of dimensions higher than d
+   - N			:	Length of dimension d (essentially, N=dp[d], but return to caller anyway)
+   - Nlower		:	Product of dimensions lower than d
+   - chunksize	:	Step by which higher dimensions should leap
+   - ydims		:	dp from which dimension d has been dropped */
+{
+	const int r = dp.rank();
+	Nhigher = 1;
+	int d1;
+	NOVECTOR for (d1=0; d1<d; d1++) Nhigher*= dp[d1];
+	N = dp[d];
+	Nlower = dp.length()/(N*Nhigher);
+	chunksize = dp.length()/Nhigher;
+	Tint Ydims[MAXRANK];
+	NOVECTOR for (d1=0; d1<d; d1++) Ydims[d1] = dp[d1];
+	NOVECTOR for (d1=d+1; d1<r; d1++) Ydims[d1-1] = dp[d1];
+	ydims = TDimPack(Ydims,r-1);
+}
+
+[y] = sum(x;d)
+/* sum(x) sums all the elements of x, if x is an array.
+   The result type is always the same as the component type
+   of x. If x is scalar, it is returned as such.
+   sum(x,d) sums only along d'th dimension, returning array
+   of rank one less than rank(x).
+   See also: cumsum, prod, map.
+   Error codes:
+   -1: Nonnumeric input arg
+   -2: Second argument not an integer
+   -3: Second argument (dimension spec) out of range */
+{
+	if (x.IsScalar()) {y=x; return 0;}
+	if (!x.IsNumericalArray()) return -1;
+	// Handle special case of degenerate input array
+	if (x.length()==0) {
+		if (x.kind()==KIntArray)
+			y = 0;
+		else if (x.kind()==KRealArray)
+			y = 0.0;
+		else
+			y = Tcomplex(0,0);
+		return 0;
+	}
+	int dval;
+	TDimPack dp;
+	const int yieldscalar = (Nargin == 1) || (x.rank() == 1);
+	if (!yieldscalar) {
+		if (d.kind()!=Kint) return -2;
+		if (d.IntValue()<ArrayBase || d.IntValue()>=x.rank()+ArrayBase) return -3;
+		dval = d.IntValue() - ArrayBase;
+		dp = x.dims();
+	} else {
+		dval = 0;
+		dp = x.length();
+		if (Nargin==2) {
+			if (d.kind()!=Kint || d.IntValue()!=ArrayBase) return -3;
+		}
+	}
+	Tint Nhigher, N, Nlower, chunksize;
+	TDimPack ydims;
+	DimpackLoopData(dp, dval, Nhigher, N, Nlower, chunksize, ydims);
+	Tint yindex = 0;
+	if (x.kind() == KIntArray) {
+		const Tint* a = x.IntPtr();
+		Tint result, k, p;
+		if (yieldscalar) {
+			result = 0;
+			VECTORIZED for (p=0; p<N; p++) result+= a[p];
+			y = result;
+		} else {
+			y.ireserv(ydims);
+			for (int i=0; i<Nhigher; i++) for (int j=0; j<Nlower; j++) {
+				result = 0;
+				a = x.IntPtr() + i*chunksize + j;
+				VECTORIZED for (k=0,p=0; k<N; k++,p+=Nlower) result+= a[p];
+				y.IntPtr()[yindex++] = result;
+			}
+		}
+	} else if (x.kind() == KRealArray) {
+		Treal result; Tint k, p;
+		const Treal* a = x.RealPtr();
+		if (yieldscalar) {
+			result = 0;
+			VECTORIZED for (p=0; p<N; p++) result+= a[p];
+			y = result;
+		} else {
+			y.rreserv(ydims);
+#			ifdef VECTOR_MACHINE
+			if (N < Nhigher*Nlower) {
+				VECTORIZED for (int i=0; i<Nhigher*Nlower; i++) y.RealPtr()[i] = 0.0;
+				// Vectorize the longer loop
+				if (Nlower >= Nhigher) {
+					for (k=0,p=0; k<N; k++,p+=Nlower) {
+						yindex = 0;
+						for (i=0; i<Nhigher; i++) {
+							VECTORIZED for (int j=0; j<Nlower; j++)
+								y.RealPtr()[yindex++]+= x.RealPtr()[i*chunksize+j+p];
+						}
+					}
+				} else {
+					for (k=0,p=0; k<N; k++,p+=Nlower) {
+						yindex = 0;
+						for (int j=0; j<Nlower; j++) {
+							VECTORIZED for (i=0; i<Nhigher; i++)
+								y.RealPtr()[yindex++]+= x.RealPtr()[i*chunksize+j+p];
+						}
+					}
+				}
+			} else {
+				for (int i=0; i<Nhigher; i++) for (int j=0; j<Nlower; j++) {
+					result = 0;
+					a = x.RealPtr() + i*chunksize + j;
+					VECTORIZED for (k=0,p=0; k<N; k++,p+=Nlower) result+= a[p];
+					y.RealPtr()[yindex++] = result;
+				}
+			}
+#			else
+			for (int i=0; i<Nhigher; i++) for (int j=0; j<Nlower; j++) {
+				result = 0;
+				a = x.RealPtr() + i*chunksize + j;
+				VECTORIZED for (k=0,p=0; k<N; k++,p+=Nlower) result+= a[p];
+				y.RealPtr()[yindex++] = result;
+			}
+#			endif
+		}
+		global::nops+= Nhigher*Nlower*N;
+	} else {
+		Tint k, p;
+		const Tcomplex* a = x.ComplexPtr();
+		if (yieldscalar) {
+			Tcomplex result;
+			VECTORIZED for (p=0; p<N; p++) result+= a[p];
+			y = result;
+		} else {
+			y.creserv(ydims);
+			for (int i=0; i<Nhigher; i++) for (int j=0; j<Nlower; j++) {
+				Tcomplex result; // result := 0.0 + 0.0i
+				a = x.ComplexPtr() + i*chunksize + j;
+				VECTORIZED for (k=0,p=0; k<N; k++,p+=Nlower) result+= a[p];
+				y.ComplexPtr()[yindex++] = result;
+			}
+		}
+		global::nops+= 2*Nhigher*Nlower*N;
+	}
+    return 0;
+} // sum
+
+[y] = prod(x;d)
+/* prod(x) multiplies all the elements of x, if x is an array.
+   prod(x,d) takes the product along d'th dimension only, returning
+   an array of rank one less than rank(x).
+   If x is scalar, it is returned as such.
+   If I is integer array, prod(I) will be of type real if the product
+   would cause integer overflow. In all other cases, including prod(I,d),
+   the type of y equals the component type of x.
+   See also: sum, cumprod.
+   Error codes:
+   -1: Nonnumeric input arg
+   -2: Second argument not an integer
+   -3: Second argument (dimension spec) out of range */
+{
+	if (x.IsScalar()) {y=x; return 0;}
+	if (!x.IsNumericalArray()) return -1;
+	// Handle special case of degenerate input array
+	if (x.length()==0) {
+		if (x.kind()==KIntArray)
+			y = 1;
+		else if (x.kind()==KRealArray)
+			y = 1.0;
+		else
+			y = Tcomplex(1,0);
+		return 0;
+	}
+	int dval;
+	TDimPack dp;
+	const int yieldscalar = (Nargin == 1) || (x.rank() == 1);
+	if (!yieldscalar) {
+		if (d.kind()!=Kint) return -2;
+		if (d.IntValue()<ArrayBase || d.IntValue()>=x.rank()+ArrayBase) return -3;
+		dval = d.IntValue() - ArrayBase;
+		dp = x.dims();
+	} else if (x.kind() == KIntArray) {
+		// Special handling of prod(<integer array>), eliminate integer overflow problems
+		if (Nargin==2) {
+			if (d.kind()!=Kint || d.IntValue()!=ArrayBase) return -3;
+		}
+		Treal prod = 1;
+		Tint *const p = x.IntPtr();
+		VECTORIZED for (int i=0; i<x.length(); i++) prod*= p[i];
+		if (fabs(iround(prod)-prod) < 1.0)
+			y = iround(prod);
+		else
+			y = prod;
+		return 0;
+	} else	{// Real or complex flattened prod
+		dval = 0;
+		dp = x.length();
+		if (Nargin==2) {
+			if (d.kind()!=Kint || d.IntValue()!=ArrayBase) return -3;
+		}
+	}
+	Tint Nhigher, N, Nlower, chunksize;
+	TDimPack ydims;
+	DimpackLoopData(dp, dval, Nhigher, N, Nlower, chunksize, ydims);
+	Tint yindex = 0;
+	if (x.kind() == KIntArray) {
+		Tint result, k, p;
+		const Tint *a = x.IntPtr();
+		if (yieldscalar) {
+			result = 1;
+			VECTORIZED for (p=0; p<N; p++) result*= a[p];
+			y = result;
+		} else {
+			y.ireserv(ydims);
+			for (int i=0; i<Nhigher; i++) for (int j=0; j<Nlower; j++) {
+				result = 1;
+				a = x.IntPtr() + i*chunksize + j;
+				VECTORIZED for (k=0,p=0; k<N; k++,p+=Nlower) result*= a[p];
+				y.IntPtr()[yindex++] = result;
+			}
+		}
+	} else if (x.kind() == KRealArray) {
+		Treal result; Tint k, p;
+		const Treal *a = x.RealPtr();
+		if (yieldscalar) {
+			result = 1;
+			VECTORIZED for (p=0; p<N; p++) result*= a[p];
+			y = result;
+		} else {
+			y.rreserv(ydims);
+			for (int i=0; i<Nhigher; i++) for (int j=0; j<Nlower; j++) {
+				result = 1;
+				a = x.RealPtr() + i*chunksize + j;
+				VECTORIZED for (k=0,p=0; k<N; k++,p+=Nlower) result*= a[p];
+				y.RealPtr()[yindex++] = result;
+			}
+		}
+		global::nops+= Nhigher*Nlower*N;
+	} else {
+		Tint k, p;
+		Tcomplex *a = x.ComplexPtr();
+		if (yieldscalar) {
+			Tcomplex result(1.0, 0.0);
+			VECTORIZED for (p=0; p<N; p++) result*= a[p];
+			y = result;
+		} else {
+			y.creserv(ydims);
+			for (int i=0; i<Nhigher; i++) for (int j=0; j<Nlower; j++) {
+				Tcomplex result(1.0, 0.0);
+				a = x.ComplexPtr() + i*chunksize + j;
+				VECTORIZED for (k=0,p=0; k<N; k++,p+=Nlower) result*= a[p];
+				y.ComplexPtr()[yindex++] = result;
+			}
+		}
+		global::nops+= 4*Nhigher*Nlower*N;
+	}
+    return 0;
+} // prod
+
+[y] = cumsum(x)
+/* y = cumsum(x) forms an array of partial sums
+   y = #(x[1],x[1]+x[2],...,sum(x[1:n]),...).
+   The result y has the same size and type as x.
+   The array x is logically flattened, to apply
+   along a specified dimension use map(cumsum,...).
+   If x is scalar, it is returned as such.
+   See also: sum, cumprod, map.
+   Error codes:
+   -1: Nonnumeric input arg */
+{
+	if (x.IsScalar()) {y=x; return 0;}
+	if (!x.IsNumericalArray()) return -1;
+	y = x;
+	if (x.kind() == KIntArray) {
+		Tint sum = 0;
+		Tint *const p = x.IntPtr(), *const q = y.IntPtr();
+		VECTORIZED for (int i=0; i<x.length(); i++) {sum+= p[i]; q[i] = sum;}
+	} else if (x.kind() == KRealArray) {
+		Treal sum = 0;
+		Treal *const p = x.RealPtr(), *const q = y.RealPtr();
+		VECTORIZED for (int i=0; i<x.length(); i++) {sum+= p[i]; q[i] = sum;}
+		global::nops+= x.length();
+	} else {
+		Tcomplex sum; // sum := 0.0 + 0.0i
+		Tcomplex *const p = x.ComplexPtr(), *const q = y.ComplexPtr();
+		VECTORIZED for (int i=0; i<x.length(); i++) {sum+= p[i]; q[i] = sum;}
+		global::nops+= 2*x.length();
+	}
+    return 0;
+} // cumsum
+
+[y] = cumprod(x)
+/* y = cumprod(x) forms an array of partial products
+   y = #(x[1],x[1]*x[2],...,prod(x[1:n]),...).
+   The result y has the same size and type as x. Unlike
+   prod, cumprod does not try to avoid integer overflows.
+   The array x is logically flattened, to apply
+   along a specified dimension use map(cumsum,...).
+   If x is scalar, it is returned as such.
+   See also: prod, cumsum, map.
+   Error codes:
+   -1: Nonnumeric input arg */
+{
+	if (x.IsScalar()) {y=x; return 0;}
+	if (!x.IsNumericalArray()) return -1;
+	y = x;
+	if (x.kind() == KIntArray) {
+		Tint prod = 1;
+		Tint *const p = x.IntPtr(), *const q = y.IntPtr();
+		for (int i=0; i<x.length(); i++) {prod*= p[i]; q[i] = prod;}
+	} else if (x.kind() == KRealArray) {
+		Treal prod = 1;
+		Treal *const p = x.RealPtr(), *const q = y.RealPtr();
+		VECTORIZED for (int i=0; i<x.length(); i++) {prod*= p[i]; q[i] = prod;}
+		global::nops+= x.length();
+	} else {
+		Tcomplex prod(1.0, 0.0); // prod := 1.0 + 0.0i
+		Tcomplex *const p = x.ComplexPtr(), *const q = y.ComplexPtr();
+		VECTORIZED for (int i=0; i<x.length(); i++) {prod*= p[i]; q[i] = prod;}
+		global::nops+= 4*x.length();
+	}
+    return 0;
+} // cumprod
+
+[y;P] = mapmin(x;d)
+/* mapmin(x,d) finds minimum along d'th dimension in array x.
+   The result is an array with rank one less than rank(x).
+   The array x may not be complex.
+   [m,p] = mapmin(x,d) returns the minimum positions p along with
+   the minimum values m. The array p is of the same shape as m,
+   but is integer-valued.
+
+   mapmin(x) is a flattened form which returns a scalar result.
+   It is equivalent to min(x). [m,p] = mapmin(x) also works.
+
+   Using mapmin is faster than using map and min together.
+   In the latter case you would also have to define another function:
+       function y=min1(x) {y=min(x)}
+   because being intrinsic function, min can not be passed
+   to map directly. 
+   
+   See also: mapmax, map, limit.
+   Error codes:
+   -1: First arg not a numerical array
+   -2: Second arg not an integer scalar
+   -3: Second arg (the dimension) out of range
+   -4: First arg is complex */
+{
+	if (!x.IsNumericalArray()) return -1;
+	if (x.kind()==KComplexArray) return -4;
+	if (x.length()==0) {y.izeros(0); P.SetToVoid(); return 0;}
+	Tint dval;
+	TDimPack dp;
+	const int yieldscalar = (Nargin == 1) || (x.rank() == 1);
+	if (!yieldscalar) {
+		if (d.kind()!=Kint) return -2;
+		if (d.IntValue()<ArrayBase || d.IntValue()>=x.rank()+ArrayBase) return -3;
+		dval = d.IntValue() - ArrayBase;
+		dp = x.dims();
+	} else {
+		dval = 0;
+		dp = x.length();
+		if (Nargin == 2) {
+			if (d.kind()!=Kint || d.IntValue()!=ArrayBase) return -3;
+		}
+	}
+	Tint Nhigher, N, Nlower, chunksize;
+	TDimPack ydims;
+	DimpackLoopData(dp, dval, Nhigher, N, Nlower, chunksize, ydims);
+	Tint yindex = 0;
+	// result holds the position, not the value here, hence it is always of type Tint
+	Tint result, minpos, k, p;
+	if (x.kind() == KIntArray) {
+		const Tint *a = x.IntPtr();
+		if (yieldscalar) {
+			result = 0;
+			for (p=0; p<N; p++)
+				if (a[p] < a[result]) result = p;
+			y = a[result];
+			if (Nargout == 2) P = result+ArrayBase;
+		} else {
+			y.ireserv(ydims);
+			if (Nargout == 2) P.ireserv(ydims);
+			for (int i=0; i<Nhigher; i++) for (int j=0; j<Nlower; j++) {
+				a = x.IntPtr() + i*chunksize + j;
+				result = minpos = 0;
+				for (k=0,p=0; k<N; k++,p+=Nlower)
+					if (a[p] < a[minpos]) {minpos = p; result = k;}
+				y.IntPtr()[yindex] = a[minpos];
+				if (Nargout == 2) P.IntPtr()[yindex] = result + ArrayBase;
+				yindex++;
+			}
+		}
+	} else {
+		const Treal *a = x.RealPtr();
+		if (yieldscalar) {
+			result = 0;
+			for (p=0; p<N; p++)
+				if (a[p] < a[result]) result = p;
+			y = a[result];
+			if (Nargout == 2) P = result+ArrayBase;
+		} else {
+			y.rreserv(ydims);
+			if (Nargout == 2) P.ireserv(ydims);
+			for (int i=0; i<Nhigher; i++) for (int j=0; j<Nlower; j++) {
+				a = x.RealPtr() + i*chunksize + j;
+				result = minpos = 0;
+				for (k=0,p=0; k<N; k++,p+=Nlower)
+					if (a[p] < a[minpos]) {minpos = p; result = k;}
+				y.RealPtr()[yindex] = a[minpos];
+				if (Nargout == 2) P.IntPtr()[yindex] = result + ArrayBase;
+				yindex++;
+			}
+		}
+	}
+	return 0;
+}
+
+[y;P] = mapmax(x;d)
+/* mapmax(x,d) finds maximum along d'th dimension in array x.
+   The result is an array with rank one less than rank(x).
+   The array may not be complex.
+   [M,p] = mapmax(x,d) returns the maximum positions p along with
+   the maximums m. The array p is of the same shape as M, but is
+   integer-valued.
+
+   mapmax(x) is a flattened form which returns a scalar result.
+   It is equivalent to max(x). [M,p] = mapmax(x) also works.
+
+   Using mapmax is faster than using map and max together.
+   In the latter case you would also have to define another function:
+       function y=max1(x) {y=max(x)}
+   because being intrinsic function, max can not be passed
+   to map directly. 
+   
+   See also: mapmin, map, limit.
+   Error codes:
+   -1: First arg not a numerical array
+   -2: Second arg not an integer scalar
+   -3: Second arg (the dimension) out of range
+   -4: First arg is complex */
+{
+	if (!x.IsNumericalArray()) return -1;
+	if (x.kind()==KComplexArray) return -4;
+	if (x.length()==0) {y.izeros(0); P.SetToVoid(); return 0;}
+	Tint dval;
+	TDimPack dp;
+	const int yieldscalar = (Nargin == 1) || (x.rank() == 1);
+	if (!yieldscalar) {
+		if (d.kind()!=Kint) return -2;
+		if (d.IntValue()<ArrayBase || d.IntValue()>=x.rank()+ArrayBase) return -3;
+		dval = d.IntValue() - ArrayBase;
+		dp = x.dims();
+	} else {
+		dval = 0;
+		dp = x.length();
+		if (Nargin == 2) {
+			if (d.kind()!=Kint || d.IntValue()!=ArrayBase) return -3;
+		}
+	}
+	Tint Nhigher, N, Nlower, chunksize;
+	TDimPack ydims;
+	DimpackLoopData(dp, dval, Nhigher, N, Nlower, chunksize, ydims);
+	Tint yindex = 0;
+	// result holds the position, not the value here, hence it is always of type Tint
+	Tint result, maxpos, k, p;
+	if (x.kind() == KIntArray) {
+		const Tint *a = x.IntPtr();
+		if (yieldscalar) {
+			result = 0;
+			for (p=0; p<N; p++)
+				if (a[p] > a[result]) result = p;
+			y = a[result];
+			if (Nargout == 2) P = result + ArrayBase;
+		} else {
+			y.ireserv(ydims);
+			if (Nargout == 2) P.ireserv(ydims);
+			for (int i=0; i<Nhigher; i++) for (int j=0; j<Nlower; j++) {
+				a = x.IntPtr() + i*chunksize + j;
+				result = maxpos = 0;
+				for (k=0,p=0; k<N; k++,p+=Nlower)
+					if (a[p] > a[maxpos]) {maxpos = p; result = k;}
+				y.IntPtr()[yindex] = a[maxpos];
+				if (Nargout == 2) P.IntPtr()[yindex] = result + ArrayBase;
+				yindex++;
+			}
+		}
+	} else {
+		const Treal *a = x.RealPtr();
+		if (yieldscalar) {
+			result = 0;
+			for (p=0; p<N; p++)
+				if (a[p] > a[result]) result = p;
+			y = a[result];
+			if (Nargout == 2) P = result + ArrayBase;
+		} else {
+			y.rreserv(ydims);
+			if (Nargout == 2) P.ireserv(ydims);
+			for (int i=0; i<Nhigher; i++) for (int j=0; j<Nlower; j++) {
+				a = x.RealPtr() + i*chunksize + j;
+				result = maxpos = 0;
+				for (k=0,p=0; k<N; k++,p+=Nlower)
+					if (a[p] > a[maxpos]) {maxpos = p; result = k;}
+				y.RealPtr()[yindex] = a[maxpos];
+				if (Nargout == 2) P.IntPtr()[yindex] = result + ArrayBase;
+				yindex++;
+			}
+		}
+	}
+	return 0;
+}
+
+[y] = limit(x,a,b)
+/* limit(x,a,b) limits x to the range [a,b].
+   x may be an integer or real array or scalar,
+   the a and b arguments must be integer or real
+   scalars. The result type is integer only
+   if all x,a,b are integers, otherwise it is real.
+   limit(x,a,b) is equivalent to min(b,max(x,a)).
+
+   Notice: limit is builtin function in >=1.23
+   version. Before 1.23 it was a t-file function.
+
+   (Usually a<=b, if a>b then limit(x,a,b) has the
+   value of b but this behavior should not be trusted.)
+   Error codes:
+   -1: First arg not int or real
+   -2: Second arg not int or real scalar
+   -3: Third arg not int or real scalar
+*/
+{
+	const Tkind k = x.kind();
+	if (k!=Kint && k!=Kreal && k!=KIntArray && k!=KRealArray) return -1;
+	if (a.kind()!=Kint && a.kind()!=Kreal) return -2;
+	if (b.kind()!=Kint && b.kind()!=Kreal) return -3;
+	if (a.kind()==Kint && b.kind()==Kint && (k==Kint || k==KIntArray)) {
+		const Tint A = a.IntValue();
+		const Tint B = b.IntValue();
+		Tint tmp;
+		if (k == Kint) {
+			tmp = (x.IntValue() > A) ? x.IntValue() : A;
+			y = (B < tmp) ? B : tmp;
+		} else {
+			y.ireserv(x.dims());
+			for (Tint i=0; i<x.length(); i++) {
+				tmp = (x.IntPtr()[i] > A) ? x.IntPtr()[i] : A;
+				y.IntPtr()[i] = (B < tmp) ? B : tmp;
+			}
+		}
+	} else {
+		Tint i;
+		const Treal A = (a.kind()==Kint) ? a.IntValue() : a.RealValue();
+		const Treal B = (b.kind()==Kint) ? b.IntValue() : b.RealValue();
+		switch (k) {
+		case Kint:
+			y = min(B,max(Treal(x.IntValue()),A));
+			break;
+		case Kreal:
+			y = min(B,max(x.RealValue(),A));
+			break;
+		case KIntArray:
+			y.rreserv(x.dims());
+			VECTORIZED for (i=0; i<x.length(); i++)
+				y.RealPtr()[i] = min(B,max(Treal(x.IntPtr()[i]),A));
+			break;
+		case KRealArray:
+			y.rreserv(x.dims());
+			VECTORIZED for (i=0; i<x.length(); i++)
+				y.RealPtr()[i] = min(B,max(x.RealPtr()[i],A));
+			break;
+		default:;
+		}
+	}
+	return 0;
+}
+
+[B] = transpose(A; P)
+/* B = transpose(A) returns a transpose of array A: B[i,j,k...l] = A[l...k,j,i].
+   B = transpose(A,P) where P is integer vector transposes the indices according
+   to the permutation defined by P.
+   For example if A has rank 3, B = transpose(A,[2,1,3]) causes the assignment
+   B[j,i,k] = A[i,j,k] to be carried out. B = transpose(A) would in this case
+   correspond to B[k,j,i] = A[i,j,k].
+
+   The second argument is meaningful only if rank(A) is greater than 2.
+   
+   You can abbreviate "transpose(A)" by "A.'".
+   See also: herm, flip.
+   Error codes:
+   -1: Permutation argument not integer array
+   -2: Permutation argument of bad rank or size
+   -3: Permutation argument contains invalid integers */
+{
+	Tkind k = A.kind();
+	if (k!=KIntArray && k!=KRealArray && k!=KComplexArray)
+		B = A;
+	else if (A.rank() <= 1)
+		B = A;
+	else if (A.rank() == 2) {
+		Tint n=A.dims()[0], m=A.dims()[1],i,j;
+		switch (k) {
+		case KIntArray:
+			B.ireserv(TDimPack(m,n));
+			VECTORIZED for (i=0; i<n; i++) {
+				VECTORIZED for (j=0; j<m; j++)
+					B.IntPtr()[j*n+i] = A.IntPtr()[i*m+j];
+			}
+			break;
+		case KRealArray:
+			B.rreserv(TDimPack(m,n));
+			VECTORIZED for (i=0; i<n; i++) {
+				VECTORIZED for (j=0; j<m; j++)
+					B.RealPtr()[j*n+i] = A.RealPtr()[i*m+j];
+			}
+			break;
+		case KComplexArray:
+			B.creserv(TDimPack(m,n));
+			VECTORIZED for (i=0; i<n; i++) {
+				VECTORIZED for (j=0; j<m; j++)
+					B.ComplexPtr()[j*n+i] = A.ComplexPtr()[i*m+j];
+			}
+			break;
+		default:;
+		}
+	} else {	// General case, rank>=3
+		Tint d,d1,pA, pA0,pA1;
+		TDimPack Adims = A.dims();
+		Tint D = Adims.rank();
+		Tint Bdims[MAXRANK];
+		Tint perm[MAXRANK];
+		for (d=0; d<D; d++) perm[d] = D-d-1;
+		if (Nargin == 2) {	// P given ?
+			if (P.kind()==KIntArray) {
+				if (P.rank()==1 && P.length()==D)
+					for (d=0; d<D; d++) {
+						perm[d] = P.IntPtr()[d]-1;	// note -1: P is eg. [2,1]
+						if (perm[d]<0 || perm[d]>=D) return -3;
+					}
+				else
+					return -2;
+			} else
+				return -1;
+		}
+		NOVECTOR for (d=0; d<D; d++) Bdims[d] = Adims[perm[d]];
+		// now Adims, Bdims, D are ready
+		TDimPack modulus = Adims;
+		Tint divisor[MAXRANK];
+		for (d=0; d<D; d++) {
+			divisor[d] = 1;
+			NOVECTOR for (d1=d+1; d1<D; d1++) divisor[d]*= Adims[d1];
+		}
+		Tint mult[MAXRANK];
+		for (d=0; d<D; d++) {
+			mult[d] = 1;
+			NOVECTOR for (d1=d+1; d1<D; d1++) mult[d]*= Bdims[d1];
+		}
+		// Allocate B
+		TDimPack Bdimpack(Bdims,D);
+		switch (k) {
+		case KIntArray:
+			B.ireserv(Bdimpack); break;
+		case KRealArray:
+			B.rreserv(Bdimpack); break;
+		case KComplexArray:
+			B.creserv(Bdimpack); break;
+		default:;
+		}
+		// Now the dirty work
+#		define VECLENGTH 128
+		Tint ind[MAXRANK][VECLENGTH];
+		Tint pB[VECLENGTH];
+		for (pA0=0; pA0<A.length(); pA0+=VECLENGTH) {
+#			define THELOOP(pA,pA1) for (pA=pA0,pA1=0; pA<A.length() && pA1<VECLENGTH; pA++,pA1++)
+			for (d=0; d<D; d++) {
+				const Tint div = divisor[d];
+				const Tint mod = modulus[d];
+				if (div == 1) {
+					THELOOP(pA,pA1) ind[d][pA1] = pA % mod;
+				} else {
+					THELOOP(pA,pA1)
+						ind[d][pA1] = (pA / div) % mod;
+				}
+			}
+			THELOOP(pA,pA1) pB[pA1] = 0;
+			for (d=0; d<D; d++) {
+				const Tint p = perm[d];
+				const Tint m = mult[d];
+				THELOOP(pA,pA1) pB[pA1]+= ind[p][pA1]*m;
+			}
+			switch (k) {
+			case KIntArray:
+				THELOOP(pA,pA1) B.IntPtr()[pB[pA1]] = A.IntPtr()[pA];
+				break;
+			case KRealArray:
+				THELOOP(pA,pA1) B.RealPtr()[pB[pA1]] = A.RealPtr()[pA];
+				break;
+			case KComplexArray:
+				THELOOP(pA,pA1) B.ComplexPtr()[pB[pA1]] = A.ComplexPtr()[pA];
+				break;
+			default:;
+			}
+#			undef THELOOP
+		}
+#		undef VECLENGTH
+	}
+	return 0;
+}
+[B] = herm(A; P)
+/* herm(A) is the same as conj(transpose(A)).
+   herm(A,P) is the same as conj(transpose(A,P)).
+   You can abbreviate "herm(A)" as "A'".
+   See also: transpose, flip, conj.
+   Error codes:
+   -1: Permutation argument not integer array
+   -2: Permutation argument of bad rank or size
+   -3: Permutation argument contains invalid integers */
+{
+	TConstObjectPtr inputs[2];
+	TObjectPtr outputs[1];
+	inputs[0] = argin[0];
+	inputs[1] = argin[1];
+	outputs[0] = argout[0];
+	int errcode = transposefunction(inputs,Nargin,outputs,Nargout);
+	if (errcode) return errcode;
+	if (B.kind()==Kcomplex || B.kind()==KComplexArray)
+		Transcen(tfpack_conj,B,B);
+	return 0;
+}
+
+[y] = flip(x;d)
+/* flip(A) reverses the first dimension of array A.
+   flip(A,d) reverses the d'th dimension. For example,
+   flip(#(1,6,2; 7,9,2.3),2) returns #(2,6,1; 2.3,9,7).
+   If A is non-array it is returned as such, regardless of d.
+   See also: transpose.
+   Error codes:
+   -1: Second argument not an integer scalar
+   -2: Second argument out of range */
+{
+	if (x.IsNumericalArray()) {
+		int dval;
+		const TDimPack dp = x.dims();
+		if (Nargin == 2) {
+			if (d.kind()!=Kint) return -1;
+			if (d.IntValue()<ArrayBase || d.IntValue()>=x.rank()+ArrayBase) return -2;
+			dval = d.IntValue() - ArrayBase;
+		} else
+			dval = 0;
+		Tint Nhigher, N, Nlower, chunksize;
+		TDimPack dummy;
+		DimpackLoopData(dp, dval, Nhigher, N, Nlower, chunksize,dummy);
+		Tint k, p;
+		const Tint indmax = (N-1)*Nlower;
+		if (x.kind() == KIntArray) {
+			const Tint *a;
+			Tint *b;
+			y.ireserv(dp);
+			for (int i=0; i<Nhigher; i++) for (int j=0; j<Nlower; j++) {
+				a = x.IntPtr() + i*chunksize + j;
+				b = y.IntPtr() + i*chunksize + j;
+				for (p=0; p<=indmax; p+=Nlower) b[indmax-p] = a[p];
+			}
+		} else if (x.kind() == KRealArray) {
+			const Treal *a;
+			Treal *b;
+			y.rreserv(dp);
+			for (int i=0; i<Nhigher; i++) for (int j=0; j<Nlower; j++) {
+				a = x.RealPtr() + i*chunksize + j;
+				b = y.RealPtr() + i*chunksize + j;
+				for (p=0; p<=indmax; p+=Nlower) b[indmax-p] = a[p];
+			}
+		} else {	// now x.kind()==KComplexArray
+			const Tcomplex *a;
+			Tcomplex *b;
+			y.creserv(dp);
+			for (int i=0; i<Nhigher; i++) for (int j=0; j<Nlower; j++) {
+				a = x.ComplexPtr() + i*chunksize + j;
+				b = y.ComplexPtr() + i*chunksize + j;
+				for (p=0; p<=indmax; p+=Nlower) b[indmax-p] = a[p];
+			}
+		}
+	} else {
+		y = x;
+	};
+	return 0;
+}
+
+//----------------- Query functions ------------------
+
+[y] = isscalar(x)
+/* isscalar(x) returns 1 if x is scalar and 0 if it is not.
+   See also: isvector, ismatrix, isarray. */
+{
+	y = x.IsScalar();
+	return 0;
+}
+
+[y] = isvector(x)
+/* isvector(x) returns 1 if x is a vector and 0 if it is not.
+   See also: isscalar, ismatrix, isarray. */
+{
+	y = x.IsArray() && x.rank()==1;
+	return 0;
+}
+
+[y] = ismatrix(x)
+/* ismatrix(x) returns 1 if x is a matrix (2D array)
+   and 0 if it is not.
+   See also: isscalar, isvector, isarray. */
+{
+	y = x.IsArray() && x.rank()==2;
+	return 0;
+}
+
+[y] = isarray(x)
+/* isarray(x) returns 1 if x is an array and 0 if it is not.
+   See also: isscalar, isvector, ismatrix. */
+{
+	y = x.IsArray();
+	return 0;
+}
+
+[y] = isreal(x)
+/* isreal(x) returns 1 if x is numerical non-complex
+   array or scalar, and 0 otherwise.
+   See also: isfloat, isint, iscomplex. */
+{
+	Tkind k = x.kind();
+	y = (k==Kint || k==Kreal || k==KIntArray || k==KRealArray);
+	return 0;
+}
+
+[y] = isint(x)
+/* isint(x) returns 1 if x is integer scalar or array
+   and 0 if it is not.
+   See also: isreal, isfloat, iscomplex. */
+{
+	Tkind k = x.kind();
+	y = (k==Kint || k==KIntArray);
+	return 0;
+}
+
+[y] = iscomplex(x)
+/* iscomplex(x) returns 1 if x is a complex array or scalar,
+   and 0 if it is real or integer or a nonnumeric object.
+   See also: isreal, isfloat, isint. */
+{
+	Tkind k = x.kind();
+	y = (k==Kcomplex || k==KComplexArray);
+	return 0;
+}
+
+[y] = isfloat(x)
+/* isfloat(x) returns 1 if x is a floating point array
+   or scalar, and 0 otherwise. Notice the difference between
+   isfloat and isreal. isreal(x) is 1 for integer objects,
+   while isfloat(x) is 0.
+   See also: isreal, isint, iscomplex. */
+{
+	Tkind k = x.kind();
+	y = (k==Kreal || k==KRealArray);
+	return 0;
+}
+
+[y] = isvoid(x)
+/* isvoid(x) returns 1 if x is a void value and 0 otherwise. */
+{
+	y = x.kind() == Kvoid;
+	return 0;
+}
+
+[y] = isstring(x)
+/* isstring(x) returns 1 if x is a string and 0 otherwise.
+   See also: ischar, isstr. */
+{
+	y = x.IsString();
+	return 0;
+}
+
+[y] = ischar(x)
+/* ischar(x) returns 1 if x is a character and 0 otherwise.
+   See also: isstring, isstr. */
+{
+	y = x.IsChar();
+	return 0;
+}
+
+[y] = isstr(x)
+/* isstr(x) returns 1 if x is a character or string
+   and 0 otherwise.
+   See also: isstring, ischar. */
+{
+	y = x.IsString() || x.IsChar();
+	return 0;
+}
+
+#ifdef UNICOS
+#  define finite(x) (-1e1000 < (x) && (x) < 1e1000)
+#endif
+
+[y] = isfinite(x)
+/* isfinite(x) returns 1 if x is a finite number and 0 otherwise.
+   If x is array, the operation is applied componentwise.
+   If x is non-numeric it is considered not finite.
+   Integer and consequently strings and chars are always finite. */
+{
+	Tint *yp, i;
+	switch (x.kind()) {
+	case Kint: y = 1; break;
+	case Kreal: y = finite(x.RealValue()); break;
+	case Kcomplex: y = finite(real(x.ComplexValue())) && finite(imag(x.ComplexValue())); break;
+	case KIntArray:
+		y.copydimsIntArray(x);
+		yp = y.IntPtr();
+		for (i=0; i<x.length(); i++) yp[i] = 1;
+		break;
+	case KRealArray:
+		{
+			y.copydimsIntArray(x);
+			yp = y.IntPtr();
+			Treal *xp = x.RealPtr();
+			for (i=0; i<x.length(); i++) yp[i] = finite(xp[i]);
+		}
+		break;
+	case KComplexArray:
+		{
+			y.copydimsIntArray(x);
+			yp = y.IntPtr();
+			Tcomplex *xp = x.ComplexPtr();
+			for (i=0; i<x.length(); i++) yp[i] = finite(real(xp[i])) && finite(imag(xp[i]));
+		}
+		break;
+	default:
+		y = 0;
+	}
+	return 0;
+}
+
+[y] = islist(x)
+/* islist(x) returns 1 if x is a heterogenous collection and 0 otherwise. */
+{
+        y = x.kind() == KObjectArray;
+        return 0;
+}
+
+[y] = isfunction(x)
+/* isfunction(x) returns 1 if x is a function
+   (Tela-function, C-tela function or intrinsic function)
+   and 0 otherwise.
+   See also: isCfunction, isTfunction. */
+{
+	y = x.IsFunction() || x.IsCfunction() || x.IsIntrinsicFunction();
+	return 0;
+}
+
+[y] = isCfunction(x)
+/* isCfunction(x) returns 1 if x is a C-tela function.
+   and 0 otherwise.
+   See also: isfunction, isTfunction. */
+{
+	y = x.IsCfunction();
+	return 0;
+}
+
+[y] = isTfunction(x)
+/* isTfunction(x) returns 1 if x is a function written in Tela
+   and 0 otherwise.
+   See also: isfunction, isCfunction. */
+{
+	y = x.IsFunction();
+	return 0;
+}
+
+[y] = isdefined(x)
+/* isdefined(x) returns 1 if x is not undefined and 0 if
+   it is undefined. Optional function arguments are undefined
+   if not assigned by the caller; isdefined can be used
+   inside the function to test whether this is the case.
+   See also: isundefined. */
+{
+	y = x.kind() != Kundef;
+	return 0;
+}
+
+[y] = isundefined(x)
+/* isundefined(x) returns 1 if x is not undefined and 0 if
+   it is undefined. Optional function arguments are undefined
+   if not assigned by the caller; isdefined can be used
+   inside the function to test whether this is the case.
+   See also: isdefined. */
+{
+	y = x.kind() == Kundef;
+	return 0;
+}
+
+// --------------- Miscellaneous functions ----------------
+
+[y] = tostring(x)
+/* tostring(x) converts an integer vector to a string.
+   Transfer of characters is stopped if zero element
+   is encountered.
+   tostring(A) where A is geneeral integer array copies
+   A and sets the string flag.
+   Error codes:
+   -1: Argument not an integer array
+   */
+{
+	if (x.kind()!=KIntArray) return -1;
+	if (x.rank() > 1) {		// Matrix or tensor: just copy it
+		y = x;
+	} else {				// Vector: copy up to zero element
+		int L;
+		for (L=0; L<x.length() && x.IntPtr()[L]!=0; L++);
+		y.ireserv(L);
+		memcpy(y.IntPtr(),x.IntPtr(),L*sizeof(Tint));
+	}
+	y.SetStringFlag();
+	return 0;
+}
+
+[y] = SilentMode()
+/* SilentMode() returns 1 if this Tela process is in silent mode
+   (command line switch -s), otherwise 0.
+   See also: BatchMode, VerboseMode, CheckReadOnlyMode. */
+{
+	y = flags::silent;
+	return 0;
+}
+
+[y] = BatchMode()
+/* BatchMode() returns 1 if this Tela process is in batch mode
+   (command line switch -b), otherwise 0.
+   See also: SilentMode, VerboseMode, UsingReadline. */
+{
+	y = flags::batch;
+	return 0;
+}
+
+extern "C" FILE *rl_instream;
+
+[y] = UsingReadline()
+/* UsingReadline() returns 1 if this Tela was compiled
+   to use the GNU readline library, otherwise 0.
+   See also: BatchMode, SilentMode, VerboseMode. */
+{
+	y = !rl_instream || strcmp((char*)rl_instream,"noreadline");
+	return 0;
+}
+
+[;y] = VerboseMode(;x)
+/* VerboseMode() returns 1 if this Tela process is in verbose mode
+   (command line switch -v), otherwise 0.
+   VerboseMode(on) and VerboseMode(off) set the verbose mode on
+   and off, respectively. They return the old mode setting.
+   See also: SilentMode, BatchMode.
+   Error codes:
+   1: Argument not integer */
+{
+	if (Nargout == 1) y = flags::verbose;
+	if (Nargin == 1) {
+		if (x.kind()!=Kint) return 1;
+		flags::verbose = x.IntValue();
+	}
+	return 0;
+}
+
+[;y] = CheckReadOnlyMode(;x)
+/* CheckReadOnlyMode() returns 1 if this Tela process checks that function
+   input arguments are not modified by the function. The check is done by
+   default, but if it causes problems (bugs in Tela) you can turn it off
+   using CheckReadOnlyMode(off).
+   CheckReadOnlyMode returns the old mode setting.
+   See also: SilentMode, BatchMode, VerboseMode.
+   Error codes:
+   1: Argument not integer */
+{
+	if (Nargout == 1) y = flags::checkRO;
+	if (Nargin == 1) {
+		if (x.kind()!=Kint) return 1;
+		flags::checkRO = x.IntValue();
+	}
+	return 0;
+}
+
+[;y] = DebugQueryMode(;x)
+/* DebugQueryMode() returns 1 if the debug query mode
+   has been set, otherwise 0.
+   DebugQueryMode(on) and DebugQueryMode(off) change
+   the current setting.
+
+   If debug query mode is on, the program will ask whether
+   the user wants to enter debug mode if control-C is
+   pressed (INT signal sent). Otherwise the program simply
+   stops on pressing control-C.
+   Error codes:
+   1: Argument not integer */
+{
+	if (Nargout == 1) y = flags::debugquery;
+	if (Nargin == 1) {
+		if (x.kind()!=Kint) return 1;
+		flags::debugquery = x.IntValue();
+	}
+	return 0;
+}
+
+[y] = all(x)
+/* all(x) returns 1 if all elements of x are nonzero,
+   and 0 otherwise.
+   x must be an integer array or scalar.
+
+   Conditional statements (if, while, for, until) assume
+   implicit all, for example saying
+       if (A > 0) ...
+   is equivalent of saying
+       if (all(A > 0)) ... ,
+   thus you will need all less frequently than you need any.
+   
+   See also: any.
+   Error codes:
+   1: Argument not integer or IntArray */
+{
+	if (x.kind()==Kint) {
+		y = x.IntValue()!=0;
+		return 0;
+	} else if (x.kind()==KIntArray) {
+		Tint *ip = x.IntPtr();
+		y = 1;
+		VECTORIZED for (int i=0; i<x.length(); i++)
+			if (ip[i]==0) {
+				y = 0;
+				break;
+			}
+		return 0;
+	}
+	y = 0;
+	return 1;
+}
+
+[y] = any(x)
+/* any(x) returns 1 if at least one element of x is nonzero,
+   and 0 otherwise.
+   x must be a integer array or scalar.
+
+   Conditional statements (if, while, for, until) default
+   to implicit all, thus you sometimes need to use any
+   with these statements.
+   
+   See also: all.
+   Error codes:
+   1: Argument not integer or IntArray */
+{
+	if (x.kind()==Kint) {
+		y = x.IntValue()!=0;
+		return 0;
+	} else if (x.kind()==KIntArray) {
+		Tint *ip = x.IntPtr();
+		y = 0;
+		VECTORIZED for (int i=0; i<x.length(); i++)
+			if (ip[i]) {
+				y = 1;
+				break;
+			}
+		return 0;
+	}
+	y = 0;
+	return 1;
+}
+
+[B] = reshape(A...)
+/* reshape(A,n,m,...) returns the data in array A rearranged
+   to have dimensionality n x m x ... . The product of the indices
+   must equal the length of A.
+   reshape(A,#(n,m...)) works also.
+
+   Example: reshape(#(1,2,3,4,5,6), 2,3) returns
+       #(1, 2, 3;
+	     4, 5, 6)  
+   Error codes:
+   -1: First argument not an array
+   -2: Later argument not an integer
+   -3: Product of dimensions does not equal the length of first argument
+   -4: Number of input arguments exceeds MAXRANK
+   -5: Second arg is array but not integer vector
+   */
+{
+	if (!A.IsArray()) return -1;
+	int newrank;
+	int newdims[MAXRANK];
+	if (Nargin>1 && argin[1]->IsArray()) {
+		if (argin[1]->kind()!=KIntArray || argin[1]->rank()!=1) return -5;
+		newrank = argin[1]->length();
+		if (newrank > MAXRANK) return -4;
+		Tint newlength = 1;
+		for (int i=0; i<newrank; i++) {
+			newdims[i] = argin[1]->IntPtr()[i];
+			newlength*= newdims[i];
+		}
+	} else {
+		newrank = Nargin - 1;
+		if (newrank > MAXRANK) return -4;
+		Tint newlength = 1;
+		for (int i=0; i<newrank; i++) {
+			if (argin[i+1]->kind() != Kint) return -2;
+			newdims[i] = argin[i+1]->IntValue();
+			newlength*= newdims[i];
+		}
+		if (newlength != A.length()) return -3;
+	}
+	B = A;
+	B.SetNewDimPack(TDimPack(newdims,newrank));
+	return 0;
+}
+
+[y] = find(x)
+/* I=find(V) returns the index vector I=(i) for which
+   V[i] is nonzero. V must be an integer array. The length
+   of I is equal to the number of nonzeros in V.
+   If V is multidimensional, it is used in flattened form.
+
+   Example: If V=#(1,-2.3,4,5,-8.2), find(V < 0) returns
+   #(2, 5).
+   
+   See also: any, all, flatten.
+   Error codes:
+   1: Argument not integer vector */
+{
+	if (x.kind()!=KIntArray) return 1;
+	Tint *ip = x.IntPtr();
+	int L = x.length();
+	int len = 0;	// the length of y
+	int i;
+	for (i=0; i<L; i++) if (ip[i]) len++;	// count number of nonzeros in len
+	y.ireserv(TDimPack(len));
+	int j = 0;
+	Tint *jp = y.IntPtr();
+	for (i=0; i<L; i++) if (ip[i]) jp[j++] = i + ArrayBase;
+	return 0;
+}
+
+[y] = flatten(;x)
+/* flatten(x) returns the array x flattened to a vector.
+   If x is not an array, it is returned as is.
+
+   Example: flatten(#(1,2; 3,4)) returns #(1,2,3,4).
+   
+   x = flatten() flattens x "in place". This is much faster
+   (it works in constant time) than to do x = flatten(x),
+   since no data movement is involved. */
+{
+	if (Nargin==1) y = x;
+	y.flatten();
+	return 0;
+}
+
+[] = autoglobal(...)
+/* autoglobal("sym1","sym2",...) sets the 'autoglobal' attribute
+   to given symbols. The symbols are then globally accessible
+   from inside packages and functions without need to explicitly
+   declaring them global. Constants such as pi carry the autoglobal
+   attribute automatically, but with this function it is possible
+   for the user to define more autoglobal symbols.
+
+   Warning: This function is for experts only. It is not advisable
+   to say autoglobal("x"), for instance, because many existing code
+   may then break down.
+
+   See also: hide.
+   Error codes:
+   1: Argument not a string */
+{
+	for (int i=0; i<Nargin; i++) {
+		if (!argin[i]->IsString()) return 1;
+		Tstring ARG = *argin[i];
+		Tsymbol *symptr = theHT.add((const Tchar*)ARG);
+		symptr->SetGlobalFlag();
+	}
+	return 0;
+}
+
+// --------- SORT code starts here -----------
+// --------- Contributed by Christoph Spiel <cspiel@hammersmith-consulting.com> --
+
+static int int_cmp(const void *x1, const void *y1);
+static int real_cmp(const void *x1, const void *y1);
+static int cpx_cmp(const void *x1, const void *y1);
+static int user_cmp(const void *x1, const void *y1);
+
+
+static Tint     *sort_iptr = 0;
+static Treal    *sort_rptr = 0;
+static Tcomplex *sort_cptr = 0;
+static Tobject  *sort_optr = 0;
+
+static Tobject indir;                   // dispatch hook for user sort function
+
+
+int
+int_cmp(const void *x1, const void *y1)
+{
+    const Tint *x = (const Tint*) x1;
+    const Tint *y = (const Tint*) y1;
+    const Tint a = sort_iptr[*x];
+    const Tint b = sort_iptr[*y];
+
+    if (a > b)
+        return 1;
+    else if (a < b)
+        return -1;
+    return 0;
+}
+
+
+int
+real_cmp(const void *x1, const void *y1)
+{
+    const Tint *x = (const Tint*) x1;
+    const Tint *y = (const Tint*) y1;
+    const Treal a = sort_rptr[*x];
+    const Treal b = sort_rptr[*y];
+
+    if (a > b)
+        return 1;
+    else if (a < b)
+        return -1;
+    return 0;
+}
+
+
+int
+cpx_cmp(const void *x1, const void *y1)
+{
+    const Tint *x = (const Tint*) x1;
+    const Tint *y = (const Tint*) y1;
+    const Treal a = real(sort_cptr[*x]);
+    const Treal b = real(sort_cptr[*y]);
+
+    if (a > b)
+        return 1;
+    else if (a < b)
+        return -1;
+    return 0;
+}
+
+
+int
+user_cmp(const void *x1, const void *y1)
+{
+    const Tint *x = (const Tint*) x1;
+    const Tint *y = (const Tint*) y1;
+    const Tobject a = sort_optr[*x];
+    const Tobject b = sort_optr[*y];
+
+    Tobject rv(99);                     // return value of user's function
+    TConstObjectPtr in[2];
+    TObjectPtr out[1];
+
+    in[0] = &a;
+    in[1] = &b;
+    out[0] = &rv;
+
+    Call(indir, in, 2, out, 1);
+
+    int irv;
+    switch (rv.kind())
+    {
+        case Kint:
+            irv = rv.IntValue();
+            break;
+
+        case Kreal:
+            irv = static_cast<int>(rv.RealValue());
+            break;
+
+        case Kcomplex:
+            irv = static_cast<int>(rv.ComplexValue().real());
+            break;
+
+        default:
+            // internal error, but how to signal?
+            irv = 0;
+    }
+
+    return irv;
+}
+
+
+[y; perm] = sort(x; cmp)
+/*
+[Y; PERM] = sort(X; CMP)
+
+sort(X, PERM) returns array X sorted in ascending order.  If X is
+complex, it is sorted by the real parts.  If X is not an array, it
+is returned as is.  If X is multidimensional, it is implicitly
+flattened; use map() to get around this problem.
+
+You can change the sort order with your own comparison function CMP,
+which must have the following signature:
+    b = CMP(x1, x2)
+and have the same semantics as subtraction, e.g. b = x1 - x2.
+
+[Y, PERM] = sort(X) returns also the index vector PERM such that
+Y == X[PERM].
+
+An alternative way to sort with user-defined comparisons
+is the following. For example, assume you want to sort a complex vector z by
+absolute value (as Matlab does). Then first sort a vector of
+absolute values saving the index information:
+
+[y,I] = sort(abs(z));
+
+Then y=z[I] is the wanted result. This method, when applicable,
+is most probably faster than supplying a user-defined comparison
+function.
+
+sort() is a rewritten function which should be backward compatible
+with the old one. In this Tela version the old sort function is
+still available under sort_old().
+Error codes:
+   1: Internal error
+   2: Expecting Tela or CTela function in CMP (arg 2)
+   3: CMP signature is not b = CMP(x1, x2)
+*/
+
+{
+    const Tkind k = x.kind();
+    if (!x.IsArray())
+    {
+        y = x;
+        if (Nargout == 2)
+        {
+            perm.ireserv(1);
+            perm.IntPtr()[0] = ArrayBase;
+        }
+        return 0;
+    }
+
+    int i;
+    int (*comparison)(const void*, const void*);
+    Tobject indices;
+    const Tint n = x.length();
+    Tobject *olist = NULL;              // only required if user comparison
+
+    indices.ireserv(n);
+    for (i = 0; i < n; i++) indices.IntPtr()[i] = i;
+
+    if (Nargin == 1)
+    {
+        switch (k)
+        {
+            case KIntArray:
+                sort_iptr = x.IntPtr();
+                comparison = int_cmp;
+                break;
+
+            case KRealArray:
+                sort_rptr = x.RealPtr();
+                comparison = real_cmp;
+                break;
+
+            case KComplexArray:
+                sort_cptr = x.ComplexPtr();
+                comparison = cpx_cmp;
+                break;
+
+            default:
+                return 1;
+        }
+    }
+    else
+    {
+	if (!cmp.IsFunction() && !cmp.IsCfunction()) return 2;
+	Tprg *attr = cmp.FunctionValue(); // inquire attibutes of function cmp
+	if (attr->NMinArgin() < 2  ||  attr->Nargout() < 1) return 3;
+
+        olist = new Tobject [n];
+        switch (k)
+        {
+            case KIntArray:
+                for (i = 0; i < n; i++) olist[i] = Tobject(x.IntPtr()[i]);
+                break;
+
+            case KRealArray:
+                for (i = 0; i < n; i++) olist[i] = Tobject(x.RealPtr()[i]);
+                break;
+
+            case KComplexArray:
+                for (i = 0; i < n; i++) olist[i] = Tobject(x.ComplexPtr()[i]);
+                break;
+
+            default:
+                delete [] olist;
+                return 1;
+        }
+        sort_optr = olist;              // sort_optr is used in user_cmp()
+        indir = cmp;                    // hook up user's comparison function
+        comparison = user_cmp;          // static dispatch becomes local
+                                        //     comparison function
+    }
+
+    qsort(indices.IntPtr(), n, sizeof(Tint), comparison);
+
+    if (Nargin == 2) delete [] olist;
+
+    y = x;
+    switch (k)
+    {
+        case KIntArray:
+            for (i = 0; i < n; i++) 
+                y.IntPtr()[i] = x.IntPtr()[indices.IntPtr()[i]];
+            break;
+
+        case KRealArray:
+            for (i = 0; i < n; i++)
+                y.RealPtr()[i] = x.RealPtr()[indices.IntPtr()[i]];
+            break;
+
+        case KComplexArray:
+            for (i = 0; i < n; i++)
+                y.ComplexPtr()[i] = x.ComplexPtr()[indices.IntPtr()[i]];
+                break;
+
+            default:
+                return 1;
+    }
+
+    if (Nargout == 2)
+    {
+        perm.bitwiseMoveFrom(indices);
+        for (i = 0; i < n; i++) perm.IntPtr()[i] += ArrayBase;
+    }
+
+    return 0;
+}
+
+// --------- SORT code ends here -----------
+
+// --------- OLD sort code starts here --------
+
+// Comparison functions for stdlib qsort function
+// ----------------------------------------------
+
+static int IntComparison(const void*x1, const void*y1) {
+	const Tint *x=(const Tint*)x1, *y=(const Tint*)y1;
+	const Tint a = sort_iptr[*x], b = sort_iptr[*y];
+	if (a < b)
+		return -1;
+	else if (a == b)
+		return 0;
+	return 1;
+}
+
+static int RealComparison(const void*x1, const void*y1) {
+	const Tint *x=(const Tint*)x1, *y=(const Tint*)y1;
+	const Treal a = sort_rptr[*x], b = sort_rptr[*y];
+	if (a < b)
+		return -1;
+	else if (a == b)
+		return 0;
+	return 1;
+}
+
+static int ComplexComparison(const void*x1, const void*y1) {
+	const Tint *x=(const Tint*)x1, *y=(const Tint*)y1;
+	const Treal a = real(sort_cptr[*x]), b = real(sort_cptr[*y]);
+	if (a < b)
+		return -1;
+	else if (a == b)
+		return 0;
+	return 1;
+}
+
+[y;I] = sort_old(x)
+/* sort_old is the old sort routine. Use it only if you
+   encounter problems with sort(), sort_old will be
+   removed in a later version. The new sort() function
+   accepts a second input argument (user-defined comparison)
+   but is otherwise identical in semantics.
+   
+   sort_old(x) returns array x sorted in ascending order.
+   If x is complex, it is sorted by the real parts.
+   If x is not an array, it is returned as is.
+   [y,I] = sort_old(x) returns also an index vector I such that
+   y == x[I].
+
+   To sort with user-defined comparisons, do the following.
+   For example, if you want to sort a complex vector z by
+   absolute value as Matlab does, first sort a vector of
+   absolute values saving the index information:
+
+   [y,I] = sort_old(abs(z));
+
+   Then y=z[I] is the wanted result.
+
+   If x is multidimensional, it is implicitly flattened.
+   Use the map function to get around this problem.
+*/
+{
+	const Tkind k = x.kind();
+	if (x.IsArray()) {
+		int (*comparison)(const void*, const void*);
+		Tobject indices;
+		const Tint N = x.length();
+		indices.ireserv(N);
+		int i;
+		for (i=0; i<N; i++) indices.IntPtr()[i] = i;
+		if (k == KIntArray) {
+			sort_iptr = x.IntPtr();
+			comparison = IntComparison;
+		} else if (k == KRealArray) {
+			sort_rptr = x.RealPtr();
+			comparison = RealComparison;
+		} else {
+			sort_cptr = x.ComplexPtr();
+			comparison = ComplexComparison;
+		}
+		qsort(indices.IntPtr(),N,sizeof(Tint),comparison);
+		y = x;
+		if (k == KIntArray)
+			for (i=0; i<N; i++) y.IntPtr()[i] = x.IntPtr()[indices.IntPtr()[i]];
+		else if (k == KRealArray)
+			for (i=0; i<N; i++) y.RealPtr()[i] = x.RealPtr()[indices.IntPtr()[i]];
+		else
+			for (i=0; i<N; i++) y.ComplexPtr()[i] = x.ComplexPtr()[indices.IntPtr()[i]];
+		if (Nargout == 2) {
+			I.bitwiseMoveFrom(indices);
+			for (i=0; i<N; i++) I.IntPtr()[i]+= ArrayBase;
+		}
+	} else {
+		y = x;
+		if (Nargout == 2) {
+			I.ireserv(1);
+			I.IntPtr()[0] = ArrayBase;
+		}
+	}
+	return 0;
+}
+
+// --------- OLD sort code ends here --------
+
+#if HAVE_RUSAGE && defined(SUN)
+extern "C" int getpagesize(void);
+#endif
+
+#if HAVE_UNISTD_H
+#  include <unistd.h>
+#  define HAVE_UNIX_FUNCTIONS 1
+#else
+#  define HAVE_UNIX_FUNCTIONS 0
+#endif
+
+[m] = meminuse()
+/* meminuse() returns the size of the current Tela process
+   in bytes. The result is a real number.
+
+   Implementation: It uses the getrusage function if it is available
+   and if it seems to be working properly. Otherwise it calls sbrk(0),
+   which should return the data segment size in bytes. On Cray UNICOS
+   it multiplies the sbrk(0) value by 8 (Cray is a word machine).
+   If sbrk is not available, it returns always 0.
+   - Surprisingly, many Unix systems have the getrusage function but
+   the relevant field in struct rusage is always returned as zero.
+   In this case the sbrk method is used.
+   - On some machines the result is unreliable.
+
+   If Tela has been compiled with TELASPECIFIC_NEWDELETE defined,
+   Tela's own new/delete operators are in use. In this case meminuse
+   will report the memory asked from the OS with malloc from C++ code
+   only. Any use of malloc from C code (GNU readline library, HDF library ...)
+   will thus not be included, as also not the data segment and stack size.
+   The result can nevertheless be a useful measure of the user memory.
+   You can tell if TELASPECIFIC_NEWDELETE is on by looking at the output
+   of the info() function.
+   See also: info
+*/
+{
+#ifdef TELASPECIFIC_NEWDELETE
+	m = Treal(global::memalloc);
+#else
+#	ifdef UNICOS
+	// Cray does not have getrusage, and it counts things in 8-byte words
+	m = 8.0*Treal(TPtrInt(sbrk(0)));
+#	elif HAVE_RUSAGE
+	// We assume that if getrusage is available, also getpagesize() must be there
+	// On Sun (Solaris2.5) the prototype is missing so we must declare it (see above)
+	getrusage(RUSAGE_SELF,&struct_ru);
+//	cout << "getrusage ru_maxrss is " << struct_ru.ru_maxrss << "\n";
+#	if HAVE_UNISTD_H
+	if (struct_ru.ru_maxrss == 0) {
+		// On some (many?) Unixes the getrusage call is there but it always returns zero
+		// in the ru_maxrss field. Detect this and use the sbrk way instead.
+//		cout << "resorting to sbrk(0)\n";
+		m = Treal(TPtrInt(sbrk(0)));
+	} else
+#	endif
+		m = Treal(struct_ru.ru_maxrss)
+#ifdef __sgi
+			* 1024.0;
+#else
+			* Treal(getpagesize());
+#endif
+#	elif HAVE_UNISTD_H
+	// Last resort, use sbrk (but this will ignore program text size?)
+	m = Treal(TPtrInt(sbrk(0)));
+#	else
+	// Lastest resort, we are probably not on Unix at all
+	m = 0.0;
+#	endif
+#endif
+	return 0;
+}
+
+static int IsPerfDataArray(const Tobject& p)
+// Return 1 if p is a performance data array, 0 otherwise.
+{
+	const int L = int(Fnop) - int(Fadd) + 2;
+	if (p.kind()!=KRealArray || p.rank()!=2) return 0;
+	if (p.dims()[0]!=L || p.dims()[1]!=2) return 0;
+	return 1;
+}
+
+[t] = cputime(;p)
+/* cputime() returns the CPU time in seconds used by the current
+   tela session. cputime(p) returns CPU time from performance data
+   array p, previously obtained from perf().
+   See also: tic, toc, perf.
+   Error codes:
+   -1: Bad argument, must be obtained from perf() */
+{
+	if (Nargin == 1) {
+		if (!IsPerfDataArray(p)) return -1;
+		t = p.RealPtr()[0];
+	} else
+		t = CPUSeconds();
+	return 0;
+}
+
+[Ninstructions,Noperations] = GetInstructionData(p,mnemo)
+/* [Ninstr,Nops] = GetInstructionData(p,"mnemonic") returns
+   the number of specific instructions executed when p=perf() was
+   gathered, and the number of (floating point) operations associated
+   with the instruction.
+   The mnemonic must be a string, and it may be any of the names
+   that appear in the disasm(f) listing. In addition, mnemonic may
+   be "flop", which includes all instructions that may perform floating
+   point arithmetic, or it may be "*", which includes all instructions.
+   Error codes:
+   -1: Bad first argument, must be obtained from perf()
+   -2: Second arg not a string
+   -3: Second arg not a recognized string
+   */
+{
+	if (!IsPerfDataArray(p)) return -1;
+	Treal *const pv = p.RealPtr();
+	if (!mnemo.IsString()) return -2;
+	const Tstring MN = mnemo;
+	const char *mnorig = (char*)MN;
+	char *mn = strdup(mnorig);
+	int i;
+	for (i=0; mn[i]; i++) if (islower(mn[i])) mn[i] = char(toupper(mn[i]));
+	Treal totalNinstr=0, totalNops=0, floatNinstr=0, floatNops=0;
+	Treal specificNinstr=0, specificNops=0;
+	int matched = 0;
+	i = 1;
+	for (int k=Fadd; k<=Fnop; k++,i++) {
+		const Treal ninstr = pv[2*i];
+		const Treal nops = pv[2*i+1];
+		totalNinstr+= ninstr;
+		totalNops+= nops;
+		if (instrinfo[k].isflop) {
+			floatNinstr+= ninstr;
+			floatNops+= nops;
+		}
+		if (!strcmp(mn,instrinfo[k].mnemonic)) {
+			specificNinstr+= ninstr;
+			specificNops+= nops;
+			matched = 1;
+		}
+	}
+	if (!strcmp(mn,"FLOP")) {
+		Ninstructions = floatNinstr;
+		Noperations = floatNops;
+	} else if (!strcmp(mn,"*")) {
+		Ninstructions = totalNinstr;
+		Noperations = totalNops;
+	} else if (!matched)
+		return -3;
+	else {
+		Ninstructions = specificNinstr;
+		Noperations = specificNops;
+	}
+	return 0;
+}
+
+static Treal TicTocTime = 0;
+
+[] = tic()
+/* tic() marks the CPU time at which it was invoked.
+   To measure CPU time, use tic() and toc().
+   See also: cputime, toc.
+   Example:
+
+      a = rand(100,100); tic(); b=inv(a); toc()
+
+  This would measure the CPU time in inverting a 100x100
+  random real matrix. See also: toc. */
+{
+	TicTocTime = CPUSeconds();
+	return 0;
+}
+
+[t] = toc()
+/* toc() gives the CPU seconds used since the last call to tic().
+   See also: tic, cputime. */
+{
+	t = CPUSeconds() - TicTocTime;
+	return 0;
+}
+
+[v] = perf()
+/* perf() returns an array containing all maintained operation
+   counters. To measure performance of a code segment, do
+
+   p0=perf(); mycode(); p=perf()-p0;
+
+   Now you can apply various performance-related functions to p:
+   for example cputime(p), Mflops(p). */
+{
+	const int L = int(Fnop) - int(Fadd) + 2;
+	v.rzeros(TDimPack(L,2));
+	Treal *const vp = v.RealPtr();
+	vp[0] = vp[1] = CPUSeconds();
+	int i,c;
+	for (i=1,c=Fadd; i<L; i++,c++) {
+		vp[2*i] = HPM[c].Ninstr;
+		vp[2*i+1] = HPM[c].Nops;
+	}
+	// Subtract spurious operations recorded by rzeros
+	global::nops-= 2*L;
+	return 0;
+}
+
+[] = pause(;seconds)
+/* pause() will wait for a keypress on keyboard.
+   pause(n) will pause for n seconds and then continue.
+   The argument n may be integer or real.
+
+   Note: some systems implicitly round a real argument
+   to nearest whole number.
+   Error codes:
+   1: Argument not a real scalar
+   2: Argument is negative
+   3: This system does not support pausing for n seconds */
+{
+	int ch;
+	Treal n;
+	if (Nargin == 1) {
+		if (seconds.kind()==Kint) {
+			if (seconds.IntValue() < 0) return 2;
+			n = seconds.IntValue();
+		} else if (seconds.kind()==Kreal) {
+			if (seconds.RealValue() < 0.0) return 2;
+			n = seconds.RealValue();
+		} else
+			return 1;
+#		if HAVE_UNIX_FUNCTIONS
+		sleep(iround(n));
+#		else
+		return 3;
+#		endif
+	} else {
+		cout << "Pausing. Hit return to continue." << flush;
+		do {ch=getchar();} while (ch != '\n');
+	}
+	return 0;
+}
+
+[] = cd(fn)
+/* cd("pathname") will change the current directory to "pathname".
+   cd("") will change to home directory.
+   cd("~/my/dir") will change to directory "my/dir" in the
+   home directory.
+
+   See also: getenv.
+   Error codes:
+   1: Input argument not a string
+   2: Directory not found
+   3: This system does not support cd */
+{
+	if (!fn.IsString()) return 1;
+#	if HAVE_UNIX_FUNCTIONS
+	Tstring S = fn;
+	char *s = (char*)S;
+	// If the string is empty, go to home directory
+	if (!s[0]) return (chdir(getenv("HOME"))!=0) ? 2 : 0;
+	// If the string starts with "~/", first cd to home, then remove the "~/"
+	if (s[0]=='~' && s[1]=='/') {
+		s+= 2;
+		if (chdir(getenv("HOME"))!=0) return 2;		// return is unsuccessful, continue if not
+	}
+	// If last char is newline, first try cd with the newline, if it fails
+	// then try again with newline removed. This enables the user to write
+	// e.g. x=run("pwd"); cd(x);
+	const int L = strlen(s);
+	if (s[L-1] == '\n') {
+		if (chdir(s)==0) return 0;
+		s[L-1] = '\0';
+	}
+	return (chdir(s)!=0) ? 2 : 0;
+#	else
+	return 3;
+#	endif
+}
+
+[y] = getenv(varname)
+/* getenv("envvar") returns the value of environment variable
+   "envvar", or VOID if such variable is not defined in
+   the UNIX environment.
+
+   For example, getenv("LOGNAME") returns the login name of
+   the owner of the Tela prcess.
+   (If Unix functions are not available, getenv will always
+   return VOID.)
+
+   See also: putenv, getpid, cd.
+   Error codes:
+   -1: Argument not a string
+   */
+{
+	y.SetToVoid();
+	if (!varname.IsString()) return -1;
+#	if HAVE_UNIX_FUNCTIONS
+	Tstring VARNAME = varname;
+	char *result = getenv((char*)VARNAME);
+	if (result) {
+		int L = strlen(result);
+		y.ireserv(TDimPack(L));
+		for (int i=0; i<L; i++) y.IntPtr()[i] = Tint(result[i]);
+		y.SetStringFlag();
+	}
+#	endif
+	return 0;
+}
+
+[] = putenv(varname,value)
+/* putenv("varname","value") sets an environment variable.
+   The environment variables are inherited to Unix system programs
+   invoked with system() and run(), as well as new PlotMTV windows.
+   For example:
+   putenv("MTV_PSFONT1","32");	// set large font
+   plot(x,y,"toplabel","Large");
+
+   See also: getenv
+   Error codes:
+   -1: First argument not a string
+   -2: Second argument not a string
+   -3: First argument an empty string
+   -4: Environment variable name may not contain the '=' character
+   -5: Environment variable value may not contain the '=' character
+   1: System call failed to set environment variable
+*/
+{
+	if (!varname.IsString()) return -1;
+	if (!value.IsString()) return -2;
+	if (varname.length()==0) return -3;
+	Tstring VARNAME = varname;
+	Tstring VALUE = value;
+	Tint i;
+	for (i=0; i<varname.length(); i++) if (VARNAME[i] == '=') return -4;
+	for (i=0; i<value.length(); i++) if (VALUE[i] == '=') return -5;
+#	if HAVE_UNIX_FUNCTIONS
+	char *s = new char [varname.length() + value.length() + 2];
+	strcpy(s,(char*)VARNAME);
+	strcat(s,"=");
+	strcat(s,(char*)VALUE);
+//	cout << "calling putenv with s='" << s << "'\n";
+	const int retval=putenv(s);
+	// NOTICE! We must not delete [] s, since putenv does not make a copy of it!
+	if (retval) return 1;
+#	endif
+	return 0;
+}
+
+[y] = getpid()
+/* getpid() returns the process ID of the Tela process.
+   This can be used e.g. to generate unique temporary
+   file names. If Unix functions are not available,
+   getpid() returns 0. */
+{
+#	if HAVE_UNIX_FUNCTIONS
+	y = Tint(getpid());
+#	else
+	y = 0;
+#	endif
+	return 0;
+}
+
+extern int  ExecuteFile(const Tchar fn[], int silent);     					// defined in tela.C
+extern void ExecuteLine(Tchar *line, int SetJump=0, int printsetflag=1);	// also in tela.C
+
+[] = source(fn)
+/* source("file.t") loads the tela code from given file.
+   See also: source_silent, autosource, load.
+   Error codes:
+   1: Operation did not succeed
+   2: Argument not a string */
+{
+	if (fn.IsString()) {
+		Tstring s = fn;
+		return ExecuteFile((Tchar*)s,0);
+	} else
+		return 2;
+}
+
+[] = source_silent(fn)
+/* source_silent("file.t") is similar to source("file.t"),
+   but it does not complain if e.g. the file does not exist.
+   See also: source, autosource, load.
+   Error codes:
+   1: Argument not a string */
+{
+	if (fn.IsString()) {
+		Tstring s = fn;
+		ExecuteFile((Tchar*)s,1);
+		return 0;
+	} else
+		return 1;
+}
+
+[] = autosource(fn...)
+/* autosource("file.t","name1","name2",...) tags symbols
+   name1, name2,... such that the command source("file.t")
+   is effectively executed when any of the symbols name
+   is used. This is load-on-demand.
+   See also: source.
+   Error codes:
+   1: Argument not a string */
+{
+	int i;
+	for (i=0; i<Nargin; i++) if (!argin[i]->IsString()) return 1;
+	Tchar *stub = new Tchar [fn.length() + 1]; // FIXME: memory leak! - cls
+	for (i=0; i<fn.length(); i++) stub[i] = fn.IntPtr()[i];
+	stub[fn.length()] = '\0';
+	typedef const void *TConstVoidPtr;
+	TConstVoidPtr *stubinfo = new TConstVoidPtr [Nargin+1];  // FIXME: memory leak! - cls
+	*stubinfo = stub;
+	for (i=1; i<Nargin; i++) {
+		Tchar *symname = new Tchar [argin[i]->length() + 1];
+		for (int j=0; j<argin[i]->length(); j++) symname[j] = argin[i]->IntPtr()[j];
+		symname[argin[i]->length()] = '\0';
+		Tsymbol *symptr = theHT.add(symname);
+		symptr->SetStubInfo(stubinfo);
+		stubinfo[i] = symptr;
+		delete [] symname;
+	}
+	stubinfo[Nargin] = 0;
+	return 0;
+}
+
+[] = eval(s)
+/* eval("string") executes string as a Tela command, as it had been
+   typed from the keyboard.
+   The evaluation is done in global context. The symbols appearing
+   in the string refer to the global ones.
+   See also: evalexpr.
+   Error codes:
+   1: Argument not a string */
+{
+	if (s.IsString()) {
+		Tstring S = s;
+		ExecuteLine((Tchar*)S);
+		return 0;
+	}
+	return 1;
+}
+
+[y] = evalexpr(s)
+/* y = evalexpr("expression") executes string as a Tela command,
+   returning its value in y.
+   The evaluation is done in global context. The symbols appearing
+   in the string refer to the global ones.
+   See also: eval.
+   Error codes:
+   1: Argument not a string */
+{
+	if (s.IsString()) {
+		Tstring S = s;
+		Tchar* str = new Tchar [strlen((Tchar*)S) + 7];
+		strcpy(str,(Tchar*)"a_n_s=");
+		strcat(str,(Tchar*)S);
+		ExecuteLine(str,0,0);
+		delete [] str;
+		Tsymbol*anssymbol=theHT.assoc((Tchar*)"a_n_s");
+		if (anssymbol->value()) {
+			y = *(anssymbol->value());
+			anssymbol->value()->SetToUndefined();
+		} else
+			y.SetToVoid();
+		return 0;
+	}
+	return 1;
+}
+
+[y] = str2num(s)
+/* str2num(s) converts a string to a number.
+   The string must represent a scalar. If an error
+   occurs, str2num returns a void value.
+   Error codes:
+   1: Argument not a string */
+{
+	y.SetToVoid();
+	if (!s.IsString()) return 1;
+	Tstring S = s;
+	double X,Y;
+	char *str = (char*)S;
+	int L = strlen(str);
+	if (str[L-1]=='\n') L--;
+	if (!strchr(str,'.') && !strchr(str,'e') && !strchr(str,'E') && !strchr(str,'i')) {
+		long int I;
+		if (sscanf(str,"%ld",&I)==1)
+			y = Tint(I);
+	} else if (str[L-1]=='i') {
+		int cnt = sscanf(str,"%lf%lfi",&X,&Y);
+		if (cnt==1)
+			y = Tcomplex(0,X);
+		else if (cnt==2)
+			y = Tcomplex(X,Y);
+	} else {
+		if (sscanf(str,"%lf",&X)==1)
+			y = X;
+	}
+	return 0;
+}
+
+[] = system(s)
+/* system("string") executes string as an external operating system
+   command.
+
+   See also: system_with_returnvalue, run.
+
+   Error codes:
+   1: Argument not a string */
+{
+	if (s.IsString()) {
+		Tstring S = s;
+		system((char*)S);
+		return 0;
+	}
+	return 1;
+}
+
+[;rv] = system_with_returnvalue(s)
+/* system_with_returnvalue("string") executes string as an external operating system
+   command and returns the return value rv of the command.
+
+   See also: system, run.
+
+   Error codes:
+   1: Argument not a string */
+{
+	if (s.IsString()) {
+		Tstring S = s;
+		rv = system((char*)S) / 256;
+		return 0;
+	}
+	return 1;
+}
+
+#include <fstream>
+#if HAVE_UNIX_FUNCTIONS
+   extern "C" int wait(int*);
+#  ifdef HAVE_SYSCONF
+#    define max_open_files sysconf(_SC_OPEN_MAX)
+#  else
+#    define max_open_files 256		/* it doesn't matter if this value is too large */
+#  endif
+#endif
+
+[output] = run(cmd; input)
+/* run("cmd","input") runs operating system (Unix) command
+   "cmd", using contents of the second argument string as
+   standard input. It returns the standard output of "cmd"
+   as a string.
+
+   The form run("cmd") may be used if the command does not
+   read standard input. The command is executed by /bin/sh.
+
+   See also: system.
+
+   Error codes:
+   -1: First argument not a string
+   -2: Second argument not a string
+   -3: Error with temporary file
+   -4: Error with internal pipe
+   -5: run not supported: OS does not provide unistd.h nor popen()
+   7: wait(2) returned error
+   -8: pipe(2) returned error
+   -9: cannot fork(2) a child process
+   */
+{
+	if (!cmd.IsString()) return -1;
+	if (Nargin>1 && !input.IsString()) return -2;
+	Tstring CMD = cmd;
+	
+#	if HAVE_UNIX_FUNCTIONS
+
+	char *SHELL = "/bin/sh";
+	int inputpipe[2], outputpipe[2];
+	// parent writes to inputpipe[1], child reads from inputpipe[0]
+	// parent reads from outputpipe[0], child writes to outputpipe[1]
+	if (pipe(inputpipe)!=0) return -8;
+	if (pipe(outputpipe)!=0) return -8;
+	//fprintf(stderr,"[%d,%d], [%d,%d]\n",inputpipe[0],inputpipe[1], outputpipe[0],outputpipe[1]);
+	/* NOTICE: For some reason, using fstreams and .attach() does not work,
+	   therefore we use fdopen.*/
+	long f;
+	if ((f=
+#ifdef UNICOS
+		 vfork()
+#else
+		 fork()
+#endif
+		) > 0) {	// now in parent
+		if (Nargin>1 && input.length()>0) {
+			FILE *tostream = fdopen(inputpipe[1],"w");
+			for (int i=0; i<input.length(); i++) {
+				putc(input.IntPtr()[i],tostream);
+			}
+			fclose(tostream);	// also closed inputpipe[1]
+			//fprintf(stderr,"--parent: wrote tostream\n");
+		} else
+			close(inputpipe[1]);
+		FILE *fromstream = fdopen(outputpipe[0],"r");
+		//fprintf(stderr,"--parent: opened fromstream\n");
+		close(inputpipe[0]);	/* parent does not read from inputpipe, only child does */
+		close(outputpipe[1]);	/* parent does not write to outputpipe, only child does */
+#		if USE_STRINGSTREAM
+		stringstream S;
+#		else
+		strstream S;
+#		endif
+		for (;;) {
+			char ch;
+			ch = fgetc(fromstream);
+			if (feof(fromstream)) break;
+			S << ch;
+			//fprintf(stderr,"transferred char '%c'\n",ch);
+		}
+		fclose(fromstream);		// also closed outputpipe[0].
+		/* Now all four pipe filedes are closed from the parent side. */
+		S << ends;
+#		if USE_STRINGSTREAM
+		string charptr = S.str();
+		output = charptr.c_str();
+#		else
+		char *charptr = S.str();
+		output = charptr;
+#		endif
+#		if !USE_STRINGSTREAM
+		delete [] charptr;
+#		endif
+		//fprintf(stderr,"--parent: wait\n");
+		if (wait(0) < 0) return -7;
+	} else if (f==0) {	/* now in child */
+		//close(outputpipe[0]);	// child does not read from outputpipe, only parent does
+		//close(inputpipe[1]);	// child does not write to inputpipe, only parent does
+		fflush(stdout);			// Flush before closing stdin, stdout
+		cout << flush;			//   (dup2 will close descriptors 0 and 1)
+		dup2(inputpipe[0],0);	// stdin from inputpipe[0]
+		dup2(outputpipe[1],1);	// stdout to outputpipe[1]
+		//close(inputpipe[0]);	// no more needed
+		//close(outputpipe[1]);	// no more needed
+		// close all possible open file descriptors above stdin, stdout, stderr
+		for (long i=max_open_files-1; i>2; i--) close((int)i);
+		//cerr << "--child: executing " << SHELL << " -c " << (char*)CMD << "\n";
+		execl(SHELL,SHELL,"-c",(char*)CMD,0);
+		//execlp((char*)CMD,(char*)CMD,0);
+		exit(0);		// This child is still Tela so it is better to exit now!
+	} else
+		return -9;
+	return 0;
+
+#	elif HAVE_POPEN		/* no unistd.h but popen() is there */
+
+	// Strategy: Use temporary file for command's input but pipe for its output
+	FILE *p;
+	char t[MAXFILENAME] = "";
+	if (Nargin>1 && input.length()>0) {
+		tmpnam(t);
+		ofstream o(t);
+		if (!o.good()) return -3;
+		for (int i=0; i<input.length(); i++)
+			o <<
+#ifdef _UNICOS
+				(unsigned char)
+#else
+				char
+#endif
+				(input.IntPtr()[i]);
+		o.close();
+		char *s = new char [cmd.length() + 8 + strlen(t)];
+		sprintf(s,"cat %s | %s",t,(char*)CMD);
+		p = popen(s,"r");
+		if (!p) return -4;
+		delete [] s;
+	} else {
+		p = popen((char*)CMD,"r");
+		if (!p) return -4;
+	}
+	strstream S;
+	for (;;) {
+		char ch = fgetc(p);
+		if (feof(p)) break;
+		S << ch;
+	}
+	pclose(p);
+	if (*t) remove(t);
+	S << ends;
+	char *charptr = S.str();
+	output = charptr;
+	delete [] charptr;
+	return 0;
+
+#	else	/* no unistd.h, no popen(), cannot deliver! */
+
+	return -5;
+
+#	endif
+
+}	// run
+
+[] = disasm(fn)
+/* disasm(f) produces disassembly listing of function f.
+   Error codes:
+   1: Argument not a Tela function */
+{
+	if (fn.IsFunction()) {
+		cout << *fn.FunctionValue() << '\n';
+		return 0;
+	}
+	return 1;
+}
+
+extern void Ctgen(ostream& o, Tprg& prg);
+extern void SetAvoidCtorsFlag(int flag);
+
+[] = t2ct(fn)
+/* t2ct("filename.t") translates t-code to ct-code.
+   This makes it possible to compile t-files into
+   faster code.
+
+   To compile a t-file "fyle.t", do the following:
+
+   (1) Generate "fyle.ct" by t2ct("fyle.t") from Tela.
+   You can also do this from the shell prompt or Makefile by
+
+   tela -sbe 't2ct("fyle.t")'
+
+   (use single quotes around the argument but cannot show it here, sorry).
+   
+   (2) Compile it using
+
+   telakka -c fyle.ct
+
+   from the shell or the Makefile. (From within Tela,
+   you can use the system function, or precede the command
+   line by "!" in interactive mode.)
+
+   (3) The resulting object file fyle.o can be linked directly
+   to Tela on some systems (e.g. Linux using the DLD library):
+
+   link("fyle.o")
+
+   On systems using the DSO library (SGI, Sun ...) you must first
+   make a shared object file:
+
+   ld -o fyle.so -shared fyle.o
+
+   The DSO file can now be linked to Tela:
+
+   link("fyle.so")
+
+   (When using the DLD library you can emulate the previous step
+   by ld -o fyle.so -r fyle.o, this makes it possible to write machine-
+   independent Makefiles using gmake.)
+
+   (3b) If you do not want dynamic linking, or if your system does
+   not support it (e.g. UNICOS), you can always link your stuff in
+   a new Tela kernel by simply using the telakka command:
+
+   telakka -o newtela fyle.o
+
+   When you start the binary 'newtela' the functions defined in
+   fyle.t are available.
+   
+   See also: avoid_constructors, system.
+   Error codes:
+   1: Operation did not succeed
+   2: Argument not a string
+   3: Could not open output file
+   */
+{
+	if (fn.IsString()) {
+		Tstring s = fn;
+		char outname[MAXFILENAME];
+		strcpy(outname,(char*)s);
+		int L = strlen(outname);
+		if (outname[L-1] == 't' && outname[L-2] == '.') {
+			outname[L-1] = 'c';
+			outname[L] = 't';
+			outname[L+1] = '\0';
+		} else
+			strcat(outname,".ct");
+		ofstream o(outname);
+		if (!o.good()) return 3;
+		o << "#include \"gatscat.H\"\n#include \"prg.H\"\n\n";
+		global::ctfile = &o;
+		int retval = ExecuteFile((Tchar*)s,0);
+		o << flush;
+		global::ctfile = 0;
+		return retval;
+	} else
+		return 2;
+}
+
+[] = avoid_constructors(flag)
+/* avoid_constructors(on) affects the operation
+   of subsequent t2ct function calls.
+   When this flag is on, the generated C-tela (C++)
+   code avoids constructing class objects on the stack
+   but instead declares these objects as pointers and
+   initializes them using the 'new' operator.
+   This mode compiles on ATT Cfront versions that do not
+   support goto statements in blocks having constructors.
+
+   However, in some rare cases avoid_constructors(on)
+   is known to produce incorrect code. The default is
+   avoid_constructors(off).
+
+   See also: t2ct.
+   Error codes:
+   1: Argument not an integer
+*/
+{
+	if (flag.kind()!=Kint) return 1;
+	SetAvoidCtorsFlag(flag.IntValue());
+	return 0;
+}
+
+
+[] = showcompiled(filename...)
+/* showcompiled("filename.ct",f1,f2,...) compiles functions
+   f1,f2,... to C-tela code, creating "filename.ct".
+   If no suffix is given in "filename", the suffix
+   ".ct" will be assumed.
+   showcompiled(f1,f2,...) displays on standard output.
+   See also: t2ct.
+   Error codes:
+   1: One of the args is not a Tela-function
+   2: Cannot open output file
+   */
+{
+	if (filename.IsString()) {
+		Tstring FN = filename;
+		char fn[MAXFILENAME];
+		strcpy(fn,(char*)FN);
+		char *Dotpos = strrchr(fn,'.');
+		char *Slashpos = strrchr(fn,'/');
+		if (!Dotpos || Slashpos && (Slashpos > Dotpos))
+			strcat(fn,".ct");
+		ofstream o(fn);
+		if (!o.good()) return 2;
+		for (int i=1; i<Nargin; i++) {
+			if (!(argin[i]->IsFunction())) return 1;
+			Ctgen(o,*(argin[i]->FunctionValue()));
+		}
+	} else {
+		for (int i=0; i<Nargin; i++) {
+			if (!(argin[i]->IsFunction())) return 1;
+			Ctgen(cout,*(argin[i]->FunctionValue()));
+		}
+	}
+	return 0;
+}
+
+extern "C" int closefigfunction(const TConstObjectPtr[], const int, const TObjectPtr[], const int);
+
+[] = exit(;rv)
+/* exit() stops Tela, returning zero (success) exit code
+   to the calling process.
+
+   exit(n) returns exit code n instead of zero.
+   n must be an int scalar.
+
+   Function quit is a synonym for exit.
+
+   See also: error.
+Error codes:
+   1: expecting integer scalar for EXIT_CODE (arg 1).
+*/
+{
+	Tint retval = 0;
+	if (Nargin == 1) {
+		if (rv.kind() == Kint) retval = rv.IntValue();
+		else return 1;
+	}
+
+	if (!flags::silent) PerformanceReport();
+	cout << flush; clog << flush;
+	// Do closefig("all")
+	// This is necessary since we have defined exit(x) = _exit(x) so that exit(0) does
+	// not call global destructors (since these caused other problems such as core dumps
+	// on exit on Linux sometimes). If the exit definition is sometimes removed, closing
+	// the figures here doesn't harm anyway.
+	TConstObjectPtr inputs[1];
+	TObjectPtr outputs[1];
+	const Tobject all("all");
+	inputs[0] = &all;
+	closefigfunction(inputs,1,outputs,0);
+	exit(retval);
+	return 0;		// avoid compiler warning in most cases
+}
+
+[] = quit(;rv)
+/* quit() stops Tela, returning zero (success) exit code
+   to the calling process.
+
+   quit(n) returns exit code n instead of zero.
+   n must be an int scalar.
+
+   Function quit is a synonym for exit.
+
+   See also: error.
+Error codes:
+    1: expecting integer scalar for EXIT_CODE (arg 1).
+*/
+{
+	if (Nargin == 0) exitfunction(argin,0,argout,0);
+	else exitfunction(argin,1,argout,0);
+#if 0
+	if (!flags::silent) PerformanceReport();
+	cout << flush; clog << flush;
+	// Do closefig("all")
+	TConstObjectPtr inputs[1];
+	TObjectPtr outputs[1];
+	const Tobject all("all");
+	inputs[0] = &all;
+	closefigfunction(inputs,1,outputs,0);
+	exit(0);
+#endif
+	return 0;		// avoid compiler warning in most cases
+}
+
+[] = error(;msg)
+/* error("message") writes message and returns to the
+   Tela main level.
+   error() uses a default message.
+   See also: exit.
+   Error codes:
+   -1: Argument not a string
+*/
+{
+	if (Nargin == 1) {
+		if (!msg.IsString()) return -1;
+		Tstring MSG = msg;
+		err << MSG << '\n';
+	} else {
+		err << "User-called error.\n";
+	}
+	error();
+	return 0;
+}
+
+extern void stripwhite(Tchar *s);		// in tela.C
+extern "C" Tchar *readline(const char *prompt);		// from GNU readline library
+extern "C" void add_history(const Tchar *line);		// from GNU readline/history library
+
+[s] = input_string(;prompt)
+/* input_string() waits for an input line from the keyboard
+   and returns it as a string. The newline is not included
+   in the result.
+   If the string is enclosed in double quotes, they are removed.
+
+   input_string("prompt") displays prompt first.
+   Error codes:
+   -1: EOF encountered. */
+{
+	Tchar *line;
+	if (Nargin==1 && prompt.IsString()) {
+		Tstring PROMPT = prompt;
+		cout << PROMPT;
+	}
+	clog << flush; cout << flush;
+	line = readline(" ");
+	if (!line) return -1;	// readline encountered eof
+	int L = strlen(line);
+	if (L > 0) add_history(line);
+	if (*line == '"' && line[L-1] == '"') {
+		memmove(line,line+1,L);
+		if (L>=2) line[L-2] = '\0';
+	}
+	Tobject s1(line);
+	s = s1;
+	free(line);
+	return 0;
+}
+
+static int GenericMenu(const TConstObjectPtr argin[], const int Nargin,
+						const TObjectPtr argout[], const int Nargout,
+						const int stringflag)
+#define result (*(argout[0]))
+#define title (*(argin[0]))
+{
+	if (Nargin<2) return -1;
+	int n;
+	for (n=0; n<Nargin; n++)
+		if (!argin[n]->IsString()) return -1;
+	Tstring s;
+	int choice;
+    for (;;) {
+		s = title;
+		cout << s << '\n';
+		for (n=1; n<Nargin; n++) {
+			s = *argin[n];
+			int old_width = cout.width();
+			std::ios::fmtflags old_flags = cout.flags();
+			cout.width(3);
+			cout.setf(ios::right);
+			cout << n;
+			cout.flags(old_flags);
+			cout.width(old_width);
+			cout << ")  " << s << '\n';
+		}
+		cout << "  ?)  " << flush;
+		char s1[512+1];
+		fgets(s1,512,stdin);
+		if (sscanf(s1,"%d",&choice)!=1 || choice<1 || choice>Nargin-1) {
+			cout << "- Please enter a number between 1 and " << Nargin-1 << ".\n";
+		} else break;
+	}
+	if (stringflag)
+		result = *argin[choice];
+	else
+		result = choice;
+	return 0;
+#	undef title
+#	undef result
+}
+
+[result] = menu(title...)
+/* choice = menu("title","choice1","choice2",...) displays
+   a menu of choices and returns the number entered by
+   the user.
+   See also: smenu.
+   Error codes:
+   -1: Less than two input args */
+{
+	return GenericMenu(argin,Nargin,argout,Nargout,0);
+}
+
+[result] = smenu(title...)
+/* choice = smenu("title","choice1","choice2",...) displays
+   a menu of choices and returns the "choice" string corresponding
+   to the number entered by the user.
+   See also: menu.
+   Error codes:
+   -1: Less than two input args */
+{
+	return GenericMenu(argin,Nargin,argout,Nargout,1);
+}
+
+[y] = streq(s1,s2)
+/* streq("string1","string2") returns 1 if the argument
+   strings are exactly equal and 0 otherwise. If one of
+   the args is not a string, the result is also 0.
+   See also: strstarteq. */
+{
+	if (!s1.IsString() || !s2.IsString()) {y=0; return 0;}
+	int L = s1.length();
+	if (L != s2.length()) {y=0; return 0;}
+	for (int i=0; i<L; i++)
+		if (s1.IntPtr()[i] != s2.IntPtr()[i]) {y=0; return 0;}
+	y = 1;
+	return 0;
+}
+
+[y] = strstarteq(s1,s2)
+/* strstarteq("string1","string2") returns 1 if the argument
+   strings are equal on the first min(length(s1),length(s2))
+   characters and 0 otherwise.
+   If one of the the args is not a string, the result is also 0.
+   See also: streq. */
+{
+	if (!s1.IsString() || !s2.IsString()) {y=0; return 0;}
+	int L = min(s1.length(),s2.length());
+	for (int i=0; i<L; i++)
+		if (s1.IntPtr()[i] != s2.IntPtr()[i]) {y=0; return 0;}
+	y = 1;
+	return 0;
+}
+
+[] = whos(;hidden)
+/* whos() displays names of variables together with their
+   types and values, if short. 'Hidden' symbols are not shown.
+   whos("hidden") shows also hidden symbols.
+   See also: hide, unhide.
+   Error codes:
+   1: Bad argument
+   -1: Cannot open pipe to sort
+   */
+{
+	int ShowAlsoHidden = 0;
+	if (Nargin == 1 && hidden.IsString()) {
+		Tstring HIDDEN = hidden;
+		ShowAlsoHidden = !strcmp((Tchar*)HIDDEN,(Tchar*)"hidden");
+	}
+	if (Nargin==1 && !ShowAlsoHidden) return 1;
+	double bytes = 0.0;
+	// Options to sort:
+	// -b ignore leading blank, -f make lowercase/uppercase equal, -k1 sort with respect to first field
+	char *pager;
+	if (flags::batch) {
+		pager = "cat";
+	} else {
+		pager = getenv("PAGER");
+		if (!pager || !(*pager)) pager = "more";
+	}
+	char *sorter;
+	sorter = getenv("TELA_SORTER");
+	if (!sorter) sorter = "sort -b -f -k 1";
+	char *s = new char [80 + strlen(pager) + strlen(sorter)];
+	sprintf(s,"%s | %s",sorter,pager);
+	FILE *fp = popen(s,"w");
+	if (!fp) return -1;
+	cout << flush;
+
+//#ifdef HAVE_ISTREAM /* use STL */
+//	boost::fdostream out(fileno(fp));
+//#else  /* use extensions in old gcc 2.95 */
+
+#	ifdef __GNUC__
+#	if __GNUC__ >= 3
+#	if __GNUC_MINOR__ < 4 && __GNUC__ == 3
+	__gnu_cxx::stdio_filebuf<char> b(fileno(fp),std::ios_base::out,false,4096);
+#	else
+	__gnu_cxx::stdio_filebuf<char> b(fp,std::ios_base::out,4096);
+#	endif
+	ostream out(&b);
+#	else
+	ofstream out;
+	out.attach(fileno(fp));
+#	endif
+#	else
+	ofstream out;
+	out.attach(fileno(fp));
+#	endif
+
+//#endif /* HAVE_IOSTREAM */
+
+	for (THashEntryPtr p=theHT.first(); p; p=theHT.next()) {TObjectPtr objptr = p->value();
+		if (objptr) {
+			Tkind k = objptr->kind();
+			if ((ShowAlsoHidden || !p->IsHidden()) && k!=Kfunction && k!=KCfunction && k!=KIntrinsicFunction
+				&& k!=Kundef && !strchr((char*)(p->name()),':'))
+			{
+				int old_width = out.width();
+				std::ios::fmtflags old_flags = out.flags();
+				out.width(16);
+				out.setf(ios::right);
+				out << *p;
+				out.width(old_width);
+				out.flags(old_flags);
+				out << "  " << Tshort(*objptr);
+				if (objptr->HasStringFlag() && objptr->kind()==KIntArray && objptr->rank() > 1) out << " (string array)";
+				if (objptr->IsArray()) {
+					if (objptr->kind()==KIntArray)
+						bytes+= objptr->length()*sizeof(Tint);
+					else if (objptr->kind()==KRealArray)
+						bytes+= objptr->length()*sizeof(Treal);
+					else
+						bytes+= objptr->length()*sizeof(Tcomplex);
+				}
+				if (p->IsHidden() || p->IsGlobal()) {
+					out << "   (";
+					if (p->IsHidden()) {
+						out << "hidden";
+						if (p->IsGlobal()) out << " auto-global";
+					} else {
+						if (p->IsGlobal()) out << "auto-global";
+					}
+					out << ')';
+				}
+				out << '\n';
+			}
+		}
+	}
+	out.flush();
+//	out.close();
+	pclose(fp);
+	delete [] s;
+	if (bytes > 0) {
+		cout << "Total visible ";
+		if (bytes < 1e5)
+			cout << (Tint)bytes << " bytes\n";
+		else if (bytes < 1e8)
+			cout << (Tint)(bytes/1024) << " kilobytes\n";
+		else
+			cout << (Tint)(bytes/1048576) << " megabytes\n";
+	}
+	return 0;
+}
+
+[] = clear(...)
+/* clear() removes all variables that are visible from
+   the whos() function from the workspace. Function definitions
+   are not cleared. Variables in loaded packages are also not affected.
+
+   clear("var1","var2",...) removes only the specified variables.
+   If a string is not a variable name, no warning is given.
+   See also: whos, hide, unhide.
+   Error codes:
+   1: Bad argument, not a string
+*/
+{
+	if (Nargin == 0) {
+		for (THashEntryPtr p=theHT.first(); p; p=theHT.next()) {
+			TObjectPtr objptr = p->value();
+			if (objptr) {
+				Tkind k = objptr->kind();
+				if (!p->IsHidden() && k!=Kfunction && k!=KCfunction && k!=KIntrinsicFunction
+					&& !strchr((char*)(p->name()),':'))
+					{
+						objptr->SetToVoid(); objptr->SetToUndefined();
+						// SetToUndefined does not call objptr->clear(), to deallocate the object
+						// we have to call SetToVoid() first. Maybe this should be changed in object.H,
+						// but since we are not sure we don't do it now. See also 9 lines below.
+					}
+			}
+		}
+	} else {
+		for (int a=0; a<Nargin; a++) {
+			if (!argin[a]->IsString()) return 1;
+			Tstring ARG = *argin[a];
+			Tsymbol *symptr = theHT.assoc((Tchar*)ARG);
+			if (symptr) {
+				TObjectPtr objptr = symptr->value();
+				if (objptr) {objptr->SetToVoid(); objptr->SetToUndefined();}
+			}
+		}
+	}
+	return 0;
+}
+
+[] = hide(...)
+/* hide("sym-name",...) sets the 'hidden' attribute to
+   specified symbols.
+   See also: whos, unhide, autoglobal.
+   Error codes:
+   1: Argument not a string
+   2: Argument does not name a symbol
+   */
+{
+	for (int p=0; p<Nargin; p++) {
+		if (!argin[p]->IsString()) return 1;
+		Tstring NAME = *argin[p];
+		Tsymbol* symptr = theHT.assoc(NAME);
+		if (!symptr) return 2;
+		symptr->SetHiddenFlag();
+	}
+	return 0;
+}
+
+[] = unhide(...)
+/* hide("sym-name",...) unsets the 'hidden' attribute to
+   specified symbols.
+   See also: whos, hide.
+   Error codes:
+   1: Argument not a string
+   2: Argument does not name a symbol
+   */
+{
+	for (int p=0; p<Nargin; p++) {
+		if (!argin[p]->IsString()) return 1;
+		Tstring NAME = *argin[p];
+		Tsymbol* symptr = theHT.assoc(NAME);
+		if (!symptr) return 2;
+		symptr->ClearHiddenFlag();
+	}
+	return 0;
+}
+
+// The help function
+// -----------------
+
+extern FILE *FindAndOpenFile(const Tchar*);	// defined in tela.C
+extern int CompleteFileName(const Tchar *fn, Tchar totalfn[MAXFILENAME]);	// also in tela.C
+
+static int StringBeginMatch(char*s, const char*pattern, int pattern_len) {
+	// Checks if the beginning of s equals pattern.
+	// pattern_len must be equal to strlen(pattern).
+	char ch = s[pattern_len];
+	s[pattern_len] = '\0';
+	int result = !strcmp(s,pattern);
+	s[pattern_len] = ch;
+	return result;
+}
+
+static const char *strstr1(const char*s, const char*item) {
+	// similar to strstr, but ignores some special chars
+	const int BackSlash = 92;	// we cannot type the character because ctpp screws up
+	for (const char*s1=s; *s1; s1++) {
+		const char *s2 = s1;
+		for (const char*item1=item; *item1 && *s2; item1++,s2++) {
+			while (*s2 == BackSlash || *s2 == '$') s2++;
+			if (*item1 != *s2) goto Continue;
+		}
+		return s1;
+	Continue:
+		;
+	}
+	return 0;
+}
+
+static void MacroReplacements(char *buf, const char* from[], const char* to[])
+{
+	int i;
+	for (;;) {
+		char*found = 0;
+		for (i=0; from[i]; i++) {
+			found = strstr(buf,from[i]);
+			if (found) {
+				int Lfrom=strlen(from[i]);
+				int Lto=strlen(to[i]);
+				int Lrest=strlen(found+Lfrom);
+				memmove(found+Lto,found+Lfrom,Lrest+1);
+				memcpy(found,to[i],Lto);
+				break;
+			}
+		}
+		if (!found) break;
+	}
+}
+
+static void TidyUpRefs(char *buf)
+{
+	for (;;) {
+		char *ptr = strstr(buf,"<ref id=\"");
+		if (!ptr) break;
+		char *ptr2 = strstr(ptr+1,"\">");
+		if (!ptr2) break;
+		char *quoteptr = strchr(ptr+9,'"');
+		if (!quoteptr) break;
+		*quoteptr = '\0';
+		int L = strlen(ptr+9);
+		memmove(ptr,ptr+9,L);
+		int L2 = strlen(ptr2+2);
+		memmove(ptr+L,ptr2+2,L2);
+		*(ptr+L+L2) = '\0';
+	}
+}
+
+static int BuiltinHelp(const char *item, const char *filename) {
+	FILE *fp = FindAndOpenFile((Tchar*)filename);
+	if (!fp) return 0;
+	const int BUFSIZE = 512;
+	char buf[BUFSIZE+1];
+	const char *pattern = "<sect1>";
+	static const char *frommacros[] =
+		{"&amp;","&lt;","&gt;","&etago;","&dollar;","&num;","&percnt;","&circ;","``","''",0};
+	static const char *tomacros[] =
+		{"&","<",">","</","$","#","%","^","\"","\"",0};
+	int pattern_len = strlen(pattern);
+	while (!feof(fp)) {
+		fgets(buf,BUFSIZE,fp);
+		// wanted buf is of the form:   <sect1>keyword1, keyword2,...,keywordN<label...
+		if (StringBeginMatch(buf,pattern,pattern_len)) {
+			// replace the '<' preceding "label" with null, if it is there
+			char *const p = strstr(buf+pattern_len,"<label");
+			if (p) *p = '\0';
+			// do SGML macro replacements on the keyword1,. keyword2,...,keywordN part
+			MacroReplacements(buf+pattern_len,frommacros,tomacros);
+			const char *found = strstr1(buf+pattern_len,item);
+			if (found && !isalnum(found[-1]) && !isalnum(found[strlen(item)])) {
+				// the isalnum's ensures that complete keyword was matched,
+				// without it, for example 'help ls' would match 'else' keyword
+				const char *endpattern1 = "<sect";
+				const char *endpattern2 = "</article";
+				int endpattern1_len = strlen(endpattern1);
+				int endpattern2_len = strlen(endpattern2);
+				for(;;) {
+					fgets(buf,BUFSIZE,fp);
+					if (feof(fp)) break;
+					if (StringBeginMatch(buf,endpattern1,endpattern1_len)) break;
+					if (StringBeginMatch(buf,endpattern2,endpattern2_len)) break;
+					if (buf[0] != '<') {
+						MacroReplacements(buf,frommacros,tomacros);
+						TidyUpRefs(buf);
+						const int Backslash = 92;	// cannot type the char because ctpp would screw up
+						for (int i=0; buf[i]; i++)
+#if 0		/* Why don't we print dollar and backslash? Removed 13.5.1995. */
+							if (buf[i]!='$' && buf[i]!=Backslash)
+#endif
+								cout << buf[i];
+					}
+				}
+				fclose(fp);
+				return 1;	// success
+			}
+		}
+	}
+	fclose(fp);
+	return 0;	// not found
+}
+
+[] = help(;fn)
+/* help(function-name) or help("help-item") displays the help information
+   associated with a given function or a given help item. On command line
+   you may use the abbreviation
+
+      ?help-item
+   or
+      help help-item
+
+   These forms are translated to help("help-item") before parsing.
+
+   First tries:
+   help operators
+   help special
+   help if
+   help for
+   help function
+   ...
+   
+   Error codes:
+   1: Item not found
+   2: Cannot open help file */
+{
+	int ret=0;
+	const Tobject* fnobjptr = 0;
+	const char *helpfile = "telahelp.sgml";
+	if (Nargin==0) goto shorthelp;
+	if (fn.IsString()) {
+		if (fn.length()==0) goto shorthelp;
+		Tstring S = fn;
+		const Tchar *s = (Tchar*)S;
+		while (*s==' ') s++;
+		Tsymbol *symptr = theHT.assoc(s);
+		if (symptr && symptr->StubInfo()) symptr = theHT.add(s);
+		if (symptr && symptr->value() && symptr->value()->kind()!=Kundef) {
+			fnobjptr = symptr->value();
+			if (fnobjptr->IsIntrinsicFunction()) {
+				if (BuiltinHelp((char*)s,helpfile))
+					return 0;
+				else
+					ret = 1;
+			}
+		} else if (BuiltinHelp((char*)s,helpfile)) {
+			return 0;
+		} else {
+			cout << "Item \'" << (char*)s << "\' not found.\n";
+			//ret = 1;
+			return 0;	// return 0 because we already gave 'not found' message
+		}
+	} else
+		fnobjptr = &fn;
+	if (ret) return ret;
+	if (fnobjptr->IsCfunction()) {
+		const TCFunctionInfo*p = fnobjptr->CFunctionInfoPtr();
+		long help1 = p->helpstart;
+		long help2 = p->helpend;
+		if (help1 >= help2) {
+			cout << "Sorry, no help.\n";
+		} else {
+			FILE *fp = FindAndOpenFile(p->helpfile);
+			if (fp) {
+				fseek(fp,help1,SEEK_SET);
+				//while (ftell(fp) < help2) cout << char(fgetc(fp));
+				int WriteNewline=1;
+				while (ftell(fp) < help2) {
+					char s1[512+1];
+					fgets(s1,512,fp);
+					if (strstr(s1,"Error codes:")) {WriteNewline=0; break;}
+					int L = strlen(s1);
+					if (s1[L-3]=='*' && s1[L-2]=='/' && s1[L-1]=='\n') s1[L-3] = '\0';
+					cout << s1;
+				}
+				if (WriteNewline) cout << '\n';
+				cout << flush;
+				fclose(fp);
+			} else {
+				cerr << "*** Cannot open help file '" << p->helpfile << "'.\n";
+				ret = 2;
+			}
+		}
+	} else if (fnobjptr->IsFunction()) {
+		const Tchar *srcfile = fnobjptr->FunctionValue()->FileName();
+		Tsymbol* sptr = (Tsymbol*)(&(fnobjptr->FunctionValue()->Symbol()));
+		const Tchar *symname = (Tchar*)(sptr->name());
+		Tchar longsrcname[MAXFILENAME];
+		if (CompleteFileName(srcfile,longsrcname)) {
+			Tchar longtelahelpname[MAXFILENAME];
+			if (CompleteFileName((Tchar*)"telahelp.sh",longtelahelpname)) {
+				char *s = new char [strlen(longtelahelpname) + strlen(symname) + strlen(longsrcname) + 30];
+				strcpy(s,(char*)longtelahelpname);
+				strcat(s," ");
+				strcat(s,(char*)symname);
+				strcat(s," ");
+				strcat(s,(char*)longsrcname);
+				system(s);
+				delete [] s;
+			} else {
+				cout << "*** telahelp.sh not found on TELAPATH\n";
+				ret = 1;
+			}
+#if 0
+			char *pager = getenv("PAGER");
+			char *s = new char [(pager?strlen(pager):0) + strlen(longsrcname) + strlen(symname) + 30];
+			strcpy(s,pager ? pager : "more");
+			strcat(s," '+/function.+");
+			strcat(s,(char*)symname);
+			strcat(s,"' ");
+			strcat(s,(char*)longsrcname);
+			system(s);
+			delete [] s;
+#endif
+		}
+	} else {
+		cout << "Help item not found.\n";
+		ret = 1;
+	}
+	return ret;
+shorthelp: cout << "Type '?help <RET>' for first help.\n";
+	return 0;
+}
+
+#include "tree.H"
+
+extern void ShowFreelist(ostream&);
+
+[] = info()
+/* info() shows information about various class sizes for this Tela implementation.
+   It also prints the total counts of Tnode, Tprg and Tobject objects at the moment. */
+{
+	cout << "sizeof(TNodeBlock) = " << sizeof(TNodeBlock)
+		 << ", sizeof(Tnode) = " << sizeof(Tnode)
+		 << ", sizeof(Tobject) = " << sizeof(Tobject) << '\n';
+	cout << theNodePool.NodesInUse() << " Tnodes, "
+		 << global::NTprg << " Tprgs, "
+		 << global::NTobject << " Tobjects\n";
+	if (global::NTobject==0) cout << "  (probably object counting disabled, see object.H)\n";
+	cout << "stack length = " << theStack.length() << '\n';
+#ifdef TELASPECIFIC_NEWDELETE
+	cout << "Tela's own new/delete operators are in use:\n";
+	cout << "  Memory in use " << (global::memuse+1023)/1024
+		 << "K, Fragmentation " << (global::memalloc - global::memuse + 1023)/1024 << "K\n";
+	cout << "  " << global::Nalloc << " allocated blocks, Average block size "
+		 << global::memalloc/(global::Nalloc ? global::Nalloc : 1) << "B, " << global::Nmem << " new operations\n";
+	cout << "  Freelist length is " << global::FLlen << "\n";
+	cout << "Freelist: ";
+	ShowFreelist(cout);
+#else
+	cout << "The underlying C++ new/delete operators are in use, not Tela's own.\n";
+#endif
+	return 0;
+}
+
+
+static const Tchar pathsep = ':';
+
+static void
+gettelapath(const TObjectPtr argout[])
+{
+	Tobject& currentpath = *(argout[0]);
+
+	// determine total length
+	size_t len = 0;
+	for (size_t i = 0; i < TelaPathLength; i++)
+		len += strlen(TelaPath[i]) + 1; // +1 for pathsep
+	// -1 because there is one less `pathsep' than directories in path
+	currentpath.ireserv(static_cast<Tint>(len - 1));
+
+	// copy into Tint (string) array
+	int p = 0;
+	for (size_t i = 0; i < TelaPathLength; i++)
+	{
+		for (size_t j = 0; TelaPath[i][j]; j++)
+			currentpath.IntPtr()[p++] = TelaPath[i][j];
+		if (i < TelaPathLength - 1)
+			currentpath.IntPtr()[p++] = pathsep;
+	}
+	currentpath.SetStringFlag();
+}
+
+
+// Copy the name of a directory (called 'element' of the path) which
+// is TSTRLEN glyphs long and starts at TSTRPTR into TelaPath.  The
+// name is converted from Tela's string representation (Tint array
+// with string flag) to a vector of Tchars.  On success copyelement
+// returns 0, if the number of elements would overflow the internal
+// buffer it returns -1.
+
+static int
+copyelement(size_t tstrlen, Tint* tstrptr)
+{
+	if (TelaPathLength == MAX_TELAPATH_LENGTH)
+		return -1;
+
+	TelaPath[TelaPathLength] = new Tchar [tstrlen + 1];
+	for (size_t j = 0; j < tstrlen; j++)
+		TelaPath[TelaPathLength][j] = static_cast<Tchar>(tstrptr[j]);
+	TelaPath[TelaPathLength][tstrlen] = 0;
+	TelaPathLength++;
+
+	return 0;
+}
+
+
+static int
+settelapath(const TConstObjectPtr argin[])
+{
+	const Tobject& newpath = *(argin[0]);
+
+	if (!newpath.IsString()) return -1;
+
+	// free memory
+	for (size_t i = 0; i < TelaPathLength; i++)
+	{
+		delete [] TelaPath[i];
+		TelaPath[i] = 0;
+	}
+
+	if (newpath.length() == 0)
+	{
+		TelaPath[0] = new Tchar [1];
+		TelaPath[0][0] = '\0';
+		TelaPathLength = 1;
+		return 0;
+	}
+
+	// copy NEWPATH to TelaPath
+	size_t elementlen = 0; // length of element in path
+	Tint* tstrptr = newpath.IntPtr(); // pointer to current element in path
+	TelaPathLength = 0;
+
+	for (Tint i = 0; i < newpath.length(); i++)
+	{
+		if (newpath.IntPtr()[i] == pathsep)
+		{
+			if (elementlen == 0)
+			{
+				tstrptr++;
+				continue;
+			}
+			if (copyelement(elementlen, tstrptr) != 0)
+				return 1;
+			tstrptr += elementlen + 1;
+			elementlen = 0;
+		}
+		else
+		{
+			elementlen++;
+		}
+	}
+	if (newpath.length() > 0  &&  elementlen != 0)
+	{
+		if (copyelement(elementlen, tstrptr) != 0)
+			return 1;
+	}
+
+	return 0;
+}
+
+
+[currentpath; maxelements] = telapath(;newpath)
+/* telapath() returns the current Tela path as a string.
+   telapath(NEWPATH) sets the Tela search path to NEWPATH and returns
+   the *old* search path.
+   [oldpath,maxelems] = telapath()
+   also returns the maximum number of members in the
+   search path in maxelems (currently 100).
+   Error codes:
+   -1: expecting string NEWPATH (arg 1)
+    1: too many elements in NEWPATH (arg 1); ignoring trailing elements
+*/
+{
+	TObjectPtr cpp(&currentpath);
+	gettelapath(&cpp);
+
+	if (Nargout >= 2)
+		maxelements = static_cast<Tint>(MAX_TELAPATH_LENGTH);
+
+	if (Nargin == 0) return 0;
+
+	// Input argument given	 =>  set new TELAPATH
+	TConstObjectPtr npp(&newpath);
+	return settelapath(&npp);
+}
+
+#include "randef.H"
+
+[x] = rand(...)
+/* rand() returns a uniformly distributed random real x, 0<=x<1.
+   rand(N) (N positive integer) returns a real random vector of length N.
+   rand(N,M) returns a random matrix, and so on.
+   See also: srand, gaussrand.
+   Error codes:
+   -1: Tried to create too high rank array
+   -2: Argument not an integer
+   -3: Non-positive integer argument */
+{
+	if (Nargin==0) {				// Return scalar
+		x = Random();
+		global::nops++;
+		return 0;
+	}
+	if (Nargin > MAXRANK) return -1;		// Too many dimensional tensor requested
+	int dims[MAXRANK];
+	for (int d=0; d<Nargin; d++) {
+		if (argin[d]->kind() != Kint) return -2;		// Arguments must be integers ..
+		if (argin[d]->IntValue() <= 0) return -3;		// .. positive
+		dims[d] = argin[d]->IntValue();
+	}
+	x.rreserv(TDimPack(dims,Nargin));	// Allocate result, without zeroing it
+	const int N = x.length();
+	Treal * const xp = x.RealPtr();
+#	ifdef UNICOS
+	VRANF(xp,&N);
+#	else
+	for (int i=0; i<N; i++) xp[i] = Random();
+#	endif
+	global::nops+= N;
+	return 0;
+}
+
+[] = srand(seed)
+/* srand(seed) seeds the random number generator.
+   The same seed will always produce the same random
+   number sequence. The argument must be an integer.
+   See also: rand.
+   Error codes:
+   1: Argument not an integer */
+{
+	if (seed.kind()!=Kint) return 1;
+#	ifdef UNICOS
+	int i = int(seed.IntValue());
+	RANSET(&i);
+#	elif HAVE_DRAND48
+	srand48((long)(seed.IntValue()));
+#	else
+	srand(seed.IntValue());
+#	endif
+	return 0;
+}
+
+#if 0
+
+// This routine (gasdev_712) was advertized to be fast, but since it does 2 Random() calls per result,
+// it is actually slower than the Numerical Recipes (Box-Mueller) method. PJ 20 Sep 1999.
+
+static Treal gasdev_712()
+// The TOMS algorithm 712 (http://www.netlib.org/toms/712)
+// Based on Leva, J.L., A Fast Normal Random Number Generator, ACM Trans. Math. Software, 18, 449-453, 1992.
+/*  The function RANDN() returns a normally distributed pseudo-random
+ *  number with zero mean and unit variance.  Calls are made to a
+ *  function subprogram RANDU() which must return independent random
+ *  numbers uniform in the interval (0,1).
+ *
+ *  The algorithm uses the ratio of uniforms method of A.J. Kinderman
+ *  and J.F. Monahan augmented with quadratic bounding curves.
+ */
+{
+	const Treal s = 0.449871;
+	const Treal t = -0.386595;
+	const Treal a = 0.19600;
+	const Treal b = 0.25472;
+	const Treal r1 = 0.27597;
+	const Treal r2 = 0.27846;
+	Treal u,v,x,y,q;
+    //
+    //  Generate P = (u,v) uniform in rectangle enclosing acceptance region
+ reject:
+	u = Random();
+	v = Random();
+	v = 1.7156 * (v - 0.5);
+    // Evaluate the quadratic form
+	x  = u - s;
+	y  = fabs(v) - t;
+	q  = x*x + y*(a*y - b*x);
+    // Accept P if inside inner ellipse
+	if (q < r1) goto accept;
+    // Reject P if outside outer ellipse
+    if (q > r2) goto reject;
+    // Reject P if outside acceptance region
+    if (v*v > -4.0*log(u)*(u*u)) goto reject;
+    // Return ratio of P's coordinates as the normal deviate
+ accept:
+    return v/u;
+}
+
+static void vgasdev_712(Treal V[], Tint N)
+{
+	Tint i;
+	for (i=0; i<N; i++) V[i] = gasdev_712();
+}
+#endif
+
+static void vgasdev(Treal V[], Tint N)
+/* Generate N Gaussian deviates with zero mean and unit
+   standard deviation in vector V.
+   Algorithm: Generate random pairs (x,y) from unit square
+   -1 <= x <= 1, -1 <= y <= 1 until (x,y) is within
+   the unit circle. Compute fac = sqrt(-2.0*log(r2)/r2),
+   where r2 = x^2 + y^2. Then, x*fac and y*fac are two Gaussian
+   random numbers. */
+{
+	Tint i;
+	Treal x,y,r2,fac;
+	for (i=0; i<N; i+=2) {
+		do {
+			x = 2*Random() - 1;
+			y = 2*Random() - 1;
+			r2 = x*x + y*y;
+		} while (r2 >= 1.0);
+		// On average, this do loop is executed 4/pi = 1.27324 times
+		fac = sqrt(-2.0*log(r2)/r2);
+		V[i] = x*fac;
+		if (i < N-1) V[i+1] = y*fac;
+	}
+	global::nops+= Tint(ceil(0.5*N)*(1.27324*10 + 7));
+}
+
+[x] = gaussrand(...)
+/* gaussrand() returns a Gaussian-distributed random real.
+   The distribution function is f(x) = (1/(2*pi))*exp(-0.5*x^2)
+   so that the mean is zero and the standard deviation is unity.
+   gaussrand(N) returns a vector of length N,
+   gaussrand(N,M) returns a matrix of size N x M, etc.
+   Example: To test gaussrand, plot it together with the distribution
+   function, as follows:
+
+   N=50000; x=-4:0.1:4; y=(N/(2*pi))*exp(-0.5*x^2);
+   hold(on); hist(gaussrand(N),20,-4,4); plot(x,y); hold(off);
+
+   See also: rand, srand.
+   Error codes:
+   -1: Tried to create too high rank array
+   -2: Argument not an integer
+   -3: Non-positive integer argument
+*/
+{
+	if (Nargin==0) {				// Return scalar
+		Treal V[1];
+		vgasdev(V,1);
+		x = V[0];
+		return 0;
+	}
+	if (Nargin > MAXRANK) return -1;		// Too many dimensional tensor requested
+	int dims[MAXRANK];
+	for (int d=0; d<Nargin; d++) {
+		if (argin[d]->kind() != Kint) return -2;		// Arguments must be integers ..
+		if (argin[d]->IntValue() <= 0) return -3;		// .. positive
+		dims[d] = argin[d]->IntValue();
+	}
+	x.rreserv(TDimPack(dims,Nargin));	// Allocate result, without zeroing it
+	const int N = x.length();
+	Treal * const xp = x.RealPtr();
+	vgasdev(xp,N);
+	return 0;
+}
+
+extern char *VersionString;
+
+[x] = version()
+/* version() returns the Tela version number (real) currently
+   in use. */
+{
+	x = atof(VersionString);
+	return 0;
+}
+
+[x] = strmat(...)
+/* strmat("string1","string2",...) makes a string matrix
+   ouf of individual strings. The strings need not be same length,
+   they are padded with zeros (invisible) if they are not.
+
+   Usage example:
+   S = strmat("string1","longer_string");
+   s = tostring(S[1,:]);
+   after which streq(s,"string1") will return true (1).
+   The function tostring is needed to get rid of possible
+   extra zeros at the end of the string.
+   
+   See also: strmat2, tostring, streq.
+   Error codes:
+   -1: Argument not a string
+*/
+{
+	int p;
+	for (p=0; p<Nargin; p++) if (!argin[p]->IsString()) return -1;
+	Tint maxlen = 0, L, i;
+	for (p=0; p<Nargin; p++) {
+		L = argin[p]->length();
+		if (L > maxlen) maxlen = L;
+	}
+	x.izeros(TDimPack(Nargin,maxlen));
+	for (p=0; p<Nargin; p++) for (i=0; i<argin[p]->length(); i++)
+		x.IntPtr()[p*maxlen+i] = argin[p]->IntPtr()[i];
+	x.SetStringFlag();
+	return 0;
+}
+
+[x] = strmat2(str; sep)
+/* strmat2("string") creates a string matrix from "string"
+   interpreting the newline character as row ending marker.
+   strmat2("string",sep) uses separator sep instead of
+   newline char; sep may be either character or string.
+   If sep is a string, any character that is a member of sep
+   is taken to be a separator. If the rows have unequal lengths,
+   they are padded with zeros.
+   See also: strmat.
+   Error codes:
+   -1: First arg not a string
+   -2: Second arg not a char or string
+   */
+{
+	if (!str.IsString()) return -1;
+	Tkind sepk = Kvoid;
+	if (Nargin == 2) {
+		sepk = sep.kind();
+		if (!(sepk==KIntArray && sep.rank()==1) && !sepk==Kint) return -2;
+	}
+	Tstring STR = str;
+	// Determine maximum row length maxL and number of rows, Nrows
+	Tint L = 0, maxL = 0, Nrows = 0;
+	Tint i;
+	for (i=0; i<str.length(); i++) {
+		const Tchar ch = ((Tchar*)STR)[i];
+		int found;
+		if (sepk == Kint) {
+			found = (ch == sep.IntValue());
+		} else if (sepk == Kvoid) {
+			found = (ch == '\n');
+		} else {
+			found = 0;
+			for (Tint j=0; j<sep.length(); j++)
+				if (ch == sep.IntPtr()[j]) {
+					found = 1;
+					break;
+				}
+		}
+		if (found) {
+			L = 0;
+			Nrows++;
+		} else {
+			if (i == str.length()-1)
+				Nrows++;
+			L++;
+		}
+		if (L > maxL) maxL = L;
+	}
+	// Make output variable
+	x.izeros(TDimPack(Nrows,maxL));
+	Tint row = 0;
+	L = 0;
+	for (i=0; i<str.length(); i++) {
+		const Tchar ch = ((Tchar*)STR)[i];
+		int found;
+		if (sepk == Kint) {
+			found = (ch == sep.IntValue());
+		} else if (sepk == Kvoid) {
+			found = (ch == '\n');
+		} else {
+			found = 0;
+			for (Tint j=0; j<sep.length(); j++)
+				if (ch == sep.IntPtr()[j]) {
+					found = 1;
+					break;
+				}
+		}
+		if (found) {
+			L = 0;
+			row++;
+		} else {
+			x.IntPtr()[row*maxL + L] = ch;
+			L++;
+		}
+	}
+	x.SetStringFlag();
+	return 0;
+}

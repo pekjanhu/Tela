@@ -1,0 +1,682 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="LinuxDoc-Tools 0.9.21">
+ <TITLE>Builtin Tela functions: plotmtv.ct</TITLE>
+ <LINK HREF="telafuncsSectioned-5.html" REL=next>
+ <LINK HREF="telafuncsSectioned-3.html" REL=previous>
+ <LINK HREF="telafuncsSectioned.html#toc4" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="telafuncsSectioned-5.html">Next</A>
+<A HREF="telafuncsSectioned-3.html">Previous</A>
+<A HREF="telafuncsSectioned.html#toc4">Contents</A>
+<HR>
+<H2><A NAME="s4">4.</A> <A HREF="telafuncsSectioned.html#toc4">plotmtv.ct</A></H2>
+
+<P>This section describes functions from file plotmtv.ct.</P>
+
+<H2><A NAME="annotate"></A> <A NAME="ss4.1">4.1</A> <A HREF="telafuncsSectioned.html#toc4.1">annotate</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[] = annotate(primitive...)
+ annotate("primitive"[,options]) adds MTV annotations to the previous
+   graph. The plot command(s) and the annotate command(s) must appear
+   inside hold(on) ... hold(off) in order to work correctly.
+   
+   --------------------------------------------
+   Here may be the proper place to list the most frequently used
+   PlotMTV options. These are used by giving them as optional args
+   (option-value pairs) to graphics functions.  See the PlotMTV data
+   format definition (DataFormat.ps) for all the available options.
+   
+   Option name(s)      Possible value(s)       Explanation
+   "xlabel"            string                  X-axis label
+   "ylabel"            string                  Y-axis label
+   "zlabel"            string                  Z-axis label
+   "toplabel"          string                  Plot title
+   "subtitle"          string                  Text below title
+   "comment"           string                  Text on right corner
+   "xmin","xmax"       real number             X-axis min,max
+   "ymin","ymax"       real number             Y-axis min,max
+   "zmin","zmax"       real number             Z-axis min,max
+   "xgrid"             real vector             X gridpoints (nonuniform)
+   "ygrid"             real vector             Y gridpoints (nonuniform)
+   "cmin","cmax"       real number             Contour min/max
+   "nsteps"            integer                 Number of contours
+   "cstep"             real number             Contour spacing
+   "contstyle"         1: normal contours, 2: colored (pcolor),
+                       3: 3D surface
+   "hiddenline"        "true": colored 3D surface, "false": wireframe
+   "linecolor"         color value (integer)
+   "linewidth"         integer
+   "linestyle"         solid,dashed etc.; integers; 0 is no line
+   "markertype"        integers; 0 is no marker (the default)
+   "markersize"        real number
+   "markercolor"       color value (integer)
+   
+   Some color (red,green,blue,pink etc.) names have been defined
+   in telainit.t. Use them for clarity if possible.
+   
+   The most usual PlotMTV command line options (always start with
+   minus sign):
+   -3d                  Initially view in 3D
+   -colorps             Produce color PostScript
+   -landscape           Produce landscape (rotated) PostScript
+   -scale s             PostScript scale factor, default 1
+   -nodate              Drop the date from PostScript figure
+   -title 'my title'    PlotMTV window title
+   
+   For an example in using the annotations, see e.g. the file
+   "3windows.t", usual location is /usr/local/lib/tela/t/.
+   
+</PRE>
+
+See also: 
+<A HREF="#plotopt">plotopt</A>, 
+<A HREF="#hold">hold</A>, 
+<A HREF="#plot">plot</A>, 
+<A HREF="#pcolor">pcolor</A>, 
+<A HREF="#mesh">mesh</A>, 
+<A HREF="#contour">contour</A>, 
+<A HREF="#vplot">vplot</A>, 
+<A HREF="#colormap">colormap</A>.
+<PRE>
+   Error codes:
+   1: Could not open temporary MTV file
+   2: First argument not a string
+   3: Syntax error in graph options 
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="bar"></A> <A NAME="ss4.2">4.2</A> <A HREF="telafuncsSectioned.html#toc4.2">bar</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[] = bar(x,y,z...)
+ bar(grouplabels,data,barnames[,options]) produces a bar chart.
+   Example 1:
+   
+   bar(strmat("DEC","HP"),#(111,150.6),"Speed")
+   
+</PRE>
+
+See also: 
+<A HREF="#plot">plot</A>, 
+<A HREF="#hist">hist</A>.
+<PRE>
+   Error codes:
+   1: First argument not int nor real array
+   2: First argument not a vector nor matrix
+   3: Second argument not int nor real array
+   4: Second argument not a vector nor matrix
+   5: Dimension mismatch between first and second arg
+   6: If second arg is vector, third arg must be a string
+   7: Third arg must be a string or a string matrix
+   8: If second arg is matrix, third arg must be a string matrix
+   9: Dimension mismatch between second and third arg
+   10: Syntax error in graph options
+   11: First arg must not be real matrix
+   12: Could not open temporary MTV file
+   
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="closefig"></A> <A NAME="ss4.3">4.3</A> <A HREF="telafuncsSectioned.html#toc4.3">closefig</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[] = closefig(n)
+ closefig(n) (n>1) closes the nth graphics window.
+   The active window is not changed, so if n is the active
+   window, subsequent plot commands will reopen it.
+   If the window has never been opened or has already been
+   closed, closefig is silent about it.
+
+   closefig("all") closes all figures.
+</PRE>
+
+See also: 
+<A HREF="#figure">figure</A>.
+<PRE>
+   Error codes:
+   1: Argument not an integer
+   2: Argument not positive
+   3: This Tela installation does not support the closefig command
+   4: No n>1 figures are currently open (and X11 initialization has failed)
+   
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="colormap"></A> <A NAME="ss4.4">4.4</A> <A HREF="telafuncsSectioned.html#toc4.4">colormap</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[] = colormap(r;g,b)
+ colormap(r,g,b) sets the colormap (palette) for the next
+   opened graphics window. The arguments r,g,b must be real vectors
+   with equal lengths and with entries in the range 0..1. If they
+   are outside range, they are silently truncated.
+
+   The colormap has an effect only in pcolor plots, and in contour
+   and mesh plots if suitable options are used. The colormap is reset
+   to its default value after each plot.
+
+   colormap(c), where c is a Nx3 matrix, is also accepted.
+   
+   NOTICE: you need PlotMTV1.4.2t or later for this feature
+   to work. If you try to use it with older PlotMTV's, a warning
+   message about unknown option will be displayed.
+   
+</PRE>
+
+See also: 
+<A HREF="#plot">plot</A>, 
+<A HREF="#annotate">annotate</A>.
+<PRE>
+   Error codes:
+   1: Argument is not real vector
+   2: Arguments have unequal lengths
+   3: Argument length less than 2 is not allowed
+   4: You must give either 1 or 3 input arguments
+   5: Single argument is not a Nx3 real matrix
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="contour"></A> <A NAME="ss4.5">4.5</A> <A HREF="telafuncsSectioned.html#toc4.5">contour</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[] = contour(z...)
+ contour(z[,options]) plots the matrix z as a filled contour plot.
+   contour(z,"xgrid",&lt;x-grid-vector>,"ygrid",&lt;y-grid-vector>[,other opts])
+   specifies a nonuniform grid in X and Y.
+</PRE>
+
+See also: 
+<A HREF="#contour3">contour3</A>, 
+<A HREF="#annotate">annotate</A>, 
+<A HREF="#plot">plot</A>, 
+<A HREF="#mesh">mesh</A>, 
+<A HREF="#pcolor">pcolor</A>, 
+<A HREF="#vplot">vplot</A>.
+<PRE>
+   Error codes:
+   1: Could not open temporary MTV file
+   2: First argument is not a numeric 2D array
+   3: Syntax error in graph options
+   4: Write error in MTV file - file system full? 
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="contour3"></A> <A NAME="ss4.6">4.6</A> <A HREF="telafuncsSectioned.html#toc4.6">contour3</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[] = contour3(z...)
+ contour3(z[,options]) plots the 3D array as a
+   "volume" plot. Currently this only means that all
+   six faces of the volume are contoured and colored
+   according to options.
+</PRE>
+
+See also: 
+<A HREF="#annotate">annotate</A>, 
+<A HREF="#plot">plot</A>, 
+<A HREF="#mesh">mesh</A>, 
+<A HREF="#pcolor">pcolor</A>, 
+<A HREF="#vplot">vplot</A>.
+<PRE>
+   contour.
+   Error codes:
+   1: Could not open temporary MTV file
+   2: First argument is not a real 3D array
+   3: Syntax error in graph options
+   4: Write error in MTV file - file system full? 
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="figure"></A> <A NAME="ss4.7">4.7</A> <A HREF="telafuncsSectioned.html#toc4.7">figure</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[] = figure(n)
+ figure(n) causes subsequent plot commands to use
+   window (figure) number n (n=1,2,...). Figures with
+   n>1 are drawn over by each new plot command.
+   
+   figure(-1) restores the default behavior, which is
+   to create standalone windows. These plots are never
+   replaced by new graphics and are quit only by the user.
+   
+   Using this command for n>1 requires that you use the
+   Tela-compatible PlotMTV version.
+   
+</PRE>
+
+See also: 
+<A HREF="#closefig">closefig</A>.
+<PRE>
+   Error codes:
+   1: Argument is not an integer
+   2: Figure number zero is reserved, don't use it
+   3: This Tela installation does not support the figure command
+   4: Failed X11 initialization, cannot synchronize with PlotMTV
+   
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="grid"></A> <A NAME="ss4.8">4.8</A> <A HREF="telafuncsSectioned.html#toc4.8">grid</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[X,Y] = grid(x,y)
+ [X,Y] = grid(x,y) produces matrices X,Y that are formed from vectors x,y
+   such that X[i,j] = x[i] for all j, and Y[i,j] = y[j] for all i.
+</PRE>
+
+See also: 
+<A HREF="#grid3">grid3</A>.
+<PRE>
+   Error codes:
+   -1: Input argument is array but not a vector
+   -2: Input argument is not real array 
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="grid3"></A> <A NAME="ss4.9">4.9</A> <A HREF="telafuncsSectioned.html#toc4.9">grid3</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[X,Y,Z] = grid3(x,y,z)
+ [X,Y,Z] = grid3(x,y,z) produces 3D arrays X,Y,Z that ar
+   formed from vectors x,y,z such that
+   X[i,j,k] = x[i] for all j,k,
+   Y[i,j,k] = y[j] for all i,k, and
+   Z[i,j,k] = z[k] for all i,j.
+</PRE>
+
+See also: 
+<A HREF="#grid">grid</A>.
+<PRE>
+   Error codes:
+   -1: Input arg is array but not a vector
+   -2: Input arg not a real array 
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="hist"></A> <A NAME="ss4.10">4.10</A> <A HREF="telafuncsSectioned.html#toc4.10">hist</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[;ndata,xdata] = hist(x...)
+ hist(x) produces a histogram of vector x.
+   The range min(x)..max(x) is divided in bins, and the
+   number of x values in each bin is counted. The count determines
+   the height of each bin.
+   
+   hist(x) uses 10 bins, hist(x,n) uses n bins.
+   hist(x,n,a) starts from x=a.
+   hist(x,n,a,b) ignores x values outside interval a..b.
+   Rest of the args may contain other MTV options.
+   [ndata,xdata] = hist(args) returns the count and abscissa vectors
+   but does not draw anything. bar(xdata,ndata,"lab") can be used to draw
+   the histogram later. Graphics options are ignored in this case.
+</PRE>
+
+See also: 
+<A HREF="#plot">plot</A>, 
+<A HREF="#bar">bar</A>.
+<PRE>
+   Error codes:
+   1: First argument not a (real) vector
+   2: Second arg not a positive integer
+   3: Third arg not a (real) scalar
+   4: Fourth arg not a (real) scalar
+   5: Third arg greater of equal than fourth arg
+   6: Could not open temporary MTV file
+   7: Syntax error in graph options
+   
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="hold"></A> <A NAME="ss4.11">4.11</A> <A HREF="telafuncsSectioned.html#toc4.11">hold</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[] = hold(flag)
+ hold(on) and hold(off) set the graphics hold mode on and off.
+   When hold is on, all graphics commands will be accumulated and
+   performed only until hold(off).
+   If hold(on) is called many times in succession, also hold(off)
+   must be called as many times until the plots are produced.
+   For example, if
+
+   function f() {hold(on); plot1(); plot2(); hold(off)};
+
+   and it is called as
+
+   hold(on); f(); plot3(); hold(off);
+
+   then all three plots are actually combined in one plot.
+
+   hold(-1) can be used to reset the internal counter.
+   Use it in emergency.
+   
+</PRE>
+
+See also: 
+<A HREF="#plot">plot</A>, 
+<A HREF="#holdmode">holdmode</A>.
+<PRE>
+   Error codes:
+   1: Argument not an integer 
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="holdmode"></A> <A NAME="ss4.12">4.12</A> <A HREF="telafuncsSectioned.html#toc4.12">holdmode</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[result] = holdmode(;flag)
+ holdmode(overlay) causes held plots to be combined in same figure.
+   holdmode(paging) shows them as sequential pages in one window.
+   holdmode(stacking) draws them as subplots in one window.
+   holdmode() returns the current setting.
+</PRE>
+
+See also: 
+<A HREF="#hold">hold</A>.
+<PRE>
+   Error codes:
+   1: Argument not an integer
+   2: Bad value for argument 
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="mesh"></A> <A NAME="ss4.13">4.13</A> <A HREF="telafuncsSectioned.html#toc4.13">mesh</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[] = mesh(z...)
+ mesh(z[,options]) plots the matrix z as a 3D mesh.
+   mesh(z,"xgrid",&lt;x-grid-vector>,"ygrid",&lt;y-grid-vector>[,other opts])
+   specifies a nonuniform grid in X and Y.
+</PRE>
+
+See also: 
+<A HREF="#annotate">annotate</A>, 
+<A HREF="#plot">plot</A>, 
+<A HREF="#contour">contour</A>, 
+<A HREF="#pcolor">pcolor</A>, 
+<A HREF="#vplot">vplot</A>.
+<PRE>
+   Error codes:
+   1: Could not open temporary MTV file
+   2: First argument is not a numeric 2D array
+   3: Syntax error in graph options
+   4: Write error in MTV file - file system full? 
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="pcolor"></A> <A NAME="ss4.14">4.14</A> <A HREF="telafuncsSectioned.html#toc4.14">pcolor</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[] = pcolor(z...)
+ pcolor(z[,options]) plots the matrix z as a pseudocolor density plot.
+   pcolor(z,"xgrid",&lt;x-grid-vector>,"ygrid",&lt;y-grid-vector>[,other opts])
+   specifies a nonuniform grid in X and Y.
+</PRE>
+
+See also: 
+<A HREF="#annotate">annotate</A>, 
+<A HREF="#plot">plot</A>, 
+<A HREF="#contour">contour</A>, 
+<A HREF="#mesh">mesh</A>, 
+<A HREF="#vplot">vplot</A>.
+<PRE>
+   Error codes:
+   1: Could not open temporary MTV file
+   2: First argument is not a numeric 2D array
+   3: Syntax error in graph options
+   4: Write error in MTV file - file system full? 
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="pixmap"></A> <A NAME="ss4.15">4.15</A> <A HREF="telafuncsSectioned.html#toc4.15">pixmap</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[] = pixmap(flag)
+ pixmap(off) tells PlotMTV not to use pixmaps for faster redraw.
+   pixmap(on) turns the pixmap mode on, which is the default.
+   
+   If your X server uses backing store, you can save memory
+   by turning pixmap(off) without hurting performance.
+   Error codes:
+   1: Argument is not an integer 
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="plot"></A> <A NAME="ss4.16">4.16</A> <A HREF="telafuncsSectioned.html#toc4.16">plot</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[] = plot(...)
+ plot(x1,y1,[options1], x2,y2,[options2],...) is the basic 2D plot function.
+   Each vector yi is plotted versus the corresponding xi. All curves yi are
+   displayed in the same figure. The option sequences must consist of keyword-
+   value pairs. Example:
+
+       x = 0:0.1:4*pi;
+       plot(x,sin(x), "linewidth",3,"linecolor",2);
+
+   The abscissa x may be missing, in which case the default of 1:length(y)
+   is used. The ordinates y may be matrices; then each row produces one
+   curve. If also abscissa x is matrix, the x-value may be different for each
+   curve.
+</PRE>
+
+See also: 
+<A HREF="#plot3">plot3</A>, 
+<A HREF="#annotate">annotate</A>, 
+<A HREF="#plotopt">plotopt</A>, 
+<A HREF="#mesh">mesh</A>, 
+<A HREF="#contour">contour</A>, 
+<A HREF="#pcolor">pcolor</A>, 
+<A HREF="#vplot">vplot</A>, 
+<A HREF="#colormap">colormap</A>.
+<PRE>
+   Error codes:
+   1: Could not open temporary MTV file
+   2: Nonnumeric or complex data argument
+   3: Syntax error in graph options
+   4: The abscissa ("x") must be a vector or a matrix
+   5: The ordinate ("y") must be a vector or a matrix
+   6: x and y dimensions disagree
+   
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="plot3"></A> <A NAME="ss4.17">4.17</A> <A HREF="telafuncsSectioned.html#toc4.17">plot3</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[] = plot3(x,y,z...)
+ plot3(x,y,z[,options]) produces parametric space curves.
+   The quantities x,y,z must have equal ranks, and they can
+   be either vectors or matrices. If they are vectors, only
+   one space curve is drawn. If they are matrices, the number
+   of curves produces equals the number of rows.
+</PRE>
+
+See also: 
+<A HREF="#plot">plot</A>, 
+<A HREF="#annotate">annotate</A>.
+<PRE>
+   Error codes:
+   1: Could not open temporary MTV file
+   2: y dimensionality disagrees with x dimensionality
+   3: z dimensionality disagrees with x dimensionality
+   4: Input arrays must be integer or real arrays
+   5: Input arrays must have rank equal to 1 or 2
+   6: Syntax error in graph options
+   
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="plotopt"></A> <A NAME="ss4.18">4.18</A> <A HREF="telafuncsSectioned.html#toc4.18">plotopt</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[] = plotopt(s)
+ plotopt("-3d -colorps -landscape...") sets a set of PlotMTV command
+   line options for subsequent graphics commands (global setting).
+</PRE>
+
+See also: 
+<A HREF="#plot">plot</A>, 
+<A HREF="#annotate">annotate</A>.
+<PRE>
+
+   NOTICE: plotopt is usually not required. You can pass the option string
+   to all plot commands directly, for example:
+
+   plot(x,sin(x),"-3d -landscape");
+
+   These options affect only the current (or next outputted, if hold is used)
+   plot. All graphics function optional string args which start with minus sign
+   are assumed to be PlotMTV command line options.
+   
+   Error codes:
+   1: Argument not a string 
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="reset_alt_display"></A> <A NAME="ss4.19">4.19</A> <A HREF="telafuncsSectioned.html#toc4.19">reset_alt_display</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[] = reset_alt_display()
+ reset_alt_display() must be used after set_alt_display
+   to return to normal settings (to direct X11 commands to
+   DISPLAY environment variable again).
+</PRE>
+
+See also: 
+<A HREF="#set_alt_display">set_alt_display</A>.
+<PRE>
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="set_alt_display"></A> <A NAME="ss4.20">4.20</A> <A HREF="telafuncsSectioned.html#toc4.20">set_alt_display</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[] = set_alt_display(s)
+ set_alt_display("X display name") informs Tela that
+   subsequent PlotMTV commands use the given X display name
+   instead of the default (DISPLAY environment variable).
+   If you want to temporarily redirect your display to somewhere
+   else, be it mydisplay:1 do the following:
+
+   closefig(1); ...     // close all figures that you will manipulate below
+   set_alt_display("mydisplay:1");
+   plotopt("-display mydisplay:1 ...");
+   //  Do your graphics commands here ...
+   reset_alt_display(); // return to normal setting
+   plotopt("...");      // i.e  without -display argument
+
+   You MUST ensure that the display given to PlotMTV via
+   p|otopt (or directly, using a plot command option) is the same
+   as that used in set_alt_display.
+</PRE>
+
+See also: 
+<A HREF="#plot">plot</A>, 
+<A HREF="#reset_alt_display">reset_alt_display</A>.
+<PRE>
+   Error codes:
+   -1: Argument not a string
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="vplot"></A> <A NAME="ss4.21">4.21</A> <A HREF="telafuncsSectioned.html#toc4.21">vplot</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[] = vplot(x,y,vx,vy...)
+ vplot(x,y,vx,vy[,options]) produces a 2D vector plot of the vector
+   field (vx,vy). All arguments x,y,vx and vy must be 2D integer or
+   real arrays and of the same size. Each 2D vector will be positioned
+   at (x[i,j],y[i,j]) and its direction will be (vx[i,j],vy[i,j]) where
+   (i,j) run over rows and columns of the matrices.
+</PRE>
+
+See also: 
+<A HREF="#annotate">annotate</A>, 
+<A HREF="#plot">plot</A>, 
+<A HREF="#mesh">mesh</A>, 
+<A HREF="#contour">contour</A>, 
+<A HREF="#pcolor">pcolor</A>.
+<PRE>
+   Error codes:
+   1: Could not open temporary MTV file
+   2: One of first four args is not a numeric array
+   3: One of first four args has rank not equal to 2
+   4: Dimensions of first four args disagree
+   5: Syntax error in graph options 
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+
+<HR>
+<A HREF="telafuncsSectioned-5.html">Next</A>
+<A HREF="telafuncsSectioned-3.html">Previous</A>
+<A HREF="telafuncsSectioned.html#toc4">Contents</A>
+</BODY>
+</HTML>

@@ -1,0 +1,562 @@
+<title>Basics of the language</title>
+<h1>3 <a name="s3"> Basics of the language </h1>
+<p> <a href="usrguide.html#toc3"> Contents of this section</a></p>
+
+<p></p>
+<p>The first thing to be mentioned about the Tela language is that it is
+in many respects similar to C, or C++. So much so that I usually use
+the GNU Emacs C++ mode to edit Tela code, since there is not a
+specific Tela mode (maybe you could contribute one?).  There
+is an <b>if</b> statement (
+<a href="#cmdif"> if </a>
+), a <b>while</b>
+statement (
+<a href="#cmdwhile"> while </a>
+) and a <b>for</b> statement
+(
+<a href="#cmdfor"> for </a>
+). There are of course many syntactic
+differences also, but two of them are the most fundamental:</p>
+<p>1. In C, a semicolon ends a statement whilst in Tela a semicolon is a
+separator between successive statements. Tela's use of semicolons is
+equivalent to Pascal rather than C in this respect. This means for
+example that the right brace is usually followed by a semicolon in
+Tela, or at least that a semicolon does no harm there.</p>
+<p>2. In C the assignment is an operator, i.e. <em>a=b</em> is syntatically
+an expression not a statement. In Tela the assignment is a statement.
+This is also similar to Pascal. This implies that the use of
+assignment is more restricted in Tela than it is in C or C++.</p>
+<p></p>
+<h2>3.1 <A Name="ss3.1"> Flow of control statements </h2>
+
+<p></p>
+<p>The following subsubsections describe the Tela control structures.</p>
+<p></p>
+<a name="cmdif"> <h3>  The if statement</h3>
+
+<p></p>
+<p>The <b>if</b> statement has the following syntax (<em>stmt</em> = statement):</p>
+<p>
+<blockquote><code>
+<pre>
+if (expr)
+   stmt
+</pre>
+</code></blockquote>
+</p>
+<p>or</p>
+<p>
+<blockquote><code>
+<pre>
+if (expr)
+    stmt
+else
+    stmt
+</pre>
+</code></blockquote>
+</p>
+<p>The conditional expression <em>expr</em> must be enclosed in parentheses.
+There must be no semicolon between <em>stmt</em> and <b>else</b>.</p>
+<p>The expression must evaluate to integer scalar or array. The condition is
+considered true if the scalar is nonzero or if all the array elements are
+nonzero. Examples:</p>
+<p>
+<blockquote><code>
+<pre>
+if (x!=0)
+    format("x is nonzero, x=``\n",x)    // notice no semicolon
+else {
+    x = 1;
+    format("x was zero and is now 1\n");// this semicolon is optional
+};  // this semicolon separates this if stmt from the next stmt, if any
+</pre>
+</code></blockquote>
+</p>
+<p>Nested <b>if</b> statements are written in the following style:</p>
+<p>
+<blockquote><code>
+<pre>
+if (a == 1) {
+    /* action for a==1 */
+} else if (a == 2) {
+    /* action for a==2 */
+} else if (a == 3) {
+    /* action for a==3 */
+} else {
+   /* action for none of the above */
+};
+</pre>
+</code></blockquote>
+</p>
+<p></p>
+<a name="cmdwhile"> <h3>  The while statement</h3>
+
+<p>The <b>while</b> loop statement has the following syntax:</p>
+<p>
+<blockquote><code>
+<pre>
+while (expr)
+    stmt ;
+</pre>
+</code></blockquote>
+</p>
+<p>For example:</p>
+<p>
+<blockquote><code>
+<pre>
+    while (!found) {
+        LookForIt();
+        counter++
+    };
+</pre>
+</code></blockquote>
+</p>
+<p>The statement is executed until <em>expr</em> evaluates to true.
+The "trueness" of <em>expr</em> is similar to the <b>if</b> statement (
+<a href="#cmdif"> if </a>
+): a scalar and all elements of an integer array
+must be nonzero for <em>expr</em> to be true.</p>
+<p></p>
+<a name="cmdrepeat"> <h3>  The repeat statement</h3>
+
+<p>The <b>repeat</b> loop statement has the form</p>
+<p>
+<blockquote><code>
+<pre>
+repeat
+    stmt1;
+    stmt2;
+    ...
+until expr;
+</pre>
+</code></blockquote>
+</p>
+<p>The statements <em>stmt1</em>, <em>stmt2</em>, ... are iterated until <em>expr</em>
+evaluates to true (nonzero). The statements are always executed at least
+once. It is analogous to the <b>repeat</b> statement in Pascal.</p>
+<p></p>
+<a name="cmdfor"> <h3>  The for statement</h3>
+
+<p>The <b>for</b> loop statment has the form</p>
+<p>
+<blockquote><code>
+<pre>
+for (initstmt; expr; updatestmt) stmt;
+</pre>
+</code></blockquote>
+</p>
+<p>It is equivalent to the <b>while</b> statement
+<blockquote><code>
+<pre>
+initstmt;
+while (expr) {
+    stmt;
+    updatestmt;
+};
+</pre>
+</code></blockquote>
+</p>
+<p>The syntax is rather similar to C, but there is a difference:
+the <em>initstmt</em>, <em>updatestmt</em> and <em>stmt</em> are statements,
+not expressions. On the other hand there is no comma operator in Tela.
+Thus you cannot write <b>for(i=0,j=0; i<10; i++)</b> but instead you
+must write</p>
+<p>
+<blockquote><code>
+<pre>
+for ({i=1; j=1}; i&lt;=10; i++) { /* ... */ };
+</pre>
+</code></blockquote>
+</p>
+<p>We intentionally changed the loop running from 1, not 0, to remind 
+that in Tela the first array index is 1, not 0 as in C.</p>
+<p></p>
+
+<h2>3.2 <A Name="ss3.2"> Expressions and assignments </h2>
+
+<p></p>
+<p>The following subsubsections describe Tela expressions and assignment statements.</p>
+<p></p>
+<a name="cmdexpr"> <h3>  Operators</h3>
+
+<p>Expressions are composed of atomic expressions and operators.  Atomic
+expressions can be variable names, literal constants (integers, reals,
+imaginary constants, characters, array constructors, and strings),
+function calls, or array references. Operators usually obey the precedence
+rules in other programming languages where possible. The operators are,
+from lowest to highest precedence:</p>
+<p>
+<blockquote><code>
+<pre>
+Operators       Associativity       Meaning
+---------       -------------       -------
+:               non-associative     Vector creation
+||              left                Logical OR
+&&              left                Logical AND
+== !=           left                Equality and nonequality
+&gt; &gt;= &lt; &lt;=       left                Greater than etc.
++ -             left                Addition and subtraction
+* ** / mod      left                Pointwise multiplication,
+                                      matrix multiplication,
+                                      pointwise division,
+                                      modulus operation
+- +             non-associative     Unary minus and plus
+^               right               Exponentiation
+!               non-associative     Logical NOT
+.' '            non-associative     Transpose, Hermitian transpose
+</pre>
+</code></blockquote>
+</p>
+<p>In Fortran, the operator <b>**</b> would be exponentiation, in Tela it
+is matrix multiplication. In C <b>&circ;</b> would be logical XOR, in
+Tela it is exponentiation. In Matlab <b>*</b> denotes matrix
+multiplication and <b>.*</b> pointwise multiplication, in Tela <b>*</b> is
+pointwise multiplication and <b>**</b> is the matrix product. There are
+no matrix power and division operators in Tela as there are in
+Matlab. The equivalent of matrix division in Tela is the function
+<b>linsolve</b>. The vector creation operator uses the notation
+<b>a:step:b</b>, which follows the Matlab convention. In Fortran-90 the
+step is the last member, <b>a:b:step</b>. The set of operators is the
+same as in C, with the addition of vector creation, matrix
+multiplication, modulus, exponentiation, transpose and Hermitian
+transpose operators. These additional operators follow Matlab
+conventions except for the difference in pointwise and matrix nature
+of multiplication.</p>
+<p></p>
+<a name="cmdexpr"> <h3>  Atomic expressions</h3>
+
+<p>Atomic expressions can be:</p>
+<p>
+<blockquote><code>
+<pre>
+variable names         a, b_89, $x, $_x9$
+integer constants      0, 23
+real constants         1.23, 4.5E3, 0.03
+imaginary constants    1.23i, 4.5E3i, 0.03i
+characters             'a'
+array constructors     #(1,2,3), #(a,b; c,d)
+strings                "with possible escape sequences\n"
+function calls         f(), f(1), f(a+b,g(c))
+array references       a[i,j], a[1], a[1:imax,2:jmax-1]
+mapped references      a&lt;[i,j]&gt;, a&lt;[1]&gt;
+</pre>
+</code></blockquote>
+</p>
+<p>Variable names, or any identifier names for that matter, start with a
+letter. The rest of the characters can also be digits or underscores.
+The dollar sign is also accepted as a ``letter'' in identifiers.</p>
+<p>Imaginary constants are obtained from real constants by appending
+<b>i</b> with no intervening white space. There is no explicit notation
+for complex constants, you must use the addition or subtraction
+operators as in <b>2+3i</b> or <b>0.5-0.75i</b>. The way to denote the
+imaginary unit ``i'' is to write <b>1i</b>. Notice that ``i'' here is
+part of the syntax. There is no predefined variable or constant named
+``i'', and 2+3*i will generally not work as expected (unless you have assigned
+<b>i = 1i</b>, but this is not recommended).</p>
+<p>Character constants are equivalent to their ASCII codes (integers) if
+used in arithmetic expressions. This practice is similar to C.</p>
+<p>Array constructors are a bit more complicated. Syntactically
+an array constructor has the form <b>#(</b><em>component-list</em><b>)</b>,
+where <em>component-list</em> consists of expressions separated by commas
+and/or semicolons. Commas denote appending the components to form
+a vector. For example, <b>#(1:5,10)</b> will produce the integer vector
+<b>#(1,2,3,4,5,10)</b>, and <b>#(1,2.3,4:-1:1,34)</b> produces
+<b>#(1, 2.3, 4, 3, 2, 1, 34)</b>. The last example gives a real vector
+because one of the components was fractional number.</p>
+<p>A semicolon in the array constructor denotes composing a higher-rank
+array of the components, which must be lower-rank arrays (or scalars).
+For example, a matrix can be constructed from its row vectors <b>v1</b>
+and <b>v2</b> by <b>#(v1;v2)</b>. The precedence of a semicolon inside
+array constructor is lower than the precedence of a comma, thus
+<b>#(a,b; c,d)</b> will construct of 2x2 matrix.</p>
+<p>The array constructors work for higher rank arrays as well.  The
+result of array constructor using commas has rank equal to the highest
+rank of the components, and the ranks of the components may not differ
+by more than one. The important exception is the case where all the
+components are scalars; in this case the result is a vector. The semicolon
+array constructor always produces a result which has rank one greater than
+the rank of the components, which must be same for all components in
+the semicolon case. Using array constructors for higher-rank components
+has been rare in practice.</p>
+<p>Notice that the commas and semicolons have completely different meaning
+inside array constructors than outside them.</p>
+<p>Strings may contain escape sequences similar to C language strings.</p>
+<p>Array references follow the Pascal syntax, separating the dimensions
+with a comma. The indices may be vectors, which follows the Fortran-90
+and Matlab array syntax ideas (``gather'' operations).</p>
+<p>In addition to normal array references, Tela also supports <em>mapped</em>
+array references. In mapped referencing the index objects must all agree
+in type (they are usually arrays). The number of indices must be equal
+to the rank of the indexed array and the result will have size equal to
+an index object. For example,</p>
+<p>
+<blockquote><code>
+<pre>
+A&lt;[1:5,1:5]&gt;
+</pre>
+</code></blockquote>
+</p>
+<p>will produce the first five diagonal elements of matrix A as a vector.
+Mapped indexing can be used to extract N-dimensional component subsets
+from M-dimensional arrays, both N and M being arbitrary. The function
+<b>intpol</b> (linear interpolation) can be thought as a generalization of
+mapped indexing, where the ``index'' expressions need not be integers.</p>
+<p></p>
+<a name="cmdexpr"> <h3>  Assignments</h3>
+
+<p>Assignments can take the following three forms:</p>
+<p>
+<blockquote><code>
+<pre>
+variable = expr ;
+
+variable[index1,...] = expr ;
+
+[var1,var2,...] = fname(expr1,expr2,...) ;
+</pre>
+</code></blockquote>
+</p>
+<p>The first form is a simple assignment, where the value of the
+expressions is assigned to a variable. The second form is the
+``scatter'' operation, or indexed assignment. The indices follow the
+same rules as if the array reference appears on the right-hand-side of
+an assignment (see previous subsubsection).</p>
+<p>The third form is actually not an assignment but a function call with
+several output arguments a la Matlab.  The output variables must be
+separated by commas (In Matlab the commas may be left out.) The output
+variables must be simple identifiers, not expressions. For example,
+you cannot say</p>
+<p>
+<blockquote><code>
+<pre>
+[b[1],b[2]] = f();         // WRONG!!!
+</pre>
+</code></blockquote>
+</p>
+<p>You must use auxiliary variables, as in</p>
+<p>
+<blockquote><code>
+<pre>
+[b1,b2] = f();
+b[1] = b1; b[2] = b2;
+</pre>
+</code></blockquote>
+</p>
+<p>There are some chances that this limitation might be removed in some
+future version.</p>
+<p></p>
+
+<h2>3.3 <A Name="ss3.3"> Defining functions </h2>
+
+<p></p>
+<p>Examples of function definition statements:
+<blockquote><code>
+<pre>
+function f() { /* body */ };     // the simplest form
+
+function f(x) { /* body */ };
+
+function y=f(x) local(a) { /* ... */; y = sin(x) };
+
+function [x,y] = f(a,b) { /* ... */ };
+
+function [x,y;z,w] = f(a,b;n) global { /* ... */ };
+</pre>
+</code></blockquote>
+</p>
+<p>The definition always begins with the reserved word <b>function</b>.
+After <b>function</b> comes the output argument specification (possibly
+empty), followed by the function name and input argument list,
+possible <b>local</b> or <b>global</b> declarations and finally the
+function body enclosed in curly braces.</p>
+<p>Input arguments are passed by reference. They may not be modified in
+the function body. (If you try, you get a warning message.) Thus the
+calling program may <em>think</em> that the input arguments are passed by
+value even though they actually aren't. In C++ the type of the input
+arguments would be <b>const Ttype&amp;</b>, and in Fortran-90 they would
+correspond to the ``intent input'' arguments. Input arguments are
+listed following the function name both when defining and calling a
+function.</p>
+<p>Output arguments are listed in brackets before the ``<b>=</b>'' sign 
+and the function name both in definition and calling phases. If there is
+only one output argument, the brackets may be dropped (see the third example
+above). Output arguments are also passed by reference, but obviously
+they may and should be modified by the function body.</p>
+<p>By default, input arguments are obligatory and outputs arguments are
+optional. That is, the calling program must supply all input arguments,
+but it may leave out some or all of the output arguments. For example,
+if <b>f</b> is defined as</p>
+<p>
+<blockquote><code>
+<pre>
+function [a,b,c] = f(x,y) { /* ... */ };
+</pre>
+</code></blockquote>
+</p>
+<p>all the following are legal call forms for <b>f</b>:</p>
+<p>
+<blockquote><code>
+<pre>
+[X,Y,Z] = f(2+3i,sin(X+y));     // use all output arguments
+
+[X,Y] = f(1,2);     // ignore the third output argument
+
+X = f(1,2);         // ignore second and third
+
+[] = f(1,2);        // ignore all
+</pre>
+</code></blockquote>
+</p>
+<p>The default behavior of obligatory and optional arguments can be
+changed by using the semicolon inside argument list. At most one
+semicolon may appear inside an argument list. The rule is simple:
+all arguments <em>before</em> the semicolon are obligatory, that is,
+required, and all arguments <em>after</em> the semicolon are optional.
+This rule applies to both input and output argument lists.
+Examples:
+<blockquote><code>
+<pre>
+function f1(x,y;z,w) { /* ... */ };
+
+function [a;b] = f2(x,y) { /* ... */ };
+
+function [a;] = f3() { /* ... */ };
+
+function [a;b] = f4(x;y) { /* ... */ };
+</pre>
+</code></blockquote>
+</p>
+<p>Function <b>f1</b> has two obligatory input arguments and two optional ones.
+It has no output arguments. (It is, however, permissible to assign the
+``value'' of <b>f1</b> to a variable as in <b>x=f1(0,0)</b>. The variable <b>x</b>
+has the void value after the assignment. The void value may be created
+explicitly by using an expression consisting of just the colon ``<b>:</b>'',
+and it doesn't output anything when printed.)</p>
+<p>Function <b>f2</b> has to obligatory input arguments, since there is no semicolon
+in the input argument list. One of the two possible output arguments is obligatory
+and the other one is optional. Function <b>f3</b> has no input arguments but one
+obligatory output argument. Notice that the semicolon may be also the first or
+last thing in the argument list. Finally, function <b>f4</b> has both input and
+output optional and obligatory arguments.</p>
+<p>Whether or not an optional input argument is present can be tested
+e.g. by the standard function <b>isdefined</b>, which returns 1 if the
+argument is defined and 0 if it is undefined. The test will fail also
+if the caller supplied the argument but it was bound to an undefined
+variable; this behavior is usually what is wanted since passing an
+undefined variable as argument is practically the same as not passing
+any argument at all.</p>
+<p>The role of obligatory and optional input arguments, and also the
+meaning of optional output arguments, is clear. But what about
+obligatory output arguments, why should anyone want to use such
+things?  The answer is simple: they correspond to arguments that are
+<em>both</em> input <em>and</em> output. By making an output argument
+obligatory you force the caller to bind it to some variable, which
+probably has some initial value that the function body may use.</p>
+<p>Maybe we should pause for a while and recall the important concepts
+introduced in this subsection. By default, input arguments are
+obligatory and output arguments are optional. How it could be
+otherwise? Input arguments are read in the function body, so they may
+not be undefined. By making the output arguments optional by default
+we allow the caller the freedom to ignore some output arguments.  The
+semicolon modifies the default behavior. Everything to the left of the
+semicolon becomes obligatory and everything to the right of the
+semicolon becomes optional. Input/output arguments should be declared
+as obligatory output arguments.</p>
+<p>There is still one thing about function declaration, namely the
+<b>global</b>/<b>local</b> declaration that may be placed in between the input
+argument list and the function body. The declaration may take one of
+four possible forms:</p>
+<p>
+<blockquote><code>
+<pre>
+local           // Everything is automatically local. The default.
+global          // Everything is automatically global.
+local(a,b,...)  // The listed symbols are local, others are global.
+global(a,b,...) // The listed symbols are global, others are local.
+</pre>
+</code></blockquote>
+</p>
+<p>All ``free'' symbols that appear in the function body are either local
+to the function or global. ``Free'' symbol means a symbol which is not
+one of the input or output arguments, has not been declared autoglobal
+using the standard function <b>autoglobal</b>, and is not used as a
+function name in the function body. By default, all free symbols are
+local.  This corresponds to the Matlab convention. By inserting the
+word <b>global</b> with no variable list, however, you can make all
+free symbols refer to the globally visible symbols. By inserting
+<b>local(a,b,...)</b> you declare the listed symbols as local; other
+symbols remain global. This corresponds to the practice normally used
+in compiled languages such as C, C++ and Pascal.  And finally, by
+using the <b>global(a,b,...)</b> declaration you can use the
+complementary approach where every symbol <em>except</em> those listed are
+local.  The last case again mimics Matlab with global declaration.</p>
+<p>Thus you can choose among different strategies here. In some functions
+it is more natural to list the local variables rather than the global ones,
+if not for other reason but because sometimes the local variables are less
+in number than global ones, and vice versa. The most improtant thing to
+remember is to remember: Think about global/local every time you define
+a new function. The experience is that many, maybe even most, error situations
+in Tela arise from forgetting to properly declare a variable global or local.</p>
+<p>The system has some autoglobal variables, which are always global even
+if they are not explicitly declared. Among these are constants such as
+<b>pi</b>, <b>Inf</b>, <b>eps</b>, <b>on</b>, <b>off</b>, and some color and
+line style names. Thus it is unnecessary to say <b>global(pi)</b> if
+<b>pi</b> is used in a function. It is possible to override the
+autoglobal character by explicitly listing the symbol in <b>local</b>
+declaration; for me it is bad programming style however.</p>
+<p>On trick that can be useful when developing code is to at first make
+most variables global. In this way they are available in the workspace
+for inspection after the function has completed execution or stopped
+in runtime error.  When the function is working you can then make as
+many symbols local as possible.</p>
+<p></p>
+
+<h2>3.4 <A Name="ss3.4"> The package mechanism </h2>
+
+<p></p>
+<p>Typically in Tela you write a t-file with many, maybe a few tens of
+functions. Sometimes the functions need to communicate among
+themselves not only via arguments but also via global variables, as in
+Pascal or C. For example if you are developing a fluid simulation code
+the values of physical parameters such as grid spacing, viscosity etc.
+are most naturally declared global and not explicitly passed to every
+function that uses them. We have been taught that using globals is bad
+programming style, however, in this case it actually increases the
+modularity of the program because if you introduce more physical
+parameters you need not change the call form and definition of every
+function.</p>
+<p>Problems may arise if you use such a t-file in conjunction with other
+t-files. The global variables then share the same name space. Also the
+internal auxiliary function names may be the same in two t-files. One
+solution would be to use untypical symbol names, but this is not elegant.</p>
+<p>The keyword <b>package</b> is there to hide internal symbol names from
+external access. The use is very simple. Just enclose the whole t-file
+in curly braces and put <b>package global(var1,var2,...)</b> in front.
+In the list you should put all symbol names that you want to be externally
+visible. Usually these are function names, but they may also be (global)
+variable names. All other symbols are then put in a private name space
+and they correspond to the <b>static</b> variables in C and C++.</p>
+<p>It is also possible to use <b>package local</b> declaration as a complementary
+approach, in analogy with global/local in function definition, but this form
+is rarely used in practice. You may also put a character string between
+<b>package</b> and <b>global</b> or <b>local</b> to name your package. This would
+be required if you want to put stuff from more than one t-file in one and
+a same package. Actually, if the string is left out, the fully qualified
+t-file name is used as a unique package name.</p>
+<p>Despite the syntactic similarity of global/local in package declaration and
+function definition, the meaning is quite different. Symbols which are local
+to a package are usually global to functions inside the package. (If they are
+also local in the functions, declaring them local in the package context does
+not make any difference.) Local variables in a function are currently implemented
+as slots in a runtime stack, whereas global symbols (in the function sense)
+are bound to workspace variables, which have name, value and attributes.
+The only thing the <b>package</b> mechanism does is that it prepends to all local
+(in the package sense) symbol names an invisible string which is unique to every
+package. This way the variables are physically in the same global hash table but
+with unique names.</p>
+<p></p>
+
+<p><a href="usrguide-4.html"> Next </a> Chapter, <a href="usrguide-2.html"> Previous </a> Chapter</p><p>Table of contents of <a href="usrguide.html#toc3">this chapter</a>,
+ General <a href="usrguide.html#toc">table of contents</a></p>
+<p><a href="usrguide.html"> Top </a> of the document,
+ <a href="#0"> Beginning of this Chapter</a></p>

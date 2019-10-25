@@ -1,0 +1,356 @@
+Tela Frequently Asked Questions
+
+This list is not necessarily up to date. The most recent Tela version
+may actually have more capabilities than stated in this file.
+
+SYNTACTIC ANNOYANCES
+
+/Q/
+Why does "if (a[i]>=0)..." not work
+/A/
+Because "]>" is special operator in Tela, the right bracket for mapped
+indexing. See "help mapped". Insert space between ] and >. The m2t
+translator should be fixing this automatically now.
+
+/Q/
+How do I get the imaginary unit? Variable i has no value.
+/A/
+Use the notation 1i for the imaginary unit, 0.5+2i etc. for general
+complex numbers, 0i for complex zero. The "i" here is syntactically
+part of the number, not a variable name. In this way the variable "i"
+may be used for other purposes, such as loop indexing.
+
+/Q/
+Why does it complain about syntax error near else-statement
+/Answer/
+Unlike C, Tela does not allow a semicolon before 'else'.
+You must write
+
+if (condition)
+    statement-1          // <---- OK
+else
+    statement-2;
+
+and not
+
+if (condition)
+    statment-1;          // <---- THIS IS IN ERROR!!!
+else
+    statement-2;
+
+You can, however, use braces:
+
+if (condition) {
+    statement-1;
+} else {
+    statement-2;
+};
+
+but then you must remember the semicolon at the end, too.
+
+Lesson: The use of semicolons is Pascal-like and everything
+else is C-like. See 'help if'.
+
+HOW-TO OF THE LANGUAGE
+
+/Q/
+How to build a matrix of all clone rows
+/Answer/
+Assume you have a vector V = #(1,2,3), and you want to build matrix M:
+
+M = #(1, 2, 3;
+      1, 2, 3;
+      1, 2, 3;
+      1, 2, 3;
+      1, 2, 3);
+
+First create matrix A as A = #(V). Then M = A[ones(5),:].
+/EndAnswer/
+
+/Q/
+How to place a doublequote in a string
+/A/
+Use backslash before the doublequote. The method of quoting things
+is identical with C.
+
+/Q/
+How to take a columnwise mean, max, sum or min of a matrix
+/A/
+Version>=1.2: Use mean(x,d), sum(x,d) etc. to apply the operation
+along dth dimension.
+Version<1.2:
+Use the map functional. Say map(mean,A,1) or map(mean,A,2) to take
+mean along first or second dimension, respectively. Two points must
+be noted: 1) The functional argument (mean) must be declared global in the
+enclosing function or package, if any, 2) you cannot use intrinsic
+functions. Examples of intrinsic functions: min, max, abs. Workaround
+is to declare auxiliary functions: function y=min1(x) {y=min(x)}.
+Limitation (2) will probably go away in some future version of Tela.
+
+/Q/
+How to form the outer product of two vectors
+/A/
+If V and U are vectors of length N, their outer product V times U
+can be formed as reshape(V,N,1)**reshape(U,1,N).
+
+/Q/
+How to build a string matrix
+/Answer/
+There are two ways. The first method uses the function strmat or
+strmat2. Function strmat is used if you want to compose a string
+matrix out of a fixed small number of explicit strings. The function
+does zero padding for you automatically. Function strmat2 can be
+used to parse a string matrix out of a single long string using
+specified characters as separators. In this way it is possible to
+turn e.g. a complete text file returned by function run to a string
+matrix. 
+
+The second method is to use a loop as follows:
+
+M = tostring(izeros(N,L));    // N is number of string, L is their length
+for (i=1; i<=N; i++)
+    M[i,:] = /* expression returning ith string */;
+
+All strings must have equal length in this example.
+
+/EndAnswer/
+
+OTHER HOW-TO
+
+/Q/
+How to run Tela in batch mode
+/Answer/
+Say:
+
+batch <tela.run
+
+where file tela.run contains something like:
+
+input_file = mytelarun.t
+output_file = telarun.out
+tela -b $input_file >$output_file
+/EndAnswer/
+
+/Q/
+How do I link .ct files dynamically during runtime
+/Answer/
+On Linux with DLD library: Compile it normally using telakka -c myfile.ct
+to produce myfile.o. Then call link("myfile.o") from Tela and you are done!
+
+On machines with ELF DSO (dynamic shared objects), e.g. SGI: Again compile
+it normally first, saying telakka -c myfile.ct. Then say
+
+    ld -o myfile.so -shared myfile.o
+
+to turn it to DSO file. From Tela, you can now link("myfile.so").
+
+Easier way for Tela version >=1.23: telakka --shared myfile.ct
+/EndAnswer/
+
+/Q/
+How to check about the latest version of Tela
+/A/
+Look at http://www.geo.fmi.fi/prog/tela.html and point at "Change log".
+
+/Q/
+I am an old Matlab programmer. How do I switch to Tela
+/Answer/
+There are three kinds of tools available for Matlab interfacing.
+
+First, you can load Matlab ASCII and binary files (MAT-files) using
+the import and import1 commands. The function export_matlab performs
+the reverse operation, i.e. it saves your Tela variables in Matlab-
+readable binary file. With these functions it is possible and easy
+to e.g. transfer all workspace variables from Matlab to Tela and back
+again. Of course, more than two-dimensional arrays have trouble
+translating to Matlab :-)
+
+Second, you can translate your existing Matlab programs to Tela
+using m2t. The success of this depends on what kind of Matlab code
+you have. Sometimes a 100-line script translates and runs in Tela
+with no problems at all, but usually you must do some hand editing.
+Anyway, using m2t should always be much faster than purely manual
+translation.
+
+Third, if you have the matlabeng module installed within Tela,
+you can call Matlab functions and do Matlab evaluations directly
+from Tela. For example, if Tela is missing some special function
+or some linear algebra subroutine, e.g. QR decomposition, you
+would typically send mail to tela-suggestions@fmi.fi about it,
+but in the meantime you can get along by calling the missing function
+from Matlab.
+/EndAnswer/
+
+OBSCURE ERROR SITUATIONS
+
+/Q/
+Why do I see the stupid error message 'Undefined function <Undefined>'
+/A/
+You are calling an undefined function. Ideally Tela should be able
+to report its name, but currently it isn't. However, usually there are
+not many possible undefined function calls on one source line.
+
+/Q/
+I use eval to assign to a variable, but afterwards the variable seems to be undefined.
+/A/
+The builtin function eval works in global context. All symbols appearing
+in the evaluated string refer to globally visible names. If you are calling
+eval from within a function, you must declare those variables global in
+the function header which you want to access in the evaluation string.
+The same is true with load, save, import and export_matlab (see below).
+
+/Q/
+I use import to read some file but the variables aren't there!
+/A/
+See above. You are probably calling import within a function, and the
+imported variables go to the global context. You must declare the variables
+global in the function you are calling import from.
+
+/Q/
+Why does map function complain that the first argument is not a function
+/A/
+If you didn't misspell the function name, the reason is probably that
+you didn't declare it global in the enclosing function or package scope.
+Tela understands that f is a function if it is called in the usual way,
+e.g. f(x), but now f is an argument, map(f,A,d), and Tela interprets f
+as a local variable unless explicitly declared global by some means.
+
+/Q/
+It complains that sign is undefined! I thought it is a standard function!
+/A/
+You are using a package aren't you. You are probably also using 'sign'
+as a variable or formal parameter name in some of the package's functions.
+If so, it links 'sign' to a symbol private to the package, not the
+external version. When writing a package, you can use a standard function
+name as a variable names only if the function is not called in
+any of the functions in your package. Using standard function names as
+variable names is confusing anyway, so please avoid it.
+
+/Q/
+The stddev function gives slightly different result as std in Matlab
+/A/
+In Tela, stddev divides by N whereas in Matlab std divides by N-1.
+Should be insignificant for normal uses.
+
+/Q/
+I corrected an error, and now the plot does not appear.
+/A/
+If you encounter an error (or press Control-C) inside hold(on)...hold(off),
+the hold(on) stays "on". Try saying hold(off) until the plot appears.
+hold(on) and hold(off) increase and decrease an internal counter, and to
+undo the effect of previous hold(off)'s you must say hold(on) an equal
+number of times.
+
+/Q/
+My X-server gives BadAlloc errors when I try to open more plot windows.
+/Answer/
+Your X-server probably runs out of memory. PlotMTV can use three methods
+for redrawing graphics windows:
+
+(1) It redraws everything from scratch. This does not use any extra memory,
+but is potentially slow.
+(2) It uses an X-Pixmap to store the contents of the window. The pixmaps
+are stored on the server local memory. This is the default, and it gives
+a fast redraw.
+(3) It relies on the backing store mechanism of the X-server. This also uses
+the X-server memory, and it gives a fast redraw.
+
+To disable pixmaps, give the command pixmap(off).
+You can put this in your $HOME/.telainit.t file. After pixmaps are disabled,
+it uses backing store if it is available or renders from scratch. On some
+X-terminals the pixmap method leads to memory exhaustion far more early
+than backing store. How to enable backing store depends on what kind of
+X-server you are using.
+
+The problem with backing store is that PlotMTV does not actually ask
+for backing store, but it queries if backing store is available. On most
+X-servers this means that you have to turn backing store on for every
+window in order to have it on for PlotMTV windows. For this reason the
+pixmaps method is the default.
+
+To summarize, in order to have fast redraws you must have some scratch
+memory available in your X-server. Then you can choose between the pixmap
+method and the backing store method. If you run out of memory with both
+methods, you must turn both pixmaps and backing store off. In this case
+there should never be a problem of a window not opening, but the redraws
+may be painfully slow if the plot is a complicated one.
+/EndAnswer/
+
+
+/Q/
+Sometimes doing vector+matrix seems to work, otherwise it gives error message.
+/Answer/
+This is a really obscure point, but hopefully rarely encountered.
+The main rule is that in A+B, both A and B should have the same dimensions.
+An exception is that adding vector and higher-rank array is allowed
+if both have the same length(), i.e., the same number of data elements.
+A problem arises, however, what should be the type of the result,
+should it be a vector or a higher-rank array? The current Tela resolution
+is to make statements like A+=B never change the type of A. However
+this has the side effect that A+B may be of type vector or matrix,
+depending on what kind of expressions A and B are, and furthermore
+B+A is probably different. The type of the result depends on how Tela
+actually generates the code, and is thus beyond user control. The fix is
+to use flatten() around A or B as appropriate to turn it to a vector
+explicitly.
+
+This practice may change in the future. If you want to play safe,
+do arithmetic operations only on strictly compatible array types.
+/EndAnswer/
+
+/Q/
+On SGI, my Tela executable grows and grows. Is there a memory leak
+/Answer/
+Try the binaries compiled with g++. The version compiled with SGI's own CC
+sometimes cannot free memory optimally. If this is a bug, I would say
+it is in the SGI compiler not in Tela. The g++ version should be
+about equally fast as the CC version. Another hint: You can effectively
+deallocate the memory used by an array variable by assigning the VOID value to it:
+
+    a = :;
+
+The variable is still visible in the whos() list but does not take up
+memory.
+/EndAnswer/
+
+/Q/
+Comparing a zero-length vector and a scalar gives a null vector.
+/A/
+There is nothing wrong with this except that Matlab gives 1 in such
+a case. We just have to live with these small differences.
+
+MISCELLANEOUS
+
+/Q/
+Which file formats can Tela read/write
+/A/
+Reading: HDF (SDS), various ASCII, Matlab binary.
+Writing: HDF (SDS), Matlab binary, any ASCII by using fprintf or fformat.
+Tela>=1.2 also writes 8-bit HDF raster images.
+
+GNUS CAN BE QUITE A GNUISANCE
+
+/Q/
+Why do I get a core dump when trying to source a program
+/A/
+This really should be fixed, but sometimes when Tela gets too confused
+by your input it core dumps. Check that your parentheses match, check also
+that you use "string" and not 'strings'.
+
+/Q/
+I get a core dump. Should I report it
+/A/
+If you get it during execution of a program, you definitely should report
+it. If you get it in parsing phase, you also may report it if it occurs
+frequently and repeatably and you just can't stand it any more.
+
+/Q/
+It gives me wrong results, what should I look at first
+/Answer/
+
+Check possible overflows of integer variables. Tela does not check for
+any overflows, it behaves like C or Fortran in this respect. For
+example, if you assign T=2000 and then compute T^4 (as in Stefan-
+Boltzmann law) you get a wrong result on most platforms. Use explicit
+decimal point, T=2000.0 . Use whos() to see the types of your variables.
+/EndAnswer/

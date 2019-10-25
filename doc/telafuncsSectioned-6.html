@@ -1,0 +1,355 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="LinuxDoc-Tools 0.9.21">
+ <TITLE>Builtin Tela functions: la.ct</TITLE>
+ <LINK HREF="telafuncsSectioned-7.html" REL=next>
+ <LINK HREF="telafuncsSectioned-5.html" REL=previous>
+ <LINK HREF="telafuncsSectioned.html#toc6" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="telafuncsSectioned-7.html">Next</A>
+<A HREF="telafuncsSectioned-5.html">Previous</A>
+<A HREF="telafuncsSectioned.html#toc6">Contents</A>
+<HR>
+<H2><A NAME="s6">6.</A> <A HREF="telafuncsSectioned.html#toc6">la.ct</A></H2>
+
+<P>This section describes functions from file la.ct.</P>
+
+<H2><A NAME="LU"></A> <A NAME="ss6.1">6.1</A> <A HREF="telafuncsSectioned.html#toc6.1">LU</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[L;U,P] = LU(A)
+ [L,U,P] = LU(A) computes the LU factorization of matrix A.
+   The factorization is A = P**L**U, where P is a permutation
+   matrix, L is lower triangular with unit diagonal and U is
+   upper triangular.
+   [lu] = LU(A) leaves the factors L and U packed in one matrix.
+   [lu,p] = LU(A) returns also the pivoting info vector p.
+   (Notice that this p is related to the permutation matrix P
+   but is not the same. You need this form of LU if you want to
+   use LUbacksubst later on.)
+</PRE>
+
+See also: 
+<A HREF="#LUbacksubst">LUbacksubst</A>, 
+<A HREF="#linsolve">linsolve</A>, 
+<A HREF="#inv">inv</A>, 
+<A HREF="#chol">chol</A>, 
+<A HREF="#SVD">SVD</A>.
+<PRE>
+   Error codes:
+   1: Singular matrix (==> zero in U's diagonal)
+   -1: Input arg not an array
+   -2: Input arg not a rank-2 array (matrix)
+   
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="LUbacksubst"></A> <A NAME="ss6.2">6.2</A> <A HREF="telafuncsSectioned.html#toc6.2">LUbacksubst</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[x] = LUbacksubst(lu,p,b)
+ LUbacksubst(lu,p,b) solves the linear system A**x == b,
+   where A has been previously LU-decomposed using LU:
+   [lu,p] = LU(A).
+</PRE>
+
+See also: 
+<A HREF="#linsolve">linsolve</A>, 
+<A HREF="#LU">LU</A>.
+<PRE>
+   Error codes:
+   -1: First input arg is not an array
+   -2: First input arg is not a square matrix
+   -3: Second input arg is not an integer vector
+   -4: Third input arg is not an array
+   -5: Third input arg is not a vector or matrix
+   -6: Incompatible dimensions in first/third args
+   -7: Singular matrix
+   -8: Incompatible dimensions in first/second args
+   -9: Internal error
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="SVD"></A> <A NAME="ss6.3">6.3</A> <A HREF="telafuncsSectioned.html#toc6.3">SVD</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[U;S,V] = SVD(A)
+ [U,S,V] = SVD(A) computes the singular value
+   decomposition of matrix A: A = U**S**V'.
+   U and V are unitary and S is diagonal.
+   SVD(A) as such returns the vector of singular values.
+</PRE>
+
+See also: 
+<A HREF="#LU">LU</A>, 
+<A HREF="#chol">chol</A>.
+<PRE>
+   Error codes:
+   1: No convergence
+   -1: Input arg not an array
+   -2: Input array is not a matrix
+   -3: Internal error
+   -4: Two output arg case not supported (must be 1 or 3)
+   
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="axpy"></A> <A NAME="ss6.4">6.4</A> <A HREF="telafuncsSectioned.html#toc6.4">axpy</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[y] = axpy(a,x)
+ [y] = axpy(a,x) is the equivalent of y = y + a*x
+   for scalar a and (real or complex) arrays x and y.
+   axpy calls a fast BLAS-1 routine if available.
+   Error codes:
+   -1: Input/output arg y is not real/complex array
+   -2: First input arg a is not a scalar
+   -3: Second input arg x is not real/complex array
+   -4: Second input arg x has size incompatible with y
+   -5: If y is real a and x must also be real
+   -6: If y is complex x must also be complex
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="chol"></A> <A NAME="ss6.5">6.5</A> <A HREF="telafuncsSectioned.html#toc6.5">chol</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[B] = chol(A)
+ B=chol(A) returns the Cholesky decomposition of a
+   positive definite square matrix A: B'**B == A.
+   A may be integer, real or complex valued.
+   Only the upper half of A is referenced, the lower half
+   is assumed to be Hermitian symmetric.
+</PRE>
+
+See also: 
+<A HREF="#linsolve">linsolve</A>, 
+<A HREF="#LU">LU</A>, 
+<A HREF="#matprod">matprod</A>, 
+<A HREF="#det">det</A>, 
+<A HREF="#eig">eig</A>, 
+<A HREF="#inv">inv</A>.
+<PRE>
+   Error codes:
+   -1: Input arg is not a matrix
+   -2: Input matrix is not square
+   -3: Input matrix is not positive definite 
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="det"></A> <A NAME="ss6.6">6.6</A> <A HREF="telafuncsSectioned.html#toc6.6">det</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[d] = det(A)
+ det(A) returns the determinant of a square matrix A.
+   A may be integer, real or complex valued.
+   If A is scalar, it is returned as such.
+   Error codes:
+   -1: Nonnumeric input arg
+   -2: Input array is not a matrix
+   -3: Input matrix is not square
+   -4: Singular matrix 
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="eig"></A> <A NAME="ss6.7">6.7</A> <A HREF="telafuncsSectioned.html#toc6.7">eig</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[D;V] = eig(A)
+ eig(A) returns the eigenvalues of a square matrix A.
+   [D,V] = eig(A) returns the eigenvalues in D and the
+   right eigenvectors as columns of V. The eigenvectors
+   satisfy A**V == D*V.
+</PRE>
+
+See also: 
+<A HREF="#inv">inv</A>, 
+<A HREF="#LU">LU</A>.
+<PRE>
+   Error codes:
+   1: Failed to converge
+   -1: Input arg is not an array
+   -2: Input array is not a matrix
+   -3: Input matrix is not square
+   -4: Internal error
+   
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="eye"></A> <A NAME="ss6.8">6.8</A> <A HREF="telafuncsSectioned.html#toc6.8">eye</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[A] = eye(n)
+ eye(n) returns the (integer) unit matrix of order n.
+   n must be a non-negative scalar integer.
+   eye(V) where V is a two-element integer vector with
+   both elements equal and positive works also, thus
+   you can also use eye(size(A)).
+</PRE>
+
+See also: 
+<A HREF="telafuncsSectioned-2.html#ones">ones</A>, 
+<A HREF="#inv">inv</A>.
+<PRE>
+   Error codes:
+   -1: Argument not an integer or IntArray
+   -2: Negative dimension
+   -3: IntArray rank not 1
+   -4: IntArray length not 2
+   -5: Integer vector elements are unequal
+   
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="inv"></A> <A NAME="ss6.9">6.9</A> <A HREF="telafuncsSectioned.html#toc6.9">inv</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[B] = inv(A)
+ inv(A) returns the inverse of a square matrix A.
+   A may be integer, real or complex valued.
+   A may also be a scalar, in which case its reciprocal
+   is returned.
+</PRE>
+
+See also: 
+<A HREF="#linsolve">linsolve</A>, 
+<A HREF="#LU">LU</A>, 
+<A HREF="#chol">chol</A>, 
+<A HREF="#matprod">matprod</A>, 
+<A HREF="#det">det</A>, 
+<A HREF="#eig">eig</A>.
+<PRE>
+   Error codes:
+   -1: Nonnumeric input arg
+   -2: Input array is not a matrix
+   -3: Input matrix is not square
+   -4: Singular matrix
+   -5: Singular matrix 
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="linsolve"></A> <A NAME="ss6.10">6.10</A> <A HREF="telafuncsSectioned.html#toc6.10">linsolve</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[x] = linsolve(A,b)
+ linsolve(A,b) solves the linear system A**x == b.
+   If A is square, the result x is roughly the same as
+   computing inv(A)**b (however, using linsolve is
+   faster and numerically more accurate). If A is not
+   square, a least-square problem is solved. If the system
+   is overdetermined, the solution x minimizes the quantity
+   |A**x - b|. If the system is underdetermined, the
+   solution x minimizes |x| among all x that satisfy
+   A**x==b.
+   The second argument may be a vector or a matrix.
+   If it is a matrix, several linear systems are effectively
+   solved simultaneously.
+</PRE>
+
+See also: 
+<A HREF="#inv">inv</A>, 
+<A HREF="#LU">LU</A>, 
+<A HREF="#eig">eig</A>, 
+<A HREF="#SVD">SVD</A>.
+<PRE>
+   Error codes:
+   -1: First input arg is not an array
+   -2: First input arg is not a matrix
+   -3: Second input arg is not an array
+   -4: Second input arg is not a vector or matrix
+   -5: Incompatible dimensions in first/second args
+   -6: Matrix must be square
+   -7: Singular matrix
+   -8: Internal error
+   
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="matprod"></A> <A NAME="ss6.11">6.11</A> <A HREF="telafuncsSectioned.html#toc6.11">matprod</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[C] = matprod(A,B; Aflag,Bflag)
+ matprod(A,B) returns the matrix product of A and B.
+   If at least one of A and B is scalar, matprod(A,B) is the
+   same as their ordinary product A*B. If both A and B
+   are arrays, their "inner" dimensions must agree.
+   That is, the last dimension of A must equal the first
+   dimension of B.
+   You can abbreviate matprod(A,B) as A**B.
+
+   Optional args: matprod(A,B,aflag,bflag) can be used to
+   transpose or Hermitian-conjugate the factors before the
+   product. 'n' means no operation, 't' means transpose and
+   'h' means Hermitian conjugate. For example,
+
+   matprod(A,B,'h') = A'**B = herm(A)**B
+   matprod(A,B,'n','t') = A**B.' = A**transpose(B)
+
+   Normally you need not use matprod explicitly, but you
+   can use the operator **, which is internally translated
+   to matprod. Hermitian conjugates and transposes in
+   connection with ** produce the corresponding 'h' and
+   't' options in matprod. For example,
+
+   A'**B        generates       matprod(A,B,'h')
+   A.'**B'      generates       matprod(A,B,'t','h')
+   A**B.'       generates       matprod(A,B,'n','t')
+
+   and so on. The runtime is optimal for all these operations.
+</PRE>
+
+See also: 
+<A HREF="#inv">inv</A>.
+<PRE>
+   
+   Error codes:
+   -1: Inner dimensions do not agree
+   -2: Resulting array would have too high rank
+   -3: Third arg not one of 'n', 't', 'h'
+   -4: Fourth arg not one of 'n', 't', 'h'
+   
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+
+<HR>
+<A HREF="telafuncsSectioned-7.html">Next</A>
+<A HREF="telafuncsSectioned-5.html">Previous</A>
+<A HREF="telafuncsSectioned.html#toc6">Contents</A>
+</BODY>
+</HTML>

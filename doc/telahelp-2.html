@@ -1,0 +1,277 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="LinuxDoc-Tools 0.9.21">
+ <TITLE>Tela Help File: Flow of control statements</TITLE>
+ <LINK HREF="telahelp-3.html" REL=next>
+ <LINK HREF="telahelp-1.html" REL=previous>
+ <LINK HREF="telahelp.html#toc2" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="telahelp-3.html">Next</A>
+<A HREF="telahelp-1.html">Previous</A>
+<A HREF="telahelp.html#toc2">Contents</A>
+<HR>
+<H2><A NAME="s2">2.</A> <A HREF="telahelp.html#toc2">Flow of control statements</A></H2>
+
+<H2><A NAME="if"></A> <A NAME="ss2.1">2.1</A> <A HREF="telahelp.html#toc2.1">if, else</A>
+</H2>
+
+<P>Reserved words: if, else</P>
+<P>The if statement syntax:
+<BLOCKQUOTE><CODE>
+<PRE>
+    if (expr) stmt
+</PRE>
+</CODE></BLOCKQUOTE>
+
+or
+<BLOCKQUOTE><CODE>
+<PRE>
+    if (expr) stmt else stmt
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<P>The expression must evaluate to integer scalar or array. The condition is
+considered true if the scalar is nonzero or if all the array elements are
+nonzero. Examples:</P>
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+    if (x!=0)
+        format("x is nonzero, x=``\n",x)    // notice no semicolon
+    else {
+        x = 1;
+        format("x was zero and is now 1\n");// this semicolon is optional
+    };  // this semicolon separates this if stmt from the next stmt, if any
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+
+<H2><A NAME="for"></A> <A NAME="ss2.2">2.2</A> <A HREF="telahelp.html#toc2.2">for</A>
+</H2>
+
+<P>Reserved word: for</P>
+<P>The for statement syntax:</P>
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+    for (init-stmt; continue-condition-expr; update-stmt) stmt
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<P>For example:</P>
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+    for (i=1; i&lt;=imax; i++) a[i] = 0.5*i;
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<P>The for statement is similar to that found in C language. The only exception
+is that in Tela the 'init-stmt' and 'update-stmt' are statements, whereas in C
+they are expressions. This is because the assignment '=' is a statement in
+Tela, not an operator as in C. There is no comma operator in Tela. If you
+want to have several statements as your init or update statement, you have
+to use braces, for example:</P>
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+    for ({i=1; j=10}; i&lt;=10; {i++;j--}) format("i=``, j=``\n",i,j);
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<P>When expr is considered true, see 
+<A HREF="#if">if</A>.</P>
+
+<H2><A NAME="foreach"></A> <A NAME="ss2.3">2.3</A> <A HREF="telahelp.html#toc2.3">foreach</A>
+</H2>
+
+<P>Reserved word: foreach</P>
+<P>The foreach statement syntax:</P>
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+    foreach (i=A) stmt;
+</PRE>
+</CODE></BLOCKQUOTE>
+
+will loop over all components of array A, setting i equal to the component
+on each iteration.</P>
+<P>WARNING: This statement is currently included only for easing transition
+from Matlab. The implementation is not optimal. In the future the statement
+may even disappear. The Matlab to Tela translator m2t generates foreach
+statements, which you should translate to ordinary for statements sooner
+or later.</P>
+<P>See also: 
+<A HREF="#for">for</A></P>
+
+<H2><A NAME="repeat"></A> <A NAME="ss2.4">2.4</A> <A HREF="telahelp.html#toc2.4">repeat, until</A>
+</H2>
+
+<P>Reserved words: repeat, until</P>
+<P>The repeat..until statement syntax:</P>
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+    repeat stmt-sequence until expr
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<P>For example:</P>
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+    i = 1;
+    repeat
+        format("i = ``\n",i);
+        i++
+    until i > 10;
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<P>This is exactly similar to Pascal, including the use of semicolons.
+When expr is considered true, see 
+<A HREF="#if">if</A>.</P>
+<P>See also: 
+<A HREF="#while">while</A>, 
+<A HREF="#if">if</A></P>
+
+<H2><A NAME="while"></A> <A NAME="ss2.5">2.5</A> <A HREF="telahelp.html#toc2.5">while</A>
+</H2>
+
+<P>Reserved word: while</P>
+<P>The while statement syntax:</P>
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+    while (expr) stmt
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<P>For example:</P>
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+    while (!found) {
+        LookForIt();
+        counter++
+    };
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<P>The statement is executed until expr evaluates to false.
+When expr is considered false or true, see 
+<A HREF="#if">if</A>.</P>
+<P>See also: 
+<A HREF="#repeat">repeat</A></P>
+
+<H2><A NAME="return"></A> <A NAME="ss2.6">2.6</A> <A HREF="telahelp.html#toc2.6">return</A>
+</H2>
+
+<P>Reserved word: return</P>
+<P>The return statement returns from the current function.
+Any output variables must be assigned before calling
+return, or they will remain undefined.</P>
+<P>If called from the main level of a source'd file or
+command line, stops execution of the source'd file.</P>
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+    function result=AllPositive(A) {
+        for (i=1; i&lt;=length(A); i++)
+                        if (A[i]&lt;=0) {
+                                result = 0;
+                                return
+                        };
+                result = 1;
+    };
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<P>The function returns 1 if all elements of vector A are
+positive, and zero otherwise.</P>
+<P>See also: 
+<A HREF="telahelp-3.html#function">function</A>, 
+<A HREF="#break">break</A></P>
+
+<H2><A NAME="break"></A> <A NAME="ss2.7">2.7</A> <A HREF="telahelp.html#toc2.7">break, continue</A>
+</H2>
+
+<P>Reserved words: break, continue</P>
+<P>The break statement exits the surrounding loop.
+It is analogous to the break statement of C.
+The loop can be a for-loop, a while-loop or a repeat-
+until loop.</P>
+<P>The continue-statement effectively jumps to the end
+of the body of the surrounding loop, causing the next
+iteration to begin. It is analogous to the continue
+statement of C.</P>
+<P>For example,
+<BLOCKQUOTE><CODE>
+<PRE>
+    for (i=1; i&lt;=10; i++) {
+        if (i==5) break;
+        disp i
+    };
+</PRE>
+</CODE></BLOCKQUOTE>
+
+outputs the numbers 1,2,3 and 4.
+On the other hand,
+<BLOCKQUOTE><CODE>
+<PRE>
+    for (i=1; i&lt;=10; i++) {
+        if (i==5) continue;
+        disp i
+    };
+</PRE>
+</CODE></BLOCKQUOTE>
+
+outputs the numbers from one to ten, excluding five.</P>
+<P>See also: 
+<A HREF="#return">return</A>, 
+<A HREF="#goto">goto</A>.</P>
+
+<H2><A NAME="goto"></A> <A NAME="ss2.8">2.8</A> <A HREF="telahelp.html#toc2.8">goto, label</A>
+</H2>
+
+<P>Reserved words: goto, label</P>
+<P>The label statement defines a named jump address in instruction stream.
+The goto statement jumps to a given label. The labels must be
+identifiers. For example,</P>
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+    for (i=1; i&lt;=10; i++) for (j=1; j&lt;=10; j++)
+        if (M[i,j] &lt; 0) {
+            format("Negative matrix entry, exiting\n");
+            goto exitloop;
+        };
+    label exitloop;
+    // processing continues ...
+</PRE>
+</CODE></BLOCKQUOTE>
+
+would be equivalent to
+<BLOCKQUOTE><CODE>
+<PRE>
+    if (any(M&lt;0)) format("Negative matrix entry, exiting\n");
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<P>The goto statements are local to a function. All goto addresses
+must be defined as labels in the function. Gotos into blocks or
+loops are currently allowed but may cause unpredictable results.</P>
+<P>Think twice before you use goto. In almost all cases it can be
+avoided by using the return, break, or continue statements.</P>
+<P>See also: 
+<A HREF="#return">return</A>, 
+<A HREF="#break">break</A>.</P>
+
+<HR>
+<A HREF="telahelp-3.html">Next</A>
+<A HREF="telahelp-1.html">Previous</A>
+<A HREF="telahelp.html#toc2">Contents</A>
+</BODY>
+</HTML>

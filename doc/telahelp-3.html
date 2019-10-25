@@ -1,0 +1,225 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="LinuxDoc-Tools 0.9.21">
+ <TITLE>Tela Help File: Other statements</TITLE>
+ <LINK HREF="telahelp-4.html" REL=next>
+ <LINK HREF="telahelp-2.html" REL=previous>
+ <LINK HREF="telahelp.html#toc3" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="telahelp-4.html">Next</A>
+<A HREF="telahelp-2.html">Previous</A>
+<A HREF="telahelp.html#toc3">Contents</A>
+<HR>
+<H2><A NAME="s3">3.</A> <A HREF="telahelp.html#toc3">Other statements</A></H2>
+
+<H2><A NAME="call"></A> <A NAME="ss3.1">3.1</A> <A HREF="telahelp.html#toc3.1">call</A>
+</H2>
+
+<P>Reserved word: call</P>
+<P>Function call syntax:</P>
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+    [y1,y2..] = f(x1,x2..)
+</PRE>
+</CODE></BLOCKQUOTE>
+
+calls f with input arguments x1,x2.. and outputs arguments y1,y2.. .</P>
+<P>If f(x1,x2..) appears alone in an expression, it is effectively called
+with one output argument, which becomes the value of the expression.
+f(x1,x2..) is equivalent to
+<BLOCKQUOTE><CODE>
+<PRE>
+    call(f,x2,x2..).
+</PRE>
+</CODE></BLOCKQUOTE>
+
+This notation makes it possible to call functions indirectly through
+variables, and to write functionals.</P>
+<P>See also: 
+<A HREF="#function">function</A></P>
+
+<H2><A NAME="function"></A> <A NAME="ss3.2">3.2</A> <A HREF="telahelp.html#toc3.2">function</A>
+</H2>
+
+<P>Reserved word: function
+Also uses special tokens: [ ] ( ) , ... ;</P>
+<P>Function definition syntax:</P>
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+    function [y1,y2..] = f(x1,x2..) LOCAL-DECL { stmt-sequence } ;
+</PRE>
+</CODE></BLOCKQUOTE>
+
+or
+<BLOCKQUOTE><CODE>
+<PRE>
+    function y = f(x1,x2..) LOCAL-DECL { stmt-sequence } ;
+</PRE>
+</CODE></BLOCKQUOTE>
+
+or
+<BLOCKQUOTE><CODE>
+<PRE>
+    function f(x1,x2..) LOCAL-DECL { stmt-sequence } ;
+</PRE>
+</CODE></BLOCKQUOTE>
+
+where yi are formal output arguments and xi are formal input arguments.
+See local, global for what LOCAL-DECL may be.</P>
+<P>By default, output arguments are optional and input arguments are
+obligatory. This can be changed by using a semicolon in the argument list.
+Identifiers before a semicolon become obligatory and identifiers after
+the semicolon are declared optional.</P>
+<P>Example:
+<BLOCKQUOTE><CODE>
+<PRE>
+    function [y,z;] = f(x) local(a) { /* ... */ };
+</PRE>
+</CODE></BLOCKQUOTE>
+
+declares x, y and z obligatory and 'a' a local variable.</P>
+<P>An output argument should be declared obligatory if it is also used
+as input in the function.</P>
+<P>The ellipsis sign (...) may be appended to the input or output formal
+argument list. It is thus possible to define functions with variable
+number of arguments. See argin, argout, SetArgOut, Nargin, Nargout
+for details.</P>
+<P>You can define as many functions in one input file as you wish.
+In order to call a Tela-function you must first source the input file
+containing that function.</P>
+<P>See also: 
+<A HREF="#local">local</A>, 
+<A HREF="telahelp-2.html#return">return</A>,
+<A HREF="telahelp-4.html#argin">argin</A>, 
+<A HREF="telahelp-4.html#Nargin">Nargin</A>,
+<A HREF="telahelp-5.html#special">special</A>, 
+<A HREF="#package">package</A>.</P>
+
+<H2><A NAME="local"></A> <A NAME="ss3.3">3.3</A> <A HREF="telahelp.html#toc3.3">local, global</A>
+</H2>
+
+<P>Reserved words: local, global</P>
+<P>Variables appearing inside functions, which are not input or output
+arguments, are either local or global. If they are local, they are
+similar to function arguments, except that they are initialized with
+undefined value before entering the function.</P>
+<P>The function definition is of the form
+<BLOCKQUOTE><CODE>
+<PRE>
+    function [out1,out2...] = f(in1,in2...) LOCAL-DECL { /* body */ };
+</PRE>
+</CODE></BLOCKQUOTE>
+
+where LOCAL-DECL has one of the following five forms:</P>
+<P>1. LOCAL-DECL can be empty, in which case all variables are implicitly
+local, except autoglobal variables such as pi and eps.</P>
+<P>2. LOCAL-DECL can be the keyword 'local'. This is exactly similar to
+case 1 above.</P>
+<P>3. LOCAL-DECL can be the keyword 'global'. This makes all free variables
+in the function body global.</P>
+<P>4. LOCAL-DECL can be of the form 'local(a,b,...)'. This makes variables
+a,b,... local, and all other free variables global. If an autoglobal
+variables such as pi or eps is listed, as in 'local(pi)', it overrides
+the autoglobal attribute, making 'pi' local and uninitialized in the
+function body. Such practice is not recommended however.</P>
+<P>5. LOCAL-DECL can be of the form 'global(a,b,...)'. This makes variables
+a,b,... global, and all other free variables implicitly local. Autoglobal
+variables remain global.</P>
+<P>Examples:</P>
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+function f() /*local*/ {y=2; disp y+pi};
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<P>Variable y is local, but pi is not since it is autoglobal. When called,
+f() will output 5.14159, and global y has not been affected. Nothing
+changes if you uncomment the keyword local.</P>
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+    function V = ddx(u)
+    global(imax,dx)
+    {
+        V = zeros(imax);
+        coeff = 1/(2*dx);
+        V[2:imax-1] = (u[3:imax] - u[1:imax-2])*coeff;
+        V[1] = V[imax-1];
+        V[imax] = V[2];
+    };
+</PRE>
+</CODE></BLOCKQUOTE>
+
+This example computes the numerical derivative. The variables
+coeff is local since it is not mentioned in the global list.</P>
+<P>See also: 
+<A HREF="#function">function</A>, 
+<A HREF="#package">package</A>.</P>
+
+<H2><A NAME="package"></A> <A NAME="ss3.4">3.4</A> <A HREF="telahelp.html#toc3.4">package</A>
+</H2>
+
+<P>Reserved word: package</P>
+<P>The package mechanism is for hiding names local to a group of
+functions and other statements from global access. Syntax:</P>
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+package "mypackage" LOCAL-DECL { /* body */ };
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<P>Naming is optional: if the package is not named explicitly,
+the current input file name is used. If you use one package per
+one input file, you usually don't have to use any name.
+LOCAL-DECL is analogous to function definition, see 
+<A HREF="#local">local</A>.
+Usually LOCAL-DECL will be of the form</P>
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+package global(fn1,fn2,...) { /* body */ };
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<P>where fn1,fn2,... are the globally visible objects of the package.
+They are typically functions, but they can also be variable names.
+In the example above, all symbols in body which are not among
+fn1,fn2,... are hidden from global reference. This is accomplished
+by replacing the symbols with new symbols. The new symbol names
+are obtained from the old ones by prepending a prefix "i:", where i
+is a positive integer unique to each package name. Since a symbol
+name cannot contain a colon, it is impossible to refer to these
+symbols from outside. The hidden symbols are also excluded from
+name completion and whos() function, for instance.</P>
+<P>See also: 
+<A HREF="#function">function</A>, 
+<A HREF="#local">local</A>.</P>
+
+<H2><A NAME="disp"></A> <A NAME="ss3.5">3.5</A> <A HREF="telahelp.html#toc3.5">disp</A>
+</H2>
+
+<P>Reserved word: disp</P>
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+disp expr;
+</PRE>
+</CODE></BLOCKQUOTE>
+
+displays expression on standard output, in the same way as
+typing its name on command line.</P>
+<P>Disp is primarily a debugging aid. There are better ways to
+create output, for example the standard function 'format'.</P>
+
+<HR>
+<A HREF="telahelp-4.html">Next</A>
+<A HREF="telahelp-2.html">Previous</A>
+<A HREF="telahelp.html#toc3">Contents</A>
+</BODY>
+</HTML>

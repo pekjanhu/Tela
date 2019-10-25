@@ -1,0 +1,216 @@
+Tela Installation Frequencly Asked Questions For 1.22
+
+GENERAL
+Q1.1: What do I need to install Tela?
+Q1.2: Where to obtain more information?
+COMPILATION
+Q2.1: The compilation stops in files.ct in HDF include files with many errors.
+Q2.2: I have problems with the Makefile on IRIS system?
+Q2.3: It doesn't find some include files.
+Q2.4: It complains about multiply defined outputters e.g. in codegen.C.
+Q2.5: The compiler gets stuck in objarithm.C.
+Q2.6: The compiler runs out of memory.
+Q2.7: The compiler crashes in fftpack.C.
+Q2.8: flex++ complains about bad options!
+LINKING
+Q3.1: All LAPACK functions seem to be undefined in linking phase.
+Q3.2: tputs or something similar seems to be undefined.
+Q3.3: alloca is undefined.
+Q3.4: Some Fortran-specific stuff seems to be undefined.
+INSTALLATION
+Q4.1: install.sh seems to install only part of the files.
+RUNTIME ERRORS
+Q5.1: The linear algebra functions seem to produce garbage results.
+Q5.2: The FFT routines produce garbage.
+Q5.3: Sometimes I see weird hex numbers where I expect to see a string in output?
+PROBLEMS ON SPECIFIC MACHINES
+Q6.1: Problems on Cray UNICOS 8.0.3 using scc4.0 and C++1.0?
+
+ANSWERS TO QUESTIONS
+
+GENERAL
+
+Q1.1: What do I need to install Tela?
+First and foremost you need a working C++ compiler.
+For example, g++ or Cfront can be used.
+
+LAPACK and BLAS libraries, GNU Readline library, HDF library
+plus include files. PlotMTV1.4.1t or later for graphics.
+In addition you may find it convenient to have bison++ and
+flex++ parser generators installed. A Fortran compiler is
+not strictly necessary if you have precomplied LAPACK/BLAS
+libraries, but the necessary Fortran runtime libraries must
+be there.
+
+Q1.2: Where to obtain more information?
+Read the file INSTALL in the main source directory.
+
+
+COMPILATION
+
+Q2.1: The compilation stops in files.ct in HDF include files with many errors.
+The HDF library include files expect one of the HDF-specific machine
+names to be defined. For a list see ls MAKEFILE* in the HDF source
+directory. If your machine is not directly supported, you can usually
+do rather well by using an alternative. For example on HPUX HDF library
+compiles with -DSUN or -DIRIS. Just be aware that byte ordering is
+significant, therefore on Linux you should use SUN386. Of course you
+want to use the same -D macro when compiling libdf.a and Tela.
+
+Q2.2: I have problems with the Makefile on IRIS system?
+Some IRIX versions have a buggy make. At least 5.2 has this problem.
+Use GNU make to avoid problems (this is a good hint for all other
+software packages too).
+
+Q2.3: It doesn't find some include files.
+Check variables containing INCLUDE in makeinc and Makefile.
+Do grep INCLUDE makeinc Makefile.
+
+Q2.4: It complains about multiply defined outputters e.g. in codegen.C.
+There are two possibilities. 1) BROKEN_UCHAR_OUTPUTTER has been defined
+wrong in makeinc. 2) your C++ compiler is buggy and is unwilling to
+compile it for you. In the latter case the only fix is to manually insert
+(char*) type casts in source code in appropriate places.
+
+Q2.5: The compiler gets stuck in objarithm.C.
+On some systems, for example IRIX6.x in 64-bit mode, it takes very long
+time to compile objarithm.C using the -O3 optimization. Can't help it,
+the compiler just spends that time optimizating the thing. Just wait.
+
+Q2.6: The compiler runs out of memory.
+This may happen under AIX if you use -O3. Buy more memory, try to reconfigure
+your virtual memory (hope you can find someone who knows how), or reduce
+optimization level to -O2.
+
+Q2.7: The compiler crashes in fftpack.C.
+This may happen under AIX if you use -O3. Use -O2 for that file.
+
+Q2.8: flex++ complains about bad options!
+Your flex++ probably is not the flex++ Tela wants. Sometimes the
+ordinary GNU flex installer does ln -s flex flex++ because flex
+has some C++ features. Get the real flex++ from
+ftp.funet.fi:/pub/sci/math/tela/needed/, or define FLEX++ = true
+in makeinc.
+
+
+LINKING
+
+Q3.1: All LAPACK functions seem to be undefined in linking phase.
+The Fortran compiler encodes the external names for the linker.
+Among the used practices for Fortran subroutine foo are:
+
+    foo         (no encoding) HPUX, AIX
+    foo_        Most other Unix systems and f2c
+    FOO         Cray UNICOS
+
+(On AIX this can be changed by the user.)
+Tela C++ code must conform to the practice used by the Fortran compiler.
+The file affected is lapack.H. A mismatch in NO_UNDERSCORE_IN_FORTRAN_NAMES
+shows up in linking phase as an army of undefined symbols.
+
+Q3.2: tputs or something similar seems to be undefined.
+You probably forgot to insert -ltermcap to READLINELIB.
+
+Q3.3: alloca is undefined.
+Your C++ system may not support alloca, or has a buggy support
+that configure has rejected. This is the case if C_ALLOCA is defined
+in makeinc. Compile alloca.c by cc -c alloca.c by hand and ensure
+that alloca.o is among the linked-in files.
+
+Q3.4: Some Fortran-specific stuff seems to be undefined.
+The Fortran runtime support are found in many libraries on different
+systems. Try -lF77, -lU77, -lI77, -lisam. If you compiled using F-90
+compiler the library names are probably different (probably not -lF90
+though, that would evidently make life too dull). A useful trick
+in looking for undefined symbols is to write (in C-shell)
+
+cd /usr/lib      # or whatever
+foreach i (lib*.a)
+echo $i
+nm $i | grep UNDEFINED_SYMBOL
+end
+
+
+INSTALLATION
+
+Q4.1: install.sh seems to install only part of the files.
+Yes. I know. install.sh actually does not work properly.
+I should write a better one. Meanwhile, get and install (!) GNU install.
+
+
+RUNTIME ERRORS
+
+Q5.1: The linear algebra functions seem to produce garbage results.
+Check that the floating point precision of your LAPACK/BLAS routines
+matches Treal and Tint in Tela (in def.H). By default Treal is defined
+to be double and Tint is defined to be int.
+
+Q5.2: The FFT routines produce garbage.
+This should no longer occur if you are using Tela version 1.21 or later.
+On earlier versions this is probably because you failed to compile FFTPACK
+with -r8 or equivalent switch. FFTPACK is formally single precision (REAL)
+while Tela expects double precision (C type double), therefore the Fortran
+compiler must be forced to promote REALs to DOUBLE PRECISION using a command
+line switch. On Tela>=1.21 this no longer happens because fftpack has been
+translated in C++.
+
+Q5.3: Sometimes I see weird hex numbers where I expect to see a string in output?
+Some C++ systems handle iostream unsigned char* outputting incorrectly,
+i.e. they output not a string but the pointer in hex. The configure
+script tries to recognize this but the check has been somehow fooled
+in your case. Set BROKEN_UCHAR_OUTPUTTER to 1 in makeinc.
+
+
+PROBLEMS ON SPECIFIC MACHINES
+
+Q6.1: Problems on Cray UNICOS 8.0.3 using scc4.0 and C++1.0?
+
+- The compiler sometimes crashes on the VECTORIZE macro.
+  By replacing every occurrence of VECTORIZE by the corresponding
+  pragma should help. I used the following small filter program
+  to do the job:
+
+#include <stdio.h>
+#include <string.h>
+
+#define MAXLINE 1024
+
+int main()
+{
+        char s[MAXLINE+1];
+        char *pos;
+        int i;
+        while (1) {
+                fgets(s,MAXLINE,stdin);
+                if (feof(stdin)) break;
+                pos = strstr(s,"VECTORIZED");
+                if (pos) {
+                        for (i=0; s[i] && (&s[i]) != pos; i++) putchar(s[i]);
+                        printf("\n#pragma _CRI ivdep\n");
+                        i+= strlen("VECTORIZED");
+                        for (; s[i]; i++) putchar(s[i]);
+                } else {
+                        fputs(s,stdout);
+                }
+        }
+        return 0;
+}
+
+I filtered gatscat.C and object.C through this.
+
+- I could not get the readline library working, thus
+  noreadline.c was used instead.
+
+- The bison++ parser generator compiles out of box but
+  produces incorrect results! The resulting parser 
+  would give syntax error at every ';', for example.
+
+- Some of the elementary functions give floating point exceptions
+  on some bad input arguments because the IEEE arithmetic is not
+  in use on Cray.
+
+- The -haggress option produces "out of memory during compilation"
+  style messages on objarithm.C. It compiled, nevertheless, but
+  some of the loops are probably not vectorized.
+
+- The WHEN_COMPILED string must be made simpler in Makefile

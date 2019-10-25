@@ -1,0 +1,29 @@
+=head1 NAME
+
+ctpp - Tela preprocessor
+
+=head1 SYNOPSIS
+
+B<ctpp> S<[ B<-h> ]> I<ct-files>
+
+=head1 DESCRIPTION
+
+B<ctpp> is the preprocessor for C-Tela (F<.ct>) files.  It reads each
+of the I<ct-files> and writes out a c-file.  The file name is computed
+as follows: "file.ct" becomes "file-.c".  Note the trailing dash of
+the file's base-name.
+
+If the B<-h> option is given, B<ctpp> generates a help-files (F<.hlp>)
+from I<ct-files>, and no c-files.
+
+=head1 SEE ALSO
+
+    tela	Tela interpreter
+    telakka	Tela extension utility
+    plotmtv	Standard associated graphics package
+    sppc	Alternative graphics package
+    m2t		Matlab to Tela translator
+
+=head1 HISTORY
+
+ctpp by S<Pekka Janhunen>; man page by S<Ch. L. Spiel>, 2000-12-7.

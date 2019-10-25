@@ -1,0 +1,1095 @@
+  Tela Help File
+  Pekka Janhunen, Pekka.Janhunen@fmi.fi
+  v1.0, 2 August 1994
+
+  Tela ("Tensor Language") is a numerical computing environment.  This
+  is the basic Tela help file. It is read online by the Tela help func-
+  tion.  You can also format and print it as a whole using the Linuxdoc-
+  SGML 'format' command. See also: telafuncs.html <file:telafuncs.html>,
+  telafuncsSectioned.html <file:telafuncsSectioned.html>.  Graphics
+  examples <http://www.geo.fmi.fi/prog/tela/graphex/telagraphs.html> and
+  FMI/GEO home page <http://www.geo.fmi.fi/> are also available.  Send
+  Tela bug reports to tela-bugs@fmi.fi.  Send suggestions to tela-sug-
+  gestions@fmi.fi.
+  ______________________________________________________________________
+
+  Table of Contents
+
+
+
+  1. Introduction
+  2. Flow of control statements
+     2.1 if, else
+     2.2 for
+     2.3 foreach
+     2.4 repeat, until
+     2.5 while
+     2.6 return
+     2.7 break, continue
+     2.8 goto, label
+
+  3. Other statements
+     3.1 call
+     3.2 function
+     3.3 local, global
+     3.4 package
+     3.5 disp
+
+  4. Intrinsic functions
+     4.1 zeros, izeros, rzeros, czeros
+     4.2 voids
+     4.3 abs
+     4.4 min, max
+     4.5 Nargin, Nargout
+     4.6 argin, argout, SetArgOut
+     4.7 nop
+
+  5. Operators
+     5.1 operators
+     5.2 special
+     5.3 mod
+     5.4 +
+     5.5 *
+     5.6 /
+     5.7 -
+     5.8 **
+     5.9 : void range
+     5.10 ++, --
+     5.11 or ||
+     5.12 and &&
+     5.13 not !
+     5.14 equal, ==, notequal, !=
+     5.15 comparison: lt, gt, le, ge
+     5.16 power
+     5.17 (F ] (PHR(P(TSCREEN(VERBSpecial symbols: [, ]  If A is an array, it can be indexed using A[i,j,...,k]. The number of indices must be equal to rank(A), except that all arrays can be indexed using just single index, in which case the array is indexed in flattened form. The flattened indexing is useful e.g. in connection with find(), because find() returns a flattened index vector. Flat indexing is also generally faster than ordinary indexing for multidimensional arrays.  The indices may be of three types. 1) integer scalars, 2) integer vectors, 3) Void value (notation ':'), which means 'whole range'. The rank of the result is equal to rank(A) - n, where n is the number of integer scalar indices.)VERB)TSCREEN)P(PSee also: ANAME CDATA <[(REF)REF)P(P(SECT1(HEADINGMapped indexing
+
+  6. Other Tela-related material
+     6.1 telakka
+     6.2 m2t
+
+
+  ______________________________________________________________________
+
+  [1m1.  Introduction[0m
+
+  Tela ("Tensor Language") is a numerical computing environment. A
+  summary of its basic features follows:
+
+
+
+          - The syntax reminds C, coming sometimes close to Pascal
+          - Some features have been borrowed from Matlab and other languages
+          - Tela supports N-dimensional arrays (currently, N must be less than 5)
+          - Arrays can be indexed and manipulated as in Matlab and Fortran-90
+          - Six basic numerical data types: integer, real and complex arrays
+            and scalars
+          - Fast. Also scalar loops are pretty fast.
+          - Graphics is currently handled using Kenny Toh's PlotMTV program
+          - Uses HDF files as native data format
+          - Besides in Tela itself, you can also write new functions using C-Tela,
+            which is modified C++. Large parts of Tela has been written in C-Tela.
+
+
+
+  [1m2.  Flow of control statements[0m
+
+  [1m2.1.  if, else[0m
+
+  Reserved words: if, else
+
+  The if statement syntax:
+
+
+           if (expr) stmt
+
+
+
+  or
+
+
+           if (expr) stmt else stmt
+
+
+
+  The expression must evaluate to integer scalar or array. The condition
+  is considered true if the scalar is nonzero or if all the array
+  elements are nonzero. Examples:
+
+
+
+           if (x!=0)
+               format("x is nonzero, x=``\n",x)    // notice no semicolon
+           else {
+               x = 1;
+               format("x was zero and is now 1\n");// this semicolon is optional
+           };  // this semicolon separates this if stmt from the next stmt, if any
+
+
+
+  [1m2.2.  for[0m
+
+  Reserved word: for
+
+  The for statement syntax:
+
+
+
+           for (init-stmt; continue-condition-expr; update-stmt) stmt
+
+
+
+  For example:
+
+
+
+           for (i=1; i<=imax; i++) a[i] = 0.5*i;
+
+
+
+  The for statement is similar to that found in C language. The only
+  exception is that in Tela the 'init-stmt' and 'update-stmt' are
+  statements, whereas in C they are expressions. This is because the
+  assignment '=' is a statement in Tela, not an operator as in C. There
+  is no comma operator in Tela. If you want to have several statements
+  as your init or update statement, you have to use braces, for example:
+
+
+
+           for ({i=1; j=10}; i<=10; {i++;j--}) format("i=``, j=``\n",i,j);
+
+
+
+  When expr is considered true, see ``if''.
+
+
+  [1m2.3.  foreach[0m
+
+  Reserved word: foreach
+
+  The foreach statement syntax:
+
+
+
+           foreach (i=A) stmt;
+
+
+
+  will loop over all components of array A, setting i equal to the com-
+  ponent on each iteration.
+
+  WARNING: This statement is currently included only for easing
+  transition from Matlab. The implementation is not optimal. In the
+  future the statement may even disappear. The Matlab to Tela translator
+  m2t generates foreach statements, which you should translate to
+  ordinary for statements sooner or later.
+
+  See also: ``for''
+
+
+  [1m2.4.  repeat, until[0m
+
+  Reserved words: repeat, until
+
+  The repeat..until statement syntax:
+
+
+
+           repeat stmt-sequence until expr
+
+
+
+  For example:
+
+           i = 1;
+           repeat
+               format("i = ``\n",i);
+               i++
+           until i > 10;
+
+
+
+  This is exactly similar to Pascal, including the use of semicolons.
+  When expr is considered true, see ``if''.
+
+  See also: ``while'', ``if''
+
+
+  [1m2.5.  while[0m
+
+  Reserved word: while
+
+  The while statement syntax:
+
+
+
+           while (expr) stmt
+
+
+
+  For example:
+
+
+
+           while (!found) {
+               LookForIt();
+               counter++
+           };
+
+
+
+  The statement is executed until expr evaluates to false.  When expr is
+  considered false or true, see ``if''.
+
+  See also: ``repeat''
+
+
+  [1m2.6.  return[0m
+
+  Reserved word: return
+
+  The return statement returns from the current function.  Any output
+  variables must be assigned before calling return, or they will remain
+  undefined.
+
+  If called from the main level of a source'd file or command line,
+  stops execution of the source'd file.
+
+
+
+      function result=AllPositive(A) {
+          for (i=1; i<=length(A); i++)
+                          if (A[i]<=0) {
+                                  result = 0;
+                                  return
+                          };
+                  result = 1;
+      };
+
+
+
+  The function returns 1 if all elements of vector A are positive, and
+  zero otherwise.
+
+  See also: ``function'', ``break''
+
+
+  [1m2.7.  break, continue[0m
+
+  Reserved words: break, continue
+
+  The break statement exits the surrounding loop.  It is analogous to
+  the break statement of C.  The loop can be a for-loop, a while-loop or
+  a repeat- until loop.
+
+  The continue-statement effectively jumps to the end of the body of the
+  surrounding loop, causing the next iteration to begin. It is analogous
+  to the continue statement of C.
+
+  For example,
+
+
+           for (i=1; i<=10; i++) {
+               if (i==5) break;
+               disp i
+           };
+
+
+
+  outputs the numbers 1,2,3 and 4.  On the other hand,
+
+
+           for (i=1; i<=10; i++) {
+               if (i==5) continue;
+               disp i
+           };
+
+
+
+  outputs the numbers from one to ten, excluding five.
+
+  See also: ``return'', ``goto''.
+
+
+  [1m2.8.  goto, label[0m
+
+  Reserved words: goto, label
+
+  The label statement defines a named jump address in instruction
+  stream.  The goto statement jumps to a given label. The labels must be
+  identifiers. For example,
+
+
+           for (i=1; i<=10; i++) for (j=1; j<=10; j++)
+               if (M[i,j] < 0) {
+                   format("Negative matrix entry, exiting\n");
+                   goto exitloop;
+               };
+           label exitloop;
+           // processing continues ...
+
+
+
+  would be equivalent to
+
+
+           if (any(M<0)) format("Negative matrix entry, exiting\n");
+
+
+
+  The goto statements are local to a function. All goto addresses must
+  be defined as labels in the function. Gotos into blocks or loops are
+  currently allowed but may cause unpredictable results.
+
+  Think twice before you use goto. In almost all cases it can be avoided
+  by using the return, break, or continue statements.
+
+  See also: ``return'', ``break''.
+
+
+  [1m3.  Other statements[0m
+
+  [1m3.1.  call[0m
+
+  Reserved word: call
+
+  Function call syntax:
+
+
+
+           [y1,y2..] = f(x1,x2..)
+
+
+
+  calls f with input arguments x1,x2.. and outputs arguments y1,y2.. .
+
+  If f(x1,x2..) appears alone in an expression, it is effectively called
+  with one output argument, which becomes the value of the expression.
+  f(x1,x2..) is equivalent to
+
+
+           call(f,x2,x2..).
+
+
+
+  This notation makes it possible to call functions indirectly through
+  variables, and to write functionals.
+
+  See also: ``function''
+
+
+  [1m3.2.  function[0m
+
+  Reserved word: function Also uses special tokens: [ ] ( ) , ... ;
+
+  Function definition syntax:
+
+
+
+           function [y1,y2..] = f(x1,x2..) LOCAL-DECL { stmt-sequence } ;
+
+
+
+  or
+
+
+           function y = f(x1,x2..) LOCAL-DECL { stmt-sequence } ;
+
+
+
+  or
+
+
+           function f(x1,x2..) LOCAL-DECL { stmt-sequence } ;
+
+
+
+  where yi are formal output arguments and xi are formal input argu-
+  ments.  See local, global for what LOCAL-DECL may be.
+
+  By default, output arguments are optional and input arguments are
+  obligatory. This can be changed by using a semicolon in the argument
+  list.  Identifiers before a semicolon become obligatory and
+  identifiers after the semicolon are declared optional.
+
+  Example:
+
+
+           function [y,z;] = f(x) local(a) { /* ... */ };
+
+
+
+  declares x, y and z obligatory and 'a' a local variable.
+
+  An output argument should be declared obligatory if it is also used as
+  input in the function.
+
+  The ellipsis sign (...) may be appended to the input or output formal
+  argument list. It is thus possible to define functions with variable
+  number of arguments. See argin, argout, SetArgOut, Nargin, Nargout for
+  details.
+
+  You can define as many functions in one input file as you wish.  In
+  order to call a Tela-function you must first source the input file
+  containing that function.
+
+  See also: ``local'', ``return'', ``argin'', ``Nargin'', ``special'',
+  ``package''.
+
+
+  [1m3.3.  local, global[0m
+
+  Reserved words: local, global
+
+  Variables appearing inside functions, which are not input or output
+  arguments, are either local or global. If they are local, they are
+  similar to function arguments, except that they are initialized with
+  undefined value before entering the function.
+
+  The function definition is of the form
+
+
+           function [out1,out2...] = f(in1,in2...) LOCAL-DECL { /* body */ };
+
+
+
+  where LOCAL-DECL has one of the following five forms:
+
+  1. LOCAL-DECL can be empty, in which case all variables are implicitly
+  local, except autoglobal variables such as pi and eps.
+
+  2. LOCAL-DECL can be the keyword 'local'. This is exactly similar to
+  case 1 above.
+
+  3. LOCAL-DECL can be the keyword 'global'. This makes all free
+  variables in the function body global.
+
+  4. LOCAL-DECL can be of the form 'local(a,b,...)'. This makes
+  variables a,b,... local, and all other free variables global. If an
+  autoglobal variables such as pi or eps is listed, as in 'local(pi)',
+  it overrides the autoglobal attribute, making 'pi' local and
+  uninitialized in the function body. Such practice is not recommended
+  however.
+
+  5. LOCAL-DECL can be of the form 'global(a,b,...)'. This makes
+  variables a,b,... global, and all other free variables implicitly
+  local. Autoglobal variables remain global.
+
+  Examples:
+
+
+
+       function f() /*local*/ {y=2; disp y+pi};
+
+
+
+  Variable y is local, but pi is not since it is autoglobal. When
+  called, f() will output 5.14159, and global y has not been affected.
+  Nothing changes if you uncomment the keyword local.
+
+
+
+           function V = ddx(u)
+           global(imax,dx)
+           {
+               V = zeros(imax);
+               coeff = 1/(2*dx);
+               V[2:imax-1] = (u[3:imax] - u[1:imax-2])*coeff;
+               V[1] = V[imax-1];
+               V[imax] = V[2];
+           };
+
+
+
+  This example computes the numerical derivative. The variables coeff is
+  local since it is not mentioned in the global list.
+
+  See also: ``function'', ``package''.
+
+
+  [1m3.4.  package[0m
+
+  Reserved word: package
+
+  The package mechanism is for hiding names local to a group of
+  functions and other statements from global access. Syntax:
+
+
+
+       package "mypackage" LOCAL-DECL { /* body */ };
+
+
+
+  Naming is optional: if the package is not named explicitly, the
+  current input file name is used. If you use one package per one input
+  file, you usually don't have to use any name.  LOCAL-DECL is analogous
+  to function definition, see ``local''.  Usually LOCAL-DECL will be of
+  the form
+
+
+
+       package global(fn1,fn2,...) { /* body */ };
+
+
+
+  where fn1,fn2,... are the globally visible objects of the package.
+  They are typically functions, but they can also be variable names.  In
+  the example above, all symbols in body which are not among fn1,fn2,...
+  are hidden from global reference. This is accomplished by replacing
+  the symbols with new symbols. The new symbol names are obtained from
+  the old ones by prepending a prefix "i:", where i is a positive
+  integer unique to each package name. Since a symbol name cannot
+  contain a colon, it is impossible to refer to these symbols from
+  outside. The hidden symbols are also excluded from name completion and
+  whos() function, for instance.
+
+  See also: ``function'', ``local''.
+
+
+  [1m3.5.  disp[0m
+
+  Reserved word: disp
+
+
+
+       disp expr;
+
+
+
+  displays expression on standard output, in the same way as typing its
+  name on command line.
+
+  Disp is primarily a debugging aid. There are better ways to create
+  output, for example the standard function 'format'.
+
+
+  [1m4.  Intrinsic functions[0m
+
+  [1m4.1.  zeros, izeros, rzeros, czeros[0m
+
+  Intrinsic functions: zeros, izeros, rzeros, czeros
+
+
+  zeros(nx) returns a real zeroed vector of length nx, zeros(nx,ny)
+  returns a zeroed real matrix and so on. You can use it to "dimension"
+  arrays that are indexed later, and to set the initial value to zero.
+  The companion functions izeros and czeros create integer and complex
+  zeroed arrays, respectively. rzeros is a synonym for zeros.
+
+
+  [1m4.2.  voids[0m
+
+  Intrinsic function: voids
+
+  voids(nx) returns an empty vector of Tela objects; voids(nx,ny)
+  returns an empty matrix and so on.  A void object can hold any other
+  Tela object in every position, i.e., voids can represent heterogenous
+  collections like lists in lisp, though they are indexed like vectors
+  or arrays.
+
+  Voids can be nested.  This is a special case of a void holding another
+  void.
+
+
+  [1m4.3.  abs[0m
+
+  Intrinsic function: abs
+
+  abs(x) returns the absolute value of x, which may be of any numeric
+  object.  If x is an array, the operation is performed componentwise.
+  If x is a string, an integer vector of the character ASCII codes is
+  returned.
+
+
+  [1m4.4.  min, max[0m
+
+  Intrinsic functions: min, max
+
+  min(x) returns the smallest element of array x, or x itself if x is
+  scalar.
+
+  [m,p] = min(x) returns the minimum in m and the minimum position in p.
+
+  min(x,y) returns the smaller of x and y. If both are arrays, their
+  dimensions must agree. If one is scalar, it is promoted to array if
+  needed.
+
+  min(x,y,...,z) effectively expands to min(x,min(y,...z)...).
+
+  The function max works similarly. The arguments may not be complex.
+
+
+  [1m4.5.  Nargin, Nargout[0m
+
+  Intrinsic functions: Nargin, Nargout
+
+  Nargin() returns the number of optional arguments passed to current
+  function.  Optional arguments are specified using the ellipsis (...)
+  notation in the formal argument list. You may not use Nargin() in
+  functions whose argument list does not end with an ellipsis.
+
+  Nargout() works similarly. For example, the following function f can
+  be called with any number of input/output arguments; it displays the
+  numbers:
+
+
+
+      function [...] = f(...) {
+          format("`` input args, `` output args.\n",Nargin(),Nargout())
+      };
+
+
+
+  See also: ``argin''
+
+
+  [1m4.6.  argin, argout, SetArgOut[0m
+
+  Intrinsic functions: argin, argout, SetArgOut
+
+  The function argin(n) returns the n-th optional input argument. The
+  first optional argument has n=1. Similarly, argout(n) returns the
+  value of the n-th optional output argument.
+
+  SetArgOut(n,x) sets the n-th optional output argument to x.
+
+  Please notice that the functions argin, argout and SetArgOut do not
+  count the preceeding 'normal' arguments, but the first optional always
+  has index n=1.
+
+  See also: ``Nargin''
+
+
+  [1m4.7.  nop[0m
+
+  Intrinsic function: nop
+
+  nop() generates a 'no-operation' instruction. It is useful (?) for
+  benchmarking purposes. For example,
+
+  nop(); nop(); nop(); nop(); nop();
+
+  generates five NOP instructions in the flatcode stream.
+
+
+  [1m5.  Operators[0m
+
+  [1m5.1.  operators[0m
+
+  The Tela operators, from lower to higher precedence:
+
+
+
+       Operator       Association   Meaning
+       --------       -----------   -------
+       :              -             Range creation, ex: 1:10, -5:2.3:7
+       ||             left          Logical OR, similar to C
+       &&             left          Logical AND, similar to C
+       !              right         Logical NOT
+       ==, !=         left          Equality and nonequality
+       >, >=, <, <=   left          Comparisons
+       +, -           left          Addition and subtraction
+       *, /, mod      left          Multiplication, real division, modulus
+       **             left          Matrix multiplication
+       -, +           right         Unary minus and plus
+       ^              right         Raising to power
+
+
+
+  The special symbols '++' and '--' are not actually operators but
+  statements. See help ``++''.
+  See also the help for each individual operators: ``:'', ``||'',
+  ``&&'', ``=='', ``comparison'', ``+'', ``-'', ``*'', ``/'', ``mod'',
+  ``**'', ``power'', ``!''.  See also: ``special'' (type help special).
+
+
+  [1m5.2.  special[0m
+
+
+
+       The Tela special characters
+       ---------------------------
+
+
+
+       Char(s)   Meanings, usages
+       -------   ----------------
+       ( )       Parentheses, expression grouping       (a+b)*(a-c)
+       [ ]       Brackets, array indexing               A[i,2:N-1]
+                 Function call                          [a,b] = f(x,y,z);
+                 Function definition                    function [a,b] = f(x,y,z) {};
+       <[ ]>     Mapped array indexing                  A<[ivec,jvec]>
+       #( )      Array constructor                      #(1,2; 3,4)
+       { }       Statement grouping                     {i++; j++};
+       ++        Incrementation                         i++;
+       --        Decrementation                         i--;
+       ;         Statement separator                    {i++; j++};
+                 Separator in for statement             for (i=1; i<=imax; i++) {};
+                 Separator of obligatory/optional args  function y=f(x; y) {};
+                 Separator in array constructor         #(1,2; 3,4)
+       ,         Separator of parameters                x = f(x,y) + 3;
+                 Separator in array constructor         #(1,2; 3,4)
+
+
+
+  More information available: ``['', ``<['', ``++''.
+
+  See also: ``operators''.
+
+
+  [1m5.3.  mod[0m
+
+  Reserved word: mod
+
+  a mod b gives the modulus, a modulo b. a and b may be also complex; in
+  that case the modulus is taken separately for the real and imaginary
+  parts. The modulus operator has the same precedence as the pointwise
+  multiplication '*' and real division '/'.
+
+  See also: ``*'', ``/'', ``operators''
+
+
+  [1m5.4.  +[0m
+
+  Special symbol: +
+
+  a + b is the normal addition operator. If both a and b are scalars,
+  the result is a scalar. If one of them is array, the result is an
+  array of the same size. If both are arrays, their dimensions must
+  agree and the result is an array.
+
+  Unary plus (+a) returns 'a' as is.
+
+  See also: ``-'', ``++'', ``operators''
+
+
+  [1m5.5.  *[0m
+
+  Special symbol: *
+
+  a * b is the normal (pointwise) multiplication operator. If both a and
+  b are scalars, the result is a scalar. If one of them is array, the
+  result is an array of the same size. If both are arrays, their
+  dimensions must agree and the result is an array.
+
+  See also: ``**'', ``operators''
+
+
+  [1m5.6.  /[0m
+
+  Special symbol: /
+
+  a / b is the normal (pointwise) division operator. If both a and b are
+  scalars, the result is a scalar. If one of them is array, the result
+  is an array of the same size. If both are arrays, their dimensions
+  must agree and the result is an array.
+
+  See also: ``*'', ``mod'', ``operators''
+
+
+  [1m5.7.  -[0m
+
+  Special symbol: -
+
+  a - b is the subtraction operator. If both a and b are scalars, the
+  result is a scalar. If one of them is array, the result is an array of
+  the same size. If both are arrays, their dimensions must agree and the
+  result is an array.
+
+  Unary minus (-a) is the negative of a.
+
+  See also: ``+'',``++'',``operators''
+
+
+  [1m5.8.  **[0m
+
+  Special symbol: **
+
+  T**U is the generalized matrix product of T and U.  If T has
+  components T[i,..,j,k] and U has components U[a,b,c,...], then
+  (T**U)[i,..,j,b,c,...] = sum(T[i,..,j,k]*U[k,b,c,...],k=1:kmax), i.e.
+  it is a contraction of tensors T and U with respect to the innermost
+  dimensions, which must agree. In case of matrices ** thus gives the
+  ordinary matrix product. If one or both operands are scalars, T**U is
+  the same as T*U (pointwise multiplication).
+
+  See also: ``*'', ``operators''
+
+
+  [1m5.9.  : void range[0m
+
+  Special symbol: ':'
+
+  a:step:b creates a vector of values #(a,a+step,a+2*step,...) such that
+  all elements are less or equal than b. a:b creates a range using unit
+  step. A lone ':' stands for the Void value. When used as an array
+  subscript, it stands for the entire range, for example A[:,3] refers
+  to the third column of matrix A.
+
+  See also: ``operators''
+
+
+  [1m5.10.  ++, --[0m
+
+  Special symbols: ++, --
+
+  The statement a++ increments a by one. The statement a-- decrements a
+  by one. Notice that these are not operators but statements in Tela.
+
+  See also: ``+''
+
+
+  [1m5.11.  or ||[0m
+
+  Special symbol: ||
+
+  a || b is the logical OR of a and b. The operands must be integer
+  valued.  For array operand(s), the OR operation is applied
+  componentwise.
+
+  See also: ``&&'', ``operators''
+
+
+  [1m5.12.  and &&[0m
+
+  Special symbol: &&
+
+  a && b is the logical AND of a and b. The operands must be integer
+  valued.  For array operand(s), the AND operation is applied
+  componentwise.
+
+  See also: ``||'',``operators''
+
+
+  [1m5.13.  not ![0m
+
+  Special symbol: !, operators (type help operators)
+
+  !a is the logical NOT of a. The operand must be integer valued. If the
+  operand is an integer array, the result is integer array also,
+  otherwise the result is integer scalar.
+
+  On command prompt, '!' executes an operating system command, if it is
+  the first character on line. In t-files this extra meaning of '!' does
+  not exist, but you must use the 'system' function explicitly.
+
+
+  [1m5.14.  equal, ==, notequal, !=[0m
+
+  Special symbols: ==, !=
+
+  a == b is the equality test operator. If both operands are scalars,
+  the result is either 1 or 0. If one operand is numeric array and the
+  other one is scalar, the result is an integer array of 0's and 1's of
+  the same size as the array operand. If both operands are arrays of the
+  same size, the result is again an integer array of 0's and 1's. But if
+  the operands are arrays of different size, the result is 0 (integer
+  scalar). Strings are handled as integer arrays of their ASCII codes,
+  according to their internal representation. For other types of
+  objects, for example functions, the result is 1 only if the objects
+  are exactly equal.
+
+  a != b is the 'not-equal' operator. It is analogous to '=='.
+
+
+  Unlike order-related comparison operators (<, >, <=, >=), the '==' and
+
+  See also: ``comparison'', ``operators''
+
+
+  [1m5.15.  comparison: lt, gt, le, ge[0m
+
+  Special symbols: <, >, <=, >=
+
+  These operators obviously test whether the first operand is less than,
+  greater than, less or equal than, or greater or equal than the second
+  operand. If both operands are scalars, the result is scalar (1 or 0).
+  If one operand is array and the other one is scalar, the result is an
+  integer array of 0's and 1's. If both operands are arrays, their
+  dimensions must agree. The result is then again an integer array of
+  0's and 1's.
+
+  The operands may not be nonnumeric, nor they may include complex
+  numbers.
+
+  See also: ``=='', ``operators''
+
+
+  [1m5.16.  power[0m
+
+  Special symbol: ^
+
+  a ^ b is a-raised-to-the-power-b. If both a and b are scalars, the
+  result is a scalar. If one of them is array, the result is an array of
+  the same size. If both are arrays, their dimensions must agree and the
+  result is an array.
+
+  See also: ``*'', ``**'', ``operators''
+
+
+  [1m5.17.[0m
+
+
+
+       Special symbols: [, ]  If A is an array, it can be indexed using A[i,j,...,k]. The number of indices must be equal to rank(A), except that all arrays can be indexed using just single index, in which case the array is indexed in flattened form. The flattened indexing is useful e.g. in connection with find(), because find() returns a flattened index vector. Flat indexing is also generally faster than ordinary indexing for multidimensional arrays.  The indices may be of three types. 1) integer scalars, 2) integer vectors, 3) Void value (notation ':'), which means 'whole range'. The rank of the result is equal to rank(A) - n, where n is the number of integer scalar indices.
+
+
+
+  See also:``<[''
+
+
+  [1m5.18.  Mapped indexing[0m
+
+
+
+       Special symbols: <[, ]>
+
+       Besides ordinary array indexing, accomplished with [ ], you can use
+       mapped indexing using <[ ]>. Assume A is an array with N = rank(A).
+       Assume that I1...IN are integer arrays, and that their dimensions
+       mutually agree. Then A<[I1,I2,...,IN]> is a collection of A's
+       components, and its size is equal to the size of each Ik.
+
+       Unlike ordinary array indexing, in mapped indexing the size of the
+       result is not determined by A, but the size of the index
+       arrays. Mapped indexing can not easily be returned to ordinary
+       indexing, hence it is included as a separate operation in Tela.
+
+
+
+  See also: ``[''.
+
+
+  [1m6.  Other Tela-related material[0m
+
+  [1m6.1.  telakka[0m
+
+
+  telakka (TeLa Kernel Konstruction Accessory) is a program that
+  generates new Tela kernels. It is implemented as a shell script. It is
+  used much as a C compiler. C-tela files (.ct files) written by you can
+  be compiled and linked into Tela using telakka. For example, if
+  mystuff.ct contains your own function named myfunction,
+
+
+
+       ______________________________________________________________________
+       unix> cat mystuff.ct
+       [y] = myfunction(x)
+       /* This does something really stupid */
+       {
+           cout << "in myfunction, x = " << x << "\n";
+           y = 3.14;
+           Add(y,y,x);
+           return 0;    // successful exit to Tela
+       }
+       unix> telakka -o mytela mystuff.ct
+       unix> ./mytela
+       This tela is a tensor language, Version 0.5g.
+       Type  ?help  for help.
+       ->Try: docview(), source("demo")
+       >help myfunction
+       This does something really stupid
+       >myfunction(42)
+       in myfunction, x = 42
+       45.14
+       >
+       ______________________________________________________________________
+
+
+
+  The executable mytela is a full Tela plus the C-tela functions from
+  mystuff.ct. The help command finds the C-style comment /* ... */
+  following the function header automatically. Also name completion will
+  recognize myfunction. C-tela code is C++ code with one syntactic
+  extention: the function header is simpler and follows Tela
+  conventions. There is a preprocessor, named ctpp, which converts C-
+  tela to ordinary C++ by transforming function headers. Telakka calls
+  ctpp, the system C++ compiler and the linker automatically as needed.
+  You can pass other object files, libraries and C compilation switches
+  to telakka as you need.
+
+  On systems that support DLD dynamic linking there is a faster method
+  to bring your own code in Tela. Just compile the .ct file with telakka
+  -c to produce an .o file. Then use the link function in Tela to bring
+  the functions in Tela executable; in this way you don't have to
+  generate a full new copy of the kernel. The link function does not
+  exist on systems that do not have DLD.
+
+
+  [1m6.2.  m2t[0m
+
+
+  m2t is Matlab to Tela translator. Usage is as follows:
+
+       ______________________________________________________________________
+              m2t [-h?]                       (give help)
+          or: m2t [-sd] <file.m >file.t       (basic usage)
+          or: m2t [-FSmsd] [files.m] >file.t  (many files at once)
+
+       List of possible command line options:
+
+           -F        Ignore script files (process Functions only)
+           -S        Ignore function files (process Scripts only)
+           -m        Multi-file mode: generate .t files using .m file basenames
+           -s        Silent mode, suppress all warnings
+           -d        Suppress matrix division warnings
+           -h, -?    Produce this message
+
+       Examples:
+
+           m2t -F *.m >funcs.t    Compile all function files into "funcs.t"
+           m2t -Sm *.m            Compile all scripts in separate t-files
+       ______________________________________________________________________
+
+
+
+  Many Tela functions can reside in one source file, therefore m2t by
+  default writes to standard output. If you want to stick to Matlab
+  convention and use only one function per file, you use the -m flag.
+
+  The -F and -S arguments are useful tools for selecting either only
+  function M-files or script M-files. The default is to process both
+  types of files.
+
+  It is important to realize that m2t is not a full-fledged translator.
+  You almost always have to edit its input in order to run it
+  suffesfully in Tela. Despite this shortcoming, many people have found
+  m2t extremely useful. Particularly, m2t has difficulties in
+  recognizing vectors built without commas. For example, in Matlab is is
+  legal to write
+
+
+
+       ______________________________________________________________________
+       a = [1 2 a+3]
+       ______________________________________________________________________
+
+
+
+  instead of
+
+
+
+       ______________________________________________________________________
+       a = [1,2,a+3].
+       ______________________________________________________________________
+
+
+
+  However, m2t properly recognizes only the second form except in some
+  trivial cases. Keep this in mind when writing new M-files. The other
+  weak point is in deciding which symbol is a function and which symbol
+  is a matrix.  In Matlab, both function calls and array references use
+  (..) parentheses.  In Tela array refererence must use [..] brackets.
+  m2t does what is possible to guess what is function and what is
+  variable, but it sometimes guesses wrong.
+
+  It is also important to realize that m2t can be misused, i.e. it can
+  be used to translate copyrighted M-files to Tela. This is true with
+  any translator. You as a user are completely responsible for ensuring
+  that copyright is not violated when using m2t.
+
+  } m2t
+
+
+

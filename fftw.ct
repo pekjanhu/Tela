@@ -1,0 +1,439 @@
+/*
+ * This file is part of tela the Tensor Language.
+ * Copyright (c) 1994-2002 Pekka Janhunen
+ */
+
+/*
+	fftw.ct
+	Fast Fourier Transform functions using the FFTW library.
+	Preprocess with ctpp.
+	C-tela code is C++ equipped with []=f() style function definition.
+*/
+
+#include <fftw.h>
+#include <rfftw.h>
+
+const int planning_policy = FFTW_ESTIMATE;
+
+#define PLANCACHE_SIZE 6
+
+template <class Tplan, Tplan (*plan_creator)(int, fftw_direction, int), void (*plan_destructor)(Tplan)>
+class TFFTWPlanCache {
+private:
+	struct Tentry {
+		int n;
+		double timestamp;
+		Tplan p;
+	};
+	int len;
+	double current_timestamp;
+	Tentry data[PLANCACHE_SIZE];
+public:
+	TFFTWPlanCache() : len(0),current_timestamp(0.0) {}
+	Tplan getplan(int nn);
+	~TFFTWPlanCache();
+};
+
+template <class Tplan, Tplan (*plan_creator)(int, fftw_direction, int), void (*plan_destructor)(Tplan)>
+Tplan TFFTWPlanCache<Tplan,plan_creator,plan_destructor>::getplan(int nn)
+{
+	int i;
+	current_timestamp+= 1.0;
+	bool found = false;
+	for (i=0; i<len; i++) {
+		if (nn == data[i].n) {
+			found = true;
+			break;
+		}
+	}
+	if (found) {
+		data[i].timestamp = current_timestamp;
+//		cout << "Found old plan for nn=" << nn << " in cache\n";
+		return data[i].p;
+	} else if (len < PLANCACHE_SIZE) {
+		// not found and there is room to add new entry
+		data[len].n = nn;
+		data[len].timestamp = current_timestamp;
+		data[len].p = (*plan_creator)(abs(nn),nn<0 ? FFTW_FORWARD : FFTW_BACKWARD,planning_policy);
+//		cout << "Added plan with nn=" << nn << " to cache for index " << len << "\n";
+		return data[len++].p;
+	} else {
+		// not found and we must make room before adding new entry
+		double oldest_time = 1e30;
+		int oldest_i = 0;
+		for (i=0; i<len; i++) {
+			if (data[i].timestamp < oldest_time) {
+				oldest_time = data[i].timestamp;
+				oldest_i = i;
+			}
+		}
+		// now oldest_i is the index we shall throw away
+//		cout << "Throwing out plan with nn=" << data[oldest_i].n << " from cache and replacing with nn=" << nn << "\n";
+		(*plan_destructor)(data[oldest_i].p);
+		data[oldest_i].n = nn;
+		data[oldest_i].timestamp = current_timestamp;
+		data[oldest_i].p = (*plan_creator)(abs(nn),nn<0 ? FFTW_FORWARD : FFTW_BACKWARD,planning_policy);
+		return data[oldest_i].p;
+	}
+}
+
+template <class Tplan, Tplan (*plan_creator)(int, fftw_direction, int), void (*plan_destructor)(Tplan)>
+TFFTWPlanCache<Tplan,plan_creator,plan_destructor>::~TFFTWPlanCache()
+{
+	int i;
+	for (i=0; i<len; i++) plan_destructor(data[i].p);
+}
+
+static void fft(Tobject& result, const Tobject& u, int isign, int d)
+// u must be ComplexArray
+// d must be in range 0..D-1 where D=rank(data)
+// isign must be +1 (backward) or -1 (forward)
+{
+	static TFFTWPlanCache<fftw_plan,&fftw_create_plan,&fftw_destroy_plan> plancache;
+	const fftw_direction dir = isign<0 ? FFTW_FORWARD : FFTW_BACKWARD;
+	result.creserv(u.dims());
+	// i*jmax*kmax*lmax + j*kmax*lmax + k*lmax + l
+	// d=0 (i): dist=1, stride=jmax*kmax*lmax, howmany=jmax*kmax*lmax, repeat=1, chunk=anything e.g.1
+	// d=1 (j): dist=1, stride=kmax*lmax, howmany=kmax*lmax, repeat=imax, chunk=jmax*kmax*lmax
+	// d=2 (k): dist=1, stride=lmax, howmany=lmax, repeat=imax*jmax, chunk=kmax*lmax
+	// d=3 (l): dist=lmax, stride=1, howmany=imax*jmax*kmax, repeat=1, chunk=anything e.g. 1
+	// dist=1 unless d==rank-1 in which case dist=dims[d]
+	// stride=product of dimensions d+1..rank-1
+	// howmany=stride, unless d==rank-1 in which case howmany=product of dimensions 0..d-1
+	// repeat=product of dimensions 0..d-1, unless d==rank-1 in which case repeat=1
+	// chunk=product of dimensions d..rank-1
+	int dist,stride,howmany,repeat,chunk;
+	stride = 1;
+	int d1;
+	for (d1=d+1; d1<u.rank(); d1++) stride*= u.dims()[d1];
+	if (d == u.rank()-1) {
+		dist = u.dims()[d];
+		howmany = 1;
+		for (d1=0; d1<d; d1++) howmany*= u.dims()[d1];
+		repeat = 1;
+	} else {
+		dist = 1;
+		howmany = stride;
+		repeat = 1;
+		for (d1=0; d1<d; d1++) repeat*= u.dims()[d1];
+	}
+	chunk = 1;
+	for (d1=d; d1<u.rank(); d1++) chunk*= u.dims()[d1];
+	const int n = u.dims()[d];
+	fftw_plan p = plancache.getplan(n*isign);
+//	cout << "n=" << n << ", howmany=" << howmany << ", stride=" << stride << ", dist=" << dist << ", repeat=" << repeat << "\n";
+	int r;
+	for (r=0; r<repeat; r++) {
+		fftw(p,howmany,(fftw_complex *)(u.ComplexPtr()+chunk*r),stride,dist,
+			 (fftw_complex *)(result.ComplexPtr()+chunk*r),stride,dist);
+	}
+	if (dir == FFTW_BACKWARD) {
+		const Tint N = 2*u.length();
+		const Treal norm = 1.0/n;
+		Tint i;
+		for (i=0; i<N; i++) result.RealPtr()[i]*= norm;
+	}
+	// Approximate operation count of a single complex FFT is 5*log2(N)*N
+	global::nops+= iround(7.213*log(double(n))*n*howmany*repeat);
+}
+
+inline rfftwnd_plan rfftwnd_create_plan_1D(int n, fftw_direction dir, int flags)
+// interface function for realfft case to obtain same signature as for fftw_create_plan
+{
+	return rfftwnd_create_plan(1,&n,dir,flags);
+}
+
+static void rfft(Tobject& result, const Tobject& u, int isign, int d, bool is_odd)
+// u must be ComplexArray if isign==+1 and RealArray if isign==-1
+// d must be in range 0..D-1 where D=rank(data)
+// isign must be +1 (complex-to-real, i.e. backward) or -1 (real-to-complex, i.e. forward)
+// is_odd is used only if isign==+1; then it must be false is number of real data points was even, and true if odd
+{
+	static TFFTWPlanCache<rfftwnd_plan,&rfftwnd_create_plan_1D,&rfftwnd_destroy_plan> plancache;
+	const fftw_direction dir = isign<0 ? FFTW_REAL_TO_COMPLEX : FFTW_COMPLEX_TO_REAL;
+	const int n = (dir==FFTW_REAL_TO_COMPLEX) ? u.dims()[d] : 2*(u.dims()[d]-1) + is_odd;
+	rfftwnd_plan p = plancache.getplan(n*isign);
+	int d1,r,stride,chunk,howmany,dist,repeat;
+	stride = 1;
+	for (d1=d+1; d1<u.rank(); d1++) stride*= u.dims()[d1];
+	chunk = 1;
+	for (d1=d; d1<u.rank(); d1++) chunk*= u.dims()[d1];
+	if (d == u.rank()-1) {
+		dist = u.dims()[d];
+		howmany = 1;
+		for (d1=0; d1<d; d1++) howmany*= u.dims()[d1];
+		repeat = 1;
+	} else {
+		dist = 1;
+		howmany = stride;
+		repeat = 1;
+		for (d1=0; d1<d; d1++) repeat*= u.dims()[d1];
+	}
+	if (dir == FFTW_REAL_TO_COMPLEX) {
+		// do real-to-complex transform
+		int cdims[MAXRANK];
+		for (d1=0; d1<u.rank(); d1++) cdims[d1] = u.dims()[d1];
+		if (is_odd) cdims[d]--; cdims[d]/= 2; cdims[d]++;
+		result.creserv(TDimPack(cdims,u.rank()));
+		int ostride,ochunk;
+		ostride = 1;
+		for (d1=d+1; d1<u.rank(); d1++) ostride*= cdims[d1];
+		const int odist = (d == u.rank()-1) ? cdims[d] : 1;
+		ochunk = 1;
+		for (d1=d; d1<u.rank(); d1++) ochunk*= cdims[d1];
+//		cout << "n=" << n << ", howmany=" << howmany << ", stride=" << stride << ", ostride=" << ostride
+//			 << ", dist=" << dist << ", odist=" << odist << ", repeat=" << repeat
+//			 << ", chunk=" << chunk << ", ochunk=" << ochunk << "\n";
+		for (r=0; r<repeat; r++) {
+			rfftwnd_real_to_complex(p,howmany,
+									(fftw_real *)(u.RealPtr()+r*chunk),stride,dist,
+									(fftw_complex *)(result.ComplexPtr()+r*ochunk),ostride,odist);
+		}
+	} else {
+		// do complex-to-real transform
+		int rdims[MAXRANK];
+		for (d1=0; d1<u.rank(); d1++) rdims[d1] = u.dims()[d1];
+		rdims[d]--; rdims[d]*= 2; if (is_odd) rdims[d]++;
+		result.rreserv(TDimPack(rdims,u.rank()));
+		int ostride,ochunk;
+		ostride = 1;
+		for (d1=d+1; d1<u.rank(); d1++) ostride*= rdims[d1];
+		const int odist = (d == u.rank()-1) ? rdims[d] : 1;
+		ochunk = 1;
+		for (d1=d; d1<u.rank(); d1++) ochunk*= rdims[d1];
+//		cout << "n=" << n << ", howmany=" << howmany << ", stride=" << stride << ", ostride=" << ostride
+//			 << ", dist=" << dist << ", odist=" << odist << ", repeat=" << repeat
+//			 << ", chunk=" << chunk << ", ochunk=" << ochunk << "\n";
+		for (r=0; r<repeat; r++) {
+			rfftwnd_complex_to_real(p,howmany,
+									(fftw_complex *)(u.ComplexPtr()+r*chunk),stride,dist,
+									(fftw_real *)(result.RealPtr()+r*ochunk),ostride,odist);
+		}
+	}
+	if (dir == FFTW_COMPLEX_TO_REAL) {
+		const Tint N = result.length();
+		const Treal norm = 1.0/n;
+		Tint i;
+		for (i=0; i<N; i++) result.RealPtr()[i]*= norm;
+	}
+	// Approximate operation count of a single real FFT is (5/2)*log2(N)*N
+	global::nops+= iround(3.607*log(double(n))*n*howmany*repeat);
+}
+
+[f] = FFT(u; dim)
+/* FFT(u) gives the complex Fast Fourier Transform of u.
+   If u's rank is more than one, the transform is computed
+   only along the first dimension (many independent 1D
+   transforms).
+
+   FFT(u,dim) computes the FFT along the specified dimension.
+   The first dimension is labeled 1 and so on.
+
+   For vector u, f=FFT(u) is equivalent with
+
+   n = length(u); f = czeros(n);
+   for (j=1; j<=n; j++)
+       f[j] = sum(u*exp(-(j-1)*(0:n-1)*2i*pi/n));
+
+   All Fourier transform functions in Tela can take the transform
+   along any dimension in a multidimensional array, and the transform
+   length is not restricted. The function FFT should be used only in
+   case of complex input data. Use realFFT for real input array.
+
+   Functions FFT, realFFT, sinqFFT, cosFFT and their inverses
+   are the most efficient when the transform length n is a product
+   of small primes.
+
+   Functions sinFFT and invsinFFT are efficient when n+1 is
+   a product of small primes
+	   
+   Functions cosFFT and invcosFFT are efficient when n-1 is
+   a product of small primes
+	   
+   See also: invFFT, realFFT, sinFFT, cosFFT, sinqFFT, cosqFFT, Lomb.
+   Error codes:
+   -1: First argument not a numeric array
+   -2: Second argument not integer
+   -3: Second argument out of range
+   */
+{
+	if (!u.IsNumericalArray()) return -1;
+	if (u.length()==0) return 0;
+	const int D = u.rank();
+	int d=1;
+	if (Nargin==2) {
+		if (dim.kind()!=Kint) return -2;
+		d = dim.IntValue();
+		if (d<1 || d>D) return -3;
+	}
+	if (u.kind()==KIntArray || u.kind()==KRealArray) {
+		Tobject u2;
+		Add(u2,u,Tobject(0.0,0.0));
+		fft(f,u2,-1,d-ArrayBase);
+	} else if (u.kind()==KComplexArray) {
+		fft(f,u,-1,d-ArrayBase);
+	}
+	return 0;
+}
+
+[f] = invFFT(u; dim)
+/* invFFT() is the inverse of FFT().
+   For vector f, u=invFFT(f) is equivalent with
+
+   n = length(f); u = czeros(n);
+   for (j=1; j<=n; j++)
+       u[j] = (1/n)*sum(f*exp((j-1)*(0:n-1)*2i*pi/n));
+
+   Differences with FFT: sign of i is plus, scale factor 1/n.
+   
+   See also: FFT.
+   Error codes:
+   -1: First argument not a numeric array
+   -2: Second argument not integer
+   -3: Second argument out of range
+   */
+{
+	if (!u.IsNumericalArray()) return -1;
+	if (u.length()==0) return 0;
+	const int D = u.rank();
+	int d=1;
+	if (Nargin==2) {
+		if (dim.kind()!=Kint) return -2;
+		d = dim.IntValue();
+		if (d<1 || d>D) return -3;
+	}
+	if (u.kind()==KIntArray || u.kind()==KRealArray) {
+		Tobject u2;
+		Add(u2,u,Tobject(0.0,0.0));
+		fft(f,u2,+1,d-ArrayBase);
+	} else if (u.kind()==KComplexArray) {
+		fft(f,u,+1,d-ArrayBase);
+	}
+	return 0;
+}
+
+[f] = realFFT(u; dim)
+/* realFFT(u) gives the Fast Fourier Transform of real array u.
+   If u's rank is more than one, the transform is computed
+   only along the first dimension (many independent 1D
+   transforms).
+
+   realFFT(u,dim) computes the FFT along the specified dimension.
+   The first dimension is labeled 1 and so on.
+
+   The result of realFFT() is the same as FFT() except that only
+   nonnegative frequency components are returned. The result is
+   always complex array. The first component (0 frequency) has always
+   zero imaginary part. If the transform length is even, the last
+   component has zero imaginary part as well. Notice that these
+   conventions are different from some generally used C and Fortran
+   library routines, which return a real array force-fitted
+   in the same space as the input array by not storing the zero
+   imaginary parts. The Tela convention allows you to manipulate the
+   result in k-space more easily because it is already complex.
+
+   realFFT is the most efficient when the transform length is
+   a product of small primes.
+   
+   See also: invrealFFT, FFT, sinFFT, cosFFT, sinqFFT, cosqFFT, Lomb.
+   Error codes:
+   -1: First argument not a real array
+   -2: Second argument not integer
+   -3: Second argument out of range
+   */
+{
+	if (u.kind() != KIntArray && u.kind() != KRealArray) return -1;
+	if (u.length()==0) return 0;
+	const int D = u.rank();
+	int d=1;
+	if (Nargin==2) {
+		if (dim.kind()!=Kint) return -2;
+		d = dim.IntValue();
+		if (d<1 || d>D) return -3;
+	}
+	d-= ArrayBase;
+	if (u.kind()==KIntArray) {
+		Tobject u2;
+		Add(u2,u,Tobject(0.0));
+		rfft(f,u2,-1,d,false);
+	} else if (u.kind()==KRealArray) {
+		rfft(f,u,-1,d,false);
+	}
+	return 0;
+}
+
+[f] = invrealFFT(u; dim,oddevenspec)
+/* invrealFFT() is the inverse of realFFT().
+   invrealFFT(u,dim,"even") and invrealFFT(u,dim,"odd") specifies
+   even or odd transform length, respectively.
+   invrealFFT(u,dim,N) uses the same evenness as the integer N has.
+
+   If the evenness is not specified explicitly, the imaginary parts
+   of the highest frequency components are tested. If they are all zero
+   the transform length is even, otherwise odd. However, this automatic
+   method will fail if the imaginary parts are not EXACTLY zero. If you
+   use multiple FFTs to solve a PDE, for example, you should probably
+   specify the evenness explicitly.
+
+   See also: realFFT.
+   Error codes:
+   -1: First argument not a complex array
+   -2: Second argument not integer
+   -3: Second argument out of range
+   -4: Third argument not "even", "odd" or an integer
+   */
+{
+	if (!u.IsNumericalArray()) return -1;
+	if (u.length()==0) return 0;
+	const int D = u.rank();
+	int d=1;
+	if (Nargin==2) {
+		if (dim.kind()!=Kint) return -2;
+		d = dim.IntValue();
+		if (d<1 || d>D) return -3;
+	}
+	int isodd = -1;
+	if (Nargin==3) {
+		if (oddevenspec.kind() == Kint)
+			isodd = (oddevenspec.IntValue() % 2 == 1);
+		else if (oddevenspec.IsString()) {
+			Tstring SPEC = oddevenspec;
+			if (!strcmp("even",(char*)SPEC))
+				isodd = 0;
+			else if (!strcmp("odd",(char*)SPEC))
+				isodd = 1;
+			else
+				return -4;
+		} else
+			return -4;
+	}
+	d-= ArrayBase;
+	Tint jmax = u.dims()[d];
+	if (jmax < 2) {f=u; return 0;}		// Return f=u if length is one to avoid problems in rfft
+	if (isodd == -1) {		// isodd not determined by 3rd argument, study Im(highest frequency)
+		Tint imax, kmax;
+		imax = 1;
+		int d1;
+		NOVECTOR for (d1=0; d1<d; d1++) imax*= u.dims()[d1];
+		kmax = u.length()/(imax*jmax);
+		Tint frdims[MAXRANK];
+		NOVECTOR for (d1=0; d1<D; d1++) frdims[d1] = u.dims()[d1];
+		Tint i,j,k;
+		isodd = 0;
+		for (i=0; i<imax; i++) {VECTORIZED for (k=0; k<kmax; k++)
+			if (imag(u.ComplexPtr()[i*jmax*kmax + (jmax-1)*kmax + k]) != 0.) {
+				isodd = 1;
+				break;
+			}
+		}
+	}
+	const bool oddflag = (isodd == 1);
+	if (u.kind()==KIntArray || u.kind()==KRealArray) {
+		Tobject u2;
+		Add(u2,u,Tobject(0.0,0.0));
+		rfft(f,u2,+1,d,oddflag);
+	} else if (u.kind()==KComplexArray) {
+		rfft(f,u,+1,d,oddflag);
+	}
+	return 0;
+}

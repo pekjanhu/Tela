@@ -1,0 +1,271 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="LinuxDoc-Tools 0.9.21">
+ <TITLE>Builtin Tela functions: CDF.ct</TITLE>
+ <LINK HREF="telafuncsSectioned-15.html" REL=next>
+ <LINK HREF="telafuncsSectioned-13.html" REL=previous>
+ <LINK HREF="telafuncsSectioned.html#toc14" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="telafuncsSectioned-15.html">Next</A>
+<A HREF="telafuncsSectioned-13.html">Previous</A>
+<A HREF="telafuncsSectioned.html#toc14">Contents</A>
+<HR>
+<H2><A NAME="s14">14.</A> <A HREF="telafuncsSectioned.html#toc14">CDF.ct</A></H2>
+
+<P>This section describes functions from file CDF.ct.</P>
+
+<H2><A NAME="EPOCHbreakdown"></A> <A NAME="ss14.1">14.1</A> <A HREF="telafuncsSectioned.html#toc14.1">EPOCHbreakdown</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[year,month,day,hour,minute,second,msec] = EPOCHbreakdown(epoch)
+ [year,month,day,hour,minute,second,msec] = EPOCHbreakdown(epoch)
+   breaks down the epoch value (number of milliseconds since
+   01-Jan-0000 00:00:00.000) into year (4-digit), month (1-12), day (1-31),
+   minute (0-59), second (0-59) and millisecond (0-999) values (integers).
+   The argument must be a real scalar or array.
+</PRE>
+
+See also: 
+<A HREF="#computeEPOCH">computeEPOCH</A>, 
+<A HREF="#parseEPOCH">parseEPOCH</A>, 
+<A HREF="#encodeEPOCH">encodeEPOCH</A>.
+<PRE>
+   Error codes:
+   -1: Argument not real scalar or array
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="computeEPOCH"></A> <A NAME="ss14.2">14.2</A> <A HREF="telafuncsSectioned.html#toc14.2">computeEPOCH</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[epoch] = computeEPOCH(year,month,day,hour,minute,second,msec)
+ computeEPOCH(year,month,day,hour,minute,second,msec)
+   returns the number of milliseconds since 01-Jan-0000 00:00:00.000
+   as a real number.
+   The arguments must be integer scalars or arrays.
+   The arrays must be of the same sizes, but a mixture of arrays and
+   scalars is allowed. The result is array if any of the inputs is.
+   If an illegal component is detected the result(ing component) will
+   be -1.0.
+</PRE>
+
+See also: 
+<A HREF="#EPOCHbreakdown">EPOCHbreakdown</A>, 
+<A HREF="#parseEPOCH">parseEPOCH</A>, 
+<A HREF="#encodeEPOCH">encodeEPOCH</A>.
+<PRE>
+   Error codes:
+   -1: Argument not integer
+   -2: Arguments of incompatible dimensions
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="encodeEPOCH"></A> <A NAME="ss14.3">14.3</A> <A HREF="telafuncsSectioned.html#toc14.3">encodeEPOCH</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[s] = encodeEPOCH(epoch)
+ encodeEPOCH(epoch) returns the character string
+   encoding of the given epoch value (number of milliseconds
+   since 01-Jan-0000 00:00:00.000) as dd-mmm-yyyy hh:mm:ss:ccc.
+</PRE>
+
+See also: 
+<A HREF="#parseEPOCH">parseEPOCH</A>, 
+<A HREF="#computeEPOCH">computeEPOCH</A>, 
+<A HREF="#EPOCHbreakdown">EPOCHbreakdown</A>.
+<PRE>
+   Error codes:
+   -1: Argument not a real scalar
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="export_CDF"></A> <A NAME="ss14.4">14.4</A> <A HREF="telafuncsSectioned.html#toc14.4">export_CDF</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[] = export_CDF(fn...)
+ export_CDF("fyle"[,flags][,"varables"]...) writes the named global
+   variables in CDF file "fyle.cdf". The arguments after the file name
+   must be either strings (global variable names) or integer scalars giving
+   optional flags.
+   export_CDF("fyle"[,flags]) writes all global variables.
+   Integer arrays are written using 1-byte or 2-byte signed or unsigned
+   storage, if possible.
+   Strings and chars are written as CDF_CHAR type if in range -127..127.
+
+   Supported symbolic flags (to combine, use addition):
+     CDF_FLOAT    Write reals using 4 bytes
+     CDF_DOUBLE   Write reals using 8 bytes (the default)
+     CDF_RECORD   Turn first dimension to 'record dimension'
+     CDF_NORECORD Do not (the default)
+   For example:
+     export_CDF("fyle.cdf",CDF_FLOAT+CDF_RECORD,"A",CDF_NORECORD,"B")
+   stores global variables A and B using floats, if they are real arrays,
+   and turning the first dimension of A into a record dimension.
+   Thus the flags are effective for those variables that follow, unless
+   turned off by other flags. The flags are not remembered between calls.
+</PRE>
+
+See also: 
+<A HREF="#import_CDF">import_CDF</A>.
+<PRE>
+   Error codes:
+   -1: First argument not a string
+   -2: Fatal CDF library error
+   -5: Rest of the args are not strings or int scalars
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="import_CDF"></A> <A NAME="ss14.5">14.5</A> <A HREF="telafuncsSectioned.html#toc14.5">import_CDF</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[] = import_CDF(fn...)
+ import_CDF("fyle") reads the variables in CDF file "fyle.cdf"
+   into Tela workspace. Notice that you can leave out the suffix .cdf.
+
+   import_CDF("fyle","var1","var2",...) reads only variables with
+   specified names.
+
+   CDF 'record dimensions' are turned into the first dimension of the
+   Tela arrays. Likewise, CDF 'number of elements', which is used for
+   character strings, is turned into the last dimension. Thus you get
+   all the data stored in the file in all cases.
+   
+   Use import_CDF if you want to load all variables and their names
+   suit your purposes and it is OK to load them into global variables.
+   import_CDF allows you to control which variables to read, but not
+   change their names or load them into local variables.
+   See read_CDF if you rather want to load only some variables and
+   you want to give them new names or load them into local variables.
+   
+   Extra services:
+   - Uncompresses and reads *.cdf.gz files automatically (using scratch file)
+</PRE>
+
+See also: 
+<A HREF="#read_CDF">read_CDF</A>, 
+<A HREF="#export_CDF">export_CDF</A>.
+<PRE>
+   Error codes:
+   1: Loading INT2/UINT2 CDF data, but this Tela kernel has sizeof(short int) != 2
+   2: Loading INT4/UINT4 CDF data, but this Tela kernel has sizeof(int) != 4
+   3: Loading FLOAT CDF data, but this Tela kernel has sizeof(float) != 4
+   4: Loading DOUBLE CDF data, but this Tela kernel has sizeof(double) != 8
+   5: Empty variable name in CDF file - ignoring
+   6: Too high rank in CDF file for this Tela kernel (variable(s) skipped)
+   -1: First argument not a string
+   -2: Fatal CDF library error
+   -3: Unsupported data type
+   -5: Function called with more than one argument and the rest are not all strings
+   -6: Could not generate temporary file
+   -10: Internal error
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="parseEPOCH"></A> <A NAME="ss14.6">14.6</A> <A HREF="telafuncsSectioned.html#toc14.6">parseEPOCH</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[epoch] = parseEPOCH(s)
+ parseEPOCH(epochstring) parses an epoch string
+   and returns the epoch value (number of milliseconds since
+   01-Jan-0000 00:00:00.000). The epoch string must be of the
+   form dd-mmm-yyyy hh:mm:ss.ccc where
+     dd   is the day of month (1-31)
+         mmm  is the month (Jan,Feb,Mar,Apr,May,Jun,Jul,Aug,Sep,Oct,Nov,Dec)
+         yyyy is the year
+         hh   is the hour (0-23)
+     mm   is the minute (0-59)
+         sec  is the second (0-59)
+         ccc  is the millisecond (0-999)
+   If an invalid string is given, -1.0 is returned.
+</PRE>
+
+See also: 
+<A HREF="#computeEPOCH">computeEPOCH</A>, 
+<A HREF="#EPOCHbreakdown">EPOCHbreakdown</A>, 
+<A HREF="#encodeEPOCH">encodeEPOCH</A>.
+<PRE>
+   Error codes:
+   -1: Argument not a string
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<H2><A NAME="read_CDF"></A> <A NAME="ss14.7">14.7</A> <A HREF="telafuncsSectioned.html#toc14.7">read_CDF</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[...] = read_CDF(fn...)
+ read_CDF("fyle","varname") reads the variable "varname"
+   in CDF file "fyle.cdf" and returns its value.
+   You can leave out the suffix .cdf from filename.
+   It can also read *.cdf.gz files, uncompressing them
+   automatically.
+
+   [out1,out2,...] = read_CDF("fyle","name1","name2",...)
+   reads several variables and assigns them into the
+   output parameters in order. There must be at least as
+   many names as there are outputs; if there are more,
+   a warning message is given.
+
+   CDF 'record dimensions' are turned into the first dimension of the
+   Tela arrays. Likewise, CDF 'number of elements', which is used for
+   character strings, is turned into the last dimension. Thus you get
+   all the data stored in the variables in all cases.
+
+   Use read_CDF if you want to load only some variables and/or want
+   to give them new names or load them into local variables.
+   If it is OK to read the variables with their default names into
+   global variables, it is easier to use import_CDF.
+   
+</PRE>
+
+See also: 
+<A HREF="#import_CDF">import_CDF</A>, 
+<A HREF="#export_CDF">export_CDF</A>.
+<PRE>
+   Error codes:
+   1: Loading INT2/UINT2 CDF data, but this Tela kernel has sizeof(short int) != 2
+   2: Loading INT4/UINT4 CDF data, but this Tela kernel has sizeof(int) != 4
+   3: Loading FLOAT CDF data, but this Tela kernel has sizeof(float) != 4
+   4: Loading DOUBLE CDF data, but this Tela kernel has sizeof(double) != 8
+   5: Empty variable name in CDF file - ignoring
+   6: Too high rank in CDF file for this Tela kernel (variable(s) skipped)
+   10: More named variables than output args
+   -1: First argument not a string
+   -2: Fatal CDF library error
+   -3: Unsupported data type
+   -5: Function called with more than one argument and the rest are not all strings
+   -6: Could not generate temporary file
+   -10: Internal error
+   -11: More output args than named variables
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+
+<HR>
+<A HREF="telafuncsSectioned-15.html">Next</A>
+<A HREF="telafuncsSectioned-13.html">Previous</A>
+<A HREF="telafuncsSectioned.html#toc14">Contents</A>
+</BODY>
+</HTML>

@@ -1,0 +1,10 @@
+#!/bin/sh
+#
+for i in t*.C
+do
+	echo "$i:"
+	sed -e 's/a\.x/a.RealValue()/g' <$i | sed -e 's/b\.x/b.RealValue()/g' >$i.1
+	sed -e 's/a\.i/a.IntValue()/g' <$i.1 | sed -e 's/b\.i/b.IntValue()/g' >$i
+	sed -e 's/a\.z/a.ComplexValue()/g' <$i | sed -e 's/b\.z/b.ComplexValue()/g' >$i.1
+	mv $i.1 $i
+done

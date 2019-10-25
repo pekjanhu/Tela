@@ -1,0 +1,123 @@
+=head1 NAME
+
+tela - TEnsor LAnguage
+
+=head1 SYNOPSIS
+
+B<tela>	S<[ B<-v> | B<--verbose> ]> S<[ B<-b> | B<--batch> ]>
+	S<[ B<-f> | B<--fast> ]> S<[ B<-s> | B<--silent> ]> S<[ B<-O>[I<level>] ]>
+	S<[ B<-e> I<tela-code> | B<--execute> I<tela-code> ]> S<[ I<files> ]>
+
+B<tela> S<B<-V> | B<--version>>
+
+B<tela> S<B<-?> | B<-h> | B<--help>>
+
+=head1 DESCRIPTION
+
+Start B<tela>; first execute I<tela-code>, then each of I<files> in
+turn (if any), finally enter interactive mode.
+
+Tela is a numerical computing environment mainly targeted for
+numerical simulation pre- and post-processing work.  The language
+supports arbitrary rank arrays (hence the name, TEnsor LAnguage), and
+has powerful programming capabilities including F90 style vector
+notation.  Two- and three- dimensional graphics is implemented by
+calling PlotMTV.  For 2D graphics, the SPPC interface is also
+available.
+
+The on-line help is intended as the primary source of documentation.
+The command S<B<help> I<topic>> gives help on I<topic>, where I<topic>
+can be individual reserved words, function names, etc.
+
+=head1 OPTIONS
+
+B<tela> accepts the following options:
+
+=over 8
+
+=item B<-b>, B<--batch>
+
+Quit after executing I<tela-code>, or I<files>.
+
+=item B<-e>, B<--execute> I<tela-code>
+
+Execute Tela expressions I<tela-code>.
+
+=item B<-f>, B<--fast>
+
+Do not source any initialization files; see L<"INITIALIZATION">.
+
+=item B<-O>[I<level>]
+
+Select optimization level.  B<-O0>, the default, means no
+optimization.  B<-O>, and B<-O1> enable flat-code optimization.
+
+=item B<-h>, B<-?>, B<--help>
+
+Print help message and exit.
+
+=item B<-s>, B<--silent>
+
+Suppress startup message, MIPS count, and FLOPS count.
+
+=item B<-v>, B<--verbose>
+
+Set verbose execution mode: list tree-codes and flat-codes.
+
+=item B<-V>, B<--version>
+
+Print version number and exit.
+
+=back
+
+=head1 INITIALIZATION
+
+Unless suppressed with the B<-f> or B<--fast> options B<tela> tries to
+source the file F<telainit.t> (or just F<telainit> if that
+exists).  The sourced files are searched in a directory path, which is
+obtained as follows:
+
+=over 4
+
+=item 1.
+
+A compiled-in default, typically
+C<"/usr/local/lib/tela/t:/usr/local/lib/tela/ct:/usr/local/lib/tela:.">
+
+=item 2.
+
+If set, the environment variable B<TELAPATH_SYSTEM> overrides
+the compiled-in default, or appends to it if it starts with a colon.
+
+=item 3.
+
+Similarly, if set, the environment variable B<TELAPATH> overrides
+the previous, or appends to them if it starts with a colon.
+
+=back
+
+The combined effect of the compiled-in default, B<TELAPATH_SYSTEM>,
+and B<TELAPATH> can be seen by giving the command B<telapath()> in
+Tela.
+
+The standard F<telainit.t> tries to source $HOME/F<.telainit.t>.
+
+=head1 ENVIRONMENT
+
+Besides B<TELAPATH> and B<TELAPATH_SYSTEM>, B<tela> recognizes the
+following environment variables: B<TELA_PLOTMTV> specifies the PlotMTV
+program to use (default: C<plotmtv>).  The function C<whos()> displays
+variables and uses the B<PAGER> (default: C<more>) and B<TELA_SORTER>
+(default: S<C<sort> C<-b> C<-f> C<-k> C<1>>) environment variables.
+
+=head1 SEE ALSO
+
+    telakka	Tela extension utility
+    ctpp	Tela preprocessor
+    plotmtv	Standard associated graphics package
+    sppc	Alternative graphics package
+    m2t		Matlab to Tela translator
+
+=head1 HISTORY
+
+Tela by S<Pekka Janhunen>; man page by S<Ch. L. Spiel>, 2000-12-7.

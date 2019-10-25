@@ -1,0 +1,158 @@
+#!/bin/sh
+#
+# mkfaq : produce fyle.faq.txt and fyle.faq.html from fyle.faq
+# PJ 30.11.1994
+# Generalized 28.2.1995 PJ.
+
+if [ $# -ne 1 ]; then
+	echo 'Usage: mkfaq file.faq'
+	echo '  produces file.faq.txt and file.faq.html from a FAQ'
+	echo '  master file.'
+	exit 1
+fi
+
+inputfile=$1
+
+qfile=qfile.mkfaqfile$$
+tmp=tmp.mkfaqfile$$
+header=header.mkfaqfile$$
+cp /dev/null "$header"
+cp /dev/null "$qfile"
+
+for html in false true
+do
+
+if [ "$html" = "true" ]
+then outfile=${inputfile}.html
+else outfile=${inputfile}.txt
+fi
+nawk -v "qfile=${qfile}" -v "header=${header}" -v "ishtml=${html}" '
+BEGIN {
+	Qmode = 0;
+	Amode = 0;
+	A2mode = 0;
+	Qno = 1;
+	sectno = 0;
+	QSeen = 0;
+	TitleWritten = 0
+	html = (ishtml == "true");
+	BigHeader = 2;
+}
+function prn (file) {
+	if (file == 1) print; else print >>file
+	if (html) {
+		if (length() == 0) {
+			if (file == 1) printf "<p>"; else printf "<p>" >>file
+		}
+	}
+}
+function StartQuoteMode() {
+	if (html) printf "<blockquote><code><pre>"
+}
+function EndQuoteMode() {
+	if (html) printf "</pre></code></blockquote>"
+}
+/\/Q\// {
+	Qmode = 1
+	QSeen = 1
+	next
+}
+/\/A\// {
+	Amode = 1
+	Qmode = 0
+	StartQuoteMode();
+	next
+}
+/\/Answer\// {
+	A2mode = 1
+	Amode = 1
+	Qmode = 0
+	StartQuoteMode();
+	next
+}
+/\/EndAnswer\// {
+	Amode = 0
+	A2mode = 0
+	Qmode = 0
+	EndQuoteMode();
+	printf ""
+	next
+}
+/^[A-Z][A-Z 0-9]*$/ {
+	sectno++
+	Qno = 1
+	QSeen = 1
+	TitleMode = 1
+	if (html) {printf "<h2>" >>qfile; printf "<h2>"}
+	prn(qfile)
+	#prn(1)
+	print
+	if (html) {printf "</h2>" >>qfile; printf "</h2>"}
+	next
+}
+/.*/ {
+	TitleMode = 0
+	# Substitute HTML abbreviations
+	if (html) {
+		sub("<","\\&lt;");
+		sub(">","\\&gt;");
+	}
+	if (Qmode) {
+		if (sectno==0) sectno=1;
+		if (html) printf "<a name=\"Q%d.%d\"> <h%d>",sectno,Qno,SmallHeader
+		printf "Q%d.%d: %s",sectno,Qno,$0
+		if (substr($0,length())!="." && substr($0,length())!="!") printf "?"
+		if (html) printf "</h%d></a>",SmallHeader
+		printf "\n"
+		if (html) printf "<a href=\"#Q%d.%d\">",sectno,Qno >>qfile
+		printf "Q%d.%d: %s",sectno,Qno,$0 >>qfile
+		if (substr($0,length())!="." && substr($0,length())!="!") printf "?" >>qfile
+		if (html) printf "</a><p>" >>qfile
+		printf "\n" >>qfile
+		Qmode = 0;
+		Qno++;
+	} else if (Amode) {
+		#prn(1)
+		print
+		if (!A2mode) {
+			if (length()==0) {
+				Amode = 0;
+				EndQuoteMode();
+			}
+		}
+	} else {
+		if (QSeen) {
+			prn(1)
+		} else {
+			if (html) {
+				if (!TitleWritten) {
+					printf "<title>Tela Frequently Asked Questions</title>\n" >>header
+					printf "<h1>%s</h1>\n",$0 >>header
+					TitleWritten = 1
+				} else
+					printf "<h4>%s</h4>\n",$0 >>header
+			} else prn(header)
+		}
+	}
+	next
+}
+END {
+	if (html) {
+		printf "<hr>\n<address>tela-bugs@fmi.fi</address><p>\n"
+		printf "<a href=\"http://www.geo.fmi.fi/prog/tela.html\">Back to Tela home page</a>\n"
+	}
+}
+' <$inputfile >"$tmp"
+
+if [ "$html" = "true" ]
+then echo '<hr><h1>Answers</h1>' >>"$qfile"
+else echo '
+ANSWERS TO QUESTIONS
+' >>"$qfile"
+fi
+
+cat "$header" "$qfile" "$tmp" >$outfile
+rm "$qfile" "$header" "$tmp"
+
+done
+
